@@ -2,6 +2,7 @@
 
 import type { JSX } from "react";
 import Link from "next/link";
+import { QMark } from "@/components/QMark";
 import { cn } from "@/lib/utils";
 import { sessionTokenKey } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
@@ -14,9 +15,9 @@ interface WordmarkProps {
 }
 
 /**
- * Logo option B — paper chip carrying a serif Q, locked up with the mono
- * wordmark. Drawn entirely from the ticket's own vocabulary, and legible at
- * 20px and in black-and-white print.
+ * Logo option B — paper chip carrying the Q mark, locked up with the mono
+ * wordmark. The same mark as the browser favicon (app/icon.svg), so the tab
+ * and the header are one identity rather than two different Q's.
  *
  * Home is not a fixed address. For a visitor it is the landing page; for anyone
  * holding a session it is their queues, which is the screen they actually came
@@ -38,12 +39,7 @@ export function Wordmark({ className, asLink = true, size = 22 }: WordmarkProps)
         className="grid shrink-0 place-items-center rounded-[var(--radius-control)] bg-chip-bg text-chip-fg"
         style={{ width: size, height: size }}
       >
-        <span
-          className="font-serif leading-none"
-          style={{ fontSize: size * 0.64, marginTop: size * 0.04 }}
-        >
-          Q
-        </span>
+        <QMark size={size * 0.64} />
       </span>
       <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-strong">Qless</span>
     </span>
