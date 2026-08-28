@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Lint and build
+    runs-on: ubuntu-latest
+
+    env:
+      # Baked into the client bundle at build time, so the build needs a value
+      # to compile against. It is a public URL, never a secret — the real one
+      # comes from the Vercel project's environment variables.
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      # next build type-checks the whole project, so there is no separate tsc step.
+      - run: npm run build
