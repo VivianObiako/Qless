@@ -1,0 +1,697 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+  Qless — "Ticket Pass".
+
+  A physical ticket rendered in serif numerals on a neutral near-black shell.
+  Category-neutral by design: the only per-venue variable is the business name.
+  There is no accent-colour system.
+
+  Escalation is carried by INVERSION, not hue. Vermilion appears on exactly two
+  surfaces in the whole product — the "it's your turn" screen and step 05 of the
+  landing page. Using it anywhere else stops it meaning "your turn".
+*/
+
+:root {
+  color-scheme: dark;
+
+  --shell: #111111;
+  --shell-soft: #1a1a1a;
+  --shell-mid: #262626;
+  --shell-line: #2e2e2e;
+
+  --paper: #f7f3ea;
+  --paper-ink: #1a1714;
+  --paper-line: #c6bca9;
+  --paper-muted: #756d63;
+
+  --strong: #ffffff;
+  --dim: #b4b4b4;
+  --muted: #8e8e8e;
+  --faint: #7d7d7d;
+
+  --board-row: #1a1a1a;
+  --board-serving-bg: #262626;
+  --board-serving-fg: #ffffff;
+  --board-hi-bg: #ffffff;
+  --board-hi-fg: #111111;
+
+  /* The logo chip has to stay legible whichever surface it lands on. */
+  --chip-bg: #f7f3ea;
+  --chip-fg: #1a1714;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --shell: #efefec;
+  --shell-soft: #ffffff;
+  --shell-mid: #e5e5e5;
+  --shell-line: #d4d4d4;
+
+  --paper: #fffdf7;
+  --paper-ink: #1a1714;
+  --paper-line: #c6bca9;
+  --paper-muted: #756d63;
+
+  --strong: #111111;
+  --dim: #515151;
+  --muted: #636363;
+  --faint: #808080;
+
+  --board-row: #ffffff;
+  --board-serving-bg: #e5e5e5;
+  --board-serving-fg: #111111;
+  --board-hi-bg: #111111;
+  --board-hi-fg: #ffffff;
+
+  --chip-bg: #111111;
+  --chip-fg: #ffffff;
+}
+
+/*
+  The operator's tool, and the print sheet.
+
+  Light mode is the warm paper palette the dashboard has always run on — a
+  working screen under shop lighting. Dark mode defines nothing at all and lets
+  the shell through, so the dashboard reads as part of the same product as every
+  other screen rather than a permanently lit exception.
+
+  The print sheet takes this palette unconditionally, whatever the theme: it is
+  a document headed for a printer, and ink on cream is what survives the browser
+  dropping background colours.
+*/
+[data-theme="light"] [data-surface="paper"],
+[data-surface="print"] {
+  --shell: #f7f3ea;
+  --shell-soft: #ede6d9;
+  --shell-mid: #ddd4c4;
+  --shell-line: #ddd4c4;
+
+  --strong: #1a1714;
+  --dim: #585248;
+  --muted: #686158;
+  --faint: #8b8377;
+
+  --board-row: #ede6d9;
+  --board-serving-bg: #ede6d9;
+  --board-serving-fg: #1a1714;
+  --board-hi-bg: #1a1714;
+  --board-hi-fg: #f7f3ea;
+
+  --chip-bg: #1a1714;
+  --chip-fg: #f7f3ea;
+}
+
+/*
+  State 03 — "you're next".
+
+  Escalation is a reversal, so this flips against whatever the base theme is:
+  paper on a dark base, ink on a light one. Board, Notice and the ghost buttons
+  all re-tone from these variables without a single bespoke class.
+*/
+[data-surface="flip"] {
+  --shell: #f7f3ea;
+  --shell-soft: #ede6d9;
+  --shell-mid: #ddd4c4;
+  --shell-line: #ddd4c4;
+
+  --strong: #1a1714;
+  --dim: #585248;
+  --muted: #686158;
+  --faint: #8b8377;
+
+  --board-row: #ede6d9;
+  --board-serving-bg: #ede6d9;
+  --board-serving-fg: #1a1714;
+  --board-hi-bg: #1a1714;
+  --board-hi-fg: #f7f3ea;
+
+  --chip-bg: #1a1714;
+  --chip-fg: #f7f3ea;
+
+  --flip-ticket-bg: #1a1714;
+  --flip-ticket-fg: #f7f3ea;
+  --flip-ticket-line: rgb(247 243 234 / 0.3);
+  --flip-ticket-muted: rgb(247 243 234 / 0.6);
+}
+
+[data-theme="light"] [data-surface="flip"] {
+  --shell: #1a1714;
+  --shell-soft: #262320;
+  --shell-mid: #322e2a;
+  --shell-line: #3a3530;
+
+  --strong: #f7f3ea;
+  --dim: #b8b0a2;
+  --muted: #938a7f;
+  --faint: #8a8177;
+
+  --board-row: #262320;
+  --board-serving-bg: #322e2a;
+  --board-serving-fg: #f7f3ea;
+  --board-hi-bg: #f7f3ea;
+  --board-hi-fg: #1a1714;
+
+  --chip-bg: #f7f3ea;
+  --chip-fg: #1a1714;
+
+  --flip-ticket-bg: #f7f3ea;
+  --flip-ticket-fg: #1a1714;
+  --flip-ticket-line: #c6bca9;
+  --flip-ticket-muted: #756d63;
+}
+
+/*
+  The room display.
+
+  Pinned to the dark shell in either theme, for the same reason the print sheet
+  is pinned to paper: nobody chooses a theme on a screen bolted to a wall, and
+  white numerals on near-black is what carries a number across a room. The
+  label gold is a display affordance — the departure-board idiom — and is not
+  the signal colour; the signal still means one thing and appears in one place.
+*/
+[data-surface="display"] {
+  color-scheme: dark;
+
+  --shell: #111111;
+  --shell-soft: #1a1a1a;
+  --shell-mid: #262626;
+  --shell-line: #2e2e2e;
+
+  --strong: #ffffff;
+  --dim: #b4b4b4;
+  --muted: #8e8e8e;
+  --faint: #7d7d7d;
+
+  --board-row: #1a1a1a;
+  --board-serving-bg: #262626;
+  --board-serving-fg: #ffffff;
+  --board-hi-bg: #ffffff;
+  --board-hi-fg: #111111;
+
+  --chip-bg: #f7f3ea;
+  --chip-fg: #1a1714;
+}
+
+/*
+  State 04 — the turn screen. The only vermilion surface in the product.
+
+  The hue is a shade deeper than the handoff's #E8552F. White on that lands at
+  3.64:1, which carries the 250px numeral and fails everything else on the
+  screen — the label, the line of copy, and both buttons. #CE4B2A is the
+  lightest vermilion that puts white text over 4.5:1, and it still reads on the
+  dark shell as large text where step 05 of the landing uses it.
+
+  Every text tone here is therefore plain white. Tinted whites lose the ratio
+  again — 80% white on this ground is 3.94:1 — so hierarchy on this screen is
+  carried by size and weight, which is what the direction says anyway.
+*/
+[data-surface="signal"] {
+  --shell: #ce4b2a;
+  --shell-soft: transparent;
+  --shell-line: rgb(255 255 255 / 0.35);
+  --strong: #ffffff;
+  --dim: #ffffff;
+  --muted: #ffffff;
+  --faint: rgb(255 255 255 / 0.5);
+}
+
+@theme inline {
+  --color-shell: var(--shell);
+  --color-shell-soft: var(--shell-soft);
+  --color-shell-mid: var(--shell-mid);
+  --color-shell-line: var(--shell-line);
+
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-line: var(--paper-line);
+  --color-paper-muted: var(--paper-muted);
+
+  --color-strong: var(--strong);
+  --color-dim: var(--dim);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-board-row: var(--board-row);
+  --color-board-serving-bg: var(--board-serving-bg);
+  --color-board-serving-fg: var(--board-serving-fg);
+  --color-board-hi-bg: var(--board-hi-bg);
+  --color-board-hi-fg: var(--board-hi-fg);
+
+  --color-chip-bg: var(--chip-bg);
+  --color-chip-fg: var(--chip-fg);
+
+  /* Signal colour. One meaning, one place. */
+  --color-signal: #ce4b2a;
+  /* The room display's own label gold — a display affordance, not a signal. */
+  --color-display-label: #c9a227;
+
+  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --radius-shell: 24px;
+  --radius-panel: 12px;
+  --radius-ticket: 10px;
+  --radius-control: 8px;
+  --radius-badge: 3px;
+}
+
+/*
+  shadcn's semantic variables mapped onto the shell palette, so registry
+  components inherit the direction rather than importing their own.
+*/
+:root {
+  --background: var(--shell);
+  --foreground: var(--strong);
+  --card: var(--shell-soft);
+  --card-foreground: var(--strong);
+  --popover: var(--shell-soft);
+  --popover-foreground: var(--strong);
+  --primary: var(--paper);
+  --primary-foreground: var(--paper-ink);
+  --secondary: var(--shell-mid);
+  --secondary-foreground: var(--strong);
+  --muted-bg: var(--shell-mid);
+  --muted-foreground: var(--muted);
+  --accent: var(--shell-mid);
+  --accent-foreground: var(--strong);
+  --destructive: #ce4b2a;
+  --border: var(--shell-line);
+  --input: var(--shell-line);
+  --ring: var(--strong);
+  --radius: 8px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: 3px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    @apply font-mono;
+  }
+
+  body {
+    background-color: var(--shell);
+    color: var(--strong);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/*
+  Every queue number in the product is Instrument Serif with tabular figures,
+  so a 9 becoming a 10 does not shift the layout around it.
+*/
+.numeral {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 0.8;
+}
+
+/* The state-03 ticket, whichever way the flip goes. */
+.ticket-flip {
+  background-color: var(--flip-ticket-bg);
+  color: var(--flip-ticket-fg);
+}
+
+.ticket-flip-line {
+  border-color: var(--flip-ticket-line);
+}
+
+.ticket-flip-muted {
+  color: var(--flip-ticket-muted);
+}
+
+/* Mono labels: uppercase, widely tracked, small. */
+.label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--strong);
+  outline-offset: 2px;
+}
+
+/*
+  The dashboard's edge drawer.
+
+  Closed, it is hinged back on its left edge and pushed off the side; opening
+  swings it flat. The pivot is slight on purpose — fourteen degrees reads as
+  "pulled from the edge" without the panel ever being edge-on, and the text
+  inside it is a list of business names somebody is reading in a hurry. A
+  control opened several times a shift cannot afford a flourish that costs
+  legibility, however well it plays the first time.
+
+  Breakpoint, not state, decides whether it is there at all: from 1280px the
+  panel is simply part of the page and the handle is gone. Below that the
+  counter cannot spare 230px, so it overlays and closes again on the next
+  navigation — the chrome is re-rendered per screen, so that is free.
+
+  Written here rather than as utilities because the open state has to survive
+  the breakpoint overriding it, and a media query is the one thing a class
+  toggle cannot express.
+*/
+.drawer-panel {
+  transform-origin: left center;
+  transform: perspective(1200px) rotateY(-14deg) translateX(-100%);
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    transform 220ms cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 220ms cubic-bezier(0.65, 0, 0.35, 1),
+    visibility 220ms;
+}
+
+.drawer-panel[data-open="true"] {
+  transform: perspective(1200px) rotateY(0deg) translateX(0);
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (min-width: 1280px) {
+  .drawer-panel {
+    transform: none;
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* The live dot is the only ambient motion in the product. */
+@keyframes qless-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes qless-numeral-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.06em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes qless-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+  The load state: a queue arranging itself. Rows arrive from alternating sides
+  and settle flush, which is the board's own vocabulary rather than a spinner
+  borrowed from somewhere else.
+*/
+@keyframes qless-arrange-left {
+  0% {
+    transform: translateX(-18%);
+    opacity: 0;
+  }
+  20%,
+  78% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-18%);
+    opacity: 0;
+  }
+}
+
+@keyframes qless-arrange-right {
+  0% {
+    transform: translateX(18%);
+    opacity: 0;
+  }
+  20%,
+  78% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(18%);
+    opacity: 0;
+  }
+}
+
+.animate-arrange-left {
+  animation: qless-arrange-left 2600ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.animate-arrange-right {
+  animation: qless-arrange-right 2600ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/*
+  The landing reel: a strip of tickets feeding past a cutter, each tearing off
+  at its perforation, until the last one is left standing.
+
+  The strip advances one ticket-width per step. Tearing is choreographed by
+  delay rather than simulated — the tickets are not colliding with anything,
+  they are hitting their cue.
+*/
+@keyframes qless-reel-advance {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(calc(-1 * var(--reel-step)));
+  }
+  50% {
+    transform: translateX(calc(-2 * var(--reel-step)));
+  }
+  75% {
+    transform: translateX(calc(-3 * var(--reel-step)));
+  }
+  100% {
+    transform: translateX(calc(-4 * var(--reel-step)));
+  }
+}
+
+@keyframes qless-ticket-tear {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(150%) rotate(-7deg);
+    opacity: 0;
+  }
+}
+
+.animate-reel-advance {
+  animation: qless-reel-advance 1040ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.animate-ticket-tear {
+  animation: qless-ticket-tear 340ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/*
+  While the reel is on screen the landing holds still underneath it: its
+  entrance is paused and the hero ticket stays invisible until the reel's own
+  final ticket has finished travelling into its place.
+*/
+html[data-reel="playing"] .animate-reveal {
+  animation-play-state: paused;
+}
+
+html[data-reel="playing"] #hero-ticket,
+html[data-reel="landing"] #hero-ticket {
+  opacity: 0;
+}
+
+/* A single entrance on load. Not ambient — it plays once and stops. */
+@keyframes qless-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal {
+  opacity: 0;
+  animation: qless-reveal 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-pulse-live {
+  animation: qless-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-pulse-called {
+  animation: qless-pulse 1.1s ease-in-out infinite;
+}
+
+.animate-numeral-in {
+  animation: qless-numeral-in 260ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.animate-row-in {
+  animation: qless-row-in 180ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/*
+  Reduced motion keeps the colour and inversion changes — they carry meaning —
+  and drops the pulse and the transitions.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .animate-reel-advance,
+  .animate-ticket-tear {
+    animation: none !important;
+  }
+
+  .animate-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-arrange-left,
+  .animate-arrange-right {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+  The print sheet. Everything a printer cannot use — the toolbar, the page
+  padding, the rounded panel — comes off, and the sheet fills the page. Colours
+  are left to the browser's own background suppression, which is what turns the
+  cream surface into plain white paper.
+*/
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  /* A dark shell is a screen decision. Paper starts white. */
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  .print-actions {
+    display: none !important;
+  }
+
+  /*
+    The recovery code on paper — the copy that goes in the drawer behind the
+    till. The screen around it is dropped by `print:hidden`; what is left is
+    retoned here, because neither surface survives a printer on its own:
+    browsers drop background colours, so the dark shell arrives as white with
+    near-white text on it, and the cream ticket arrives as nothing at all.
+
+    Scoped by `:has()` rather than by a class on the sheet, because the shell
+    the sheet sits inside belongs to the page and not to the component — a
+    document holding a recovery code is a document that prints as ink on white,
+    all the way up.
+  */
+  html:has(.recovery-sheet) {
+    --shell: #ffffff;
+    --shell-soft: #ffffff;
+    --shell-mid: #ffffff;
+    --shell-line: #6b6357;
+
+    --strong: #111111;
+    --dim: #3d3a35;
+    --muted: #3d3a35;
+    --faint: #6b6357;
+
+    --paper: transparent;
+    --paper-ink: #111111;
+    --paper-line: #6b6357;
+    --paper-muted: #3d3a35;
+
+    --chip-bg: transparent;
+    --chip-fg: #111111;
+  }
+
+  .recovery-ticket {
+    border: 1px solid #111111;
+  }
+
+  .print-sheet {
+    aspect-ratio: auto !important;
+    /*
+      Not 100vh. The sheet should fill the page, but a rounding difference
+      between the page box and the viewport unit is enough to push the footer
+      onto a second, otherwise blank, sheet of paper.
+    */
+    min-height: 90vh;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    background: none !important;
+
+    /*
+      Retoned for ink rather than for a screen. Muted grey is a hierarchy cue
+      on a monitor and a smudge on a laser printer, and the logo chip has to
+      stop relying on its dark background — browsers drop background colours
+      when printing, which would leave a near-white Q on white paper.
+    */
+    --strong: #111111;
+    --muted: #3d3a35;
+    --faint: #6b6357;
+    --chip-bg: transparent;
+    --chip-fg: #111111;
+  }
+}
+
