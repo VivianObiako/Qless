@@ -49,10 +49,21 @@ export function TicketReel(): JSX.Element | null {
   const stripRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Match the strip's height to the hero ticket it is going to become. The
-  // hero card's height depends on how its copy wraps, so measuring beats
-  // hardcoding — and without this the morph would land with a visible jump.
+  // Whether the reel runs was already decided before first paint, by the
+  // script in lib/reel.ts. An unmarked document means this tab has seen it
+  // (or the visitor asked for less motion), so leave before measuring
+  // anything. Doing it here rather than in the initial state keeps the first
+  // client render identical to the server's, and being a layout effect it
+  // lands before paint, so nothing flashes.
   useIsomorphicLayoutEffect(() => {
+    if (document.documentElement.getAttribute(REEL_ATTR) !== "playing") {
+      setPhase("gone");
+      return;
+    }
+
+    // Match the strip's height to the hero ticket it is going to become. The
+    // hero card's height depends on how its copy wraps, so measuring beats
+    // hardcoding — and without this the morph would land with a visible jump.
     const hero = document.getElementById("hero-ticket");
     const strip = stripRef.current;
     if (!hero || !strip) return;
@@ -61,6 +72,8 @@ export function TicketReel(): JSX.Element | null {
 
   useEffect(() => {
     const root = document.documentElement;
+    if (root.getAttribute(REEL_ATTR) !== "playing") return;
+
     const timers: number[] = [];
 
     const finish = (): void => {
@@ -68,15 +81,6 @@ export function TicketReel(): JSX.Element | null {
       root.removeAttribute(REEL_ATTR);
       setPhase("gone");
     };
-
-    // A preloader with the motion taken out is just a delay. Skip it outright.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      root.removeAttribute(REEL_ATTR);
-      timers.push(window.setTimeout(() => setPhase("gone"), 0));
-      return () => {
-        for (const timer of timers) window.clearTimeout(timer);
-      };
-    }
 
     // The strip has finished advancing: fly the last ticket into the hero's
     // place and let the landing's own entrance start behind it.
