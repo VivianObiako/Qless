@@ -533,6 +533,24 @@
 }
 
 /*
+  data-reel-skip is set before first paint whenever the reel should not run at
+  all. The overlay is still present in the server-rendered HTML at that point
+  — React's initial state has to match on server and client — so without this
+  rule the browser paints it, its animations start, and only then does
+  hydration's layout effect unmount it: a one-frame flash of tearing tickets on
+  every refresh after the first. display:none never lets those animations
+  start in the first place, which is what actually stops the flash; the
+  layout effect still removes the element afterwards for a clean DOM.
+
+  data-reel="playing" is deliberately not used for this: it is cleared partway
+  through a real playthrough to cue the landing's own entrance, and hiding the
+  overlay on that would cut the morph short.
+*/
+html[data-reel-skip] .reel-overlay {
+  display: none;
+}
+
+/*
   While the reel is on screen the landing holds still underneath it: its
   entrance is paused and the hero ticket stays invisible until the reel's own
   final ticket has finished travelling into its place.
