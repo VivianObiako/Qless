@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="2" width="60" height="60" rx="13" fill="#111111"/>
+  <path fill-rule="evenodd" clip-rule="evenodd"
+        d="M50 32A18 18 0 1 1 14 32A18 18 0 1 1 50 32Z
+           M42 32A10 10 0 1 1 22 32A10 10 0 1 1 42 32Z"
+        fill="#f7f3ea"/>
+  <line x1="36" y1="36" x2="50" y2="50" stroke="#f7f3ea" stroke-width="10" stroke-linecap="round"/>
+</svg>
