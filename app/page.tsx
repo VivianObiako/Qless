@@ -63,7 +63,7 @@ export default function LandingPage(): JSX.Element {
           <div>
             <h1 className="animate-reveal font-serif text-[clamp(56px,11vw,104px)] leading-[0.92] tracking-[-0.035em] text-strong">
               Stop waiting
-              <br />
+              <div className="mt-2" />
               in line.
             </h1>
 
@@ -85,11 +85,17 @@ export default function LandingPage(): JSX.Element {
               >
                 Create a queue
               </Link>
-              <a
+              {/* <a
                 href="#how-it-works"
                 className="rounded-(--radius-control) border border-shell-line px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-[color,border-color,transform] hover:border-strong hover:text-strong active:scale-[0.99]"
               >
                 See how it works
+              </a> */}
+              <a
+                href="/enter"
+                className="rounded-(--radius-control) border border-shell-line px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-[color,border-color,transform] hover:border-strong hover:text-strong active:scale-[0.99]"
+              >
+                I have a code
               </a>
             </div>
 
@@ -102,12 +108,12 @@ export default function LandingPage(): JSX.Element {
               </MonoLabel>
               {/* Coming back on a new phone is not an error state, so the way
                   in sits on the front door rather than behind one. */}
-              <Link
+              {/* <Link
                 href="/enter"
                 className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted underline underline-offset-4 transition-colors hover:text-strong"
               >
                 I have a code
-              </Link>
+              </Link> */}
             </div>
           </div>
 
