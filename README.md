@@ -52,3 +52,43 @@ The end-to-end specs in `e2e/` need both the API and this app running.
 ## Docs
 
 Product docs are in `docs/`, shared with the backend repo.
+
+## Deploying
+
+The app deploys to Vercel; the API is a separate Render service.
+
+**1.** Import this repository on Vercel. It detects Next.js with no extra
+configuration.
+
+**2.** Set one environment variable:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | The Render service URL, e.g. `https://qless-api.onrender.com` |
+
+Set it for Production, Preview and Development. It is compiled into the client
+bundle, so a change needs a redeploy — and because it ships to the browser it
+must never hold a secret. There are no other environment variables, and nothing
+sensitive is committed.
+
+**3.** Add the resulting Vercel domain to the API's `ALLOWED_ORIGIN`. Both CORS
+and the WebSocket handshake check it, so the app cannot load data until this is
+done.
+
+### Preview deployments
+
+Every preview gets its own domain, and the API only answers origins it has been
+told about. `ALLOWED_ORIGIN` takes a comma-separated list, so add the preview
+domain alongside production:
+
+```
+ALLOWED_ORIGIN=https://qless.app,https://qless-git-my-branch.vercel.app
+```
+
+Without that, a preview build loads but every API call and the live socket fail.
+
+### The API sleeps on the free tier
+
+The Render free instance sleeps after about 15 minutes of inactivity, so the
+first request from a cold preview can take roughly 50 seconds. The queue screens
+show their loading state throughout rather than erroring.
