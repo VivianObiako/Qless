@@ -2,6 +2,7 @@ import type { JSX } from "react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { reelInitScript } from "@/lib/reel";
 import { DEFAULT_THEME, themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">): JSX.Element 
         {/* Applies the stored theme before first paint, so the shell is never
             painted in the wrong colour and then corrected. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: reelInitScript }} />
       </head>
       <body>
         {children}

@@ -4,6 +4,7 @@ import { HeroTicketStage } from "@/components/HeroTicketStage";
 import { MonoLabel } from "@/components/Label";
 import { MyQueuesLink } from "@/components/MyQueuesLink";
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { TicketReel } from "@/components/TicketReel";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const steps: Step[] = [
 export default function LandingPage(): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell">
+      <TicketReel />
       <SmoothScroll />
 
       <header className="border-b border-shell-mid">

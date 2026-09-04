@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useSyncExternalStore, type JSX, type PointerEvent } from "react";
 import { HeroTicket } from "./HeroTicket";
+import { REEL_ATTR } from "@/lib/reel";
 import { cn } from "@/lib/utils";
 
 /** How far the card leans when the cursor is at a corner, and how far it lifts. */
@@ -28,7 +29,11 @@ function usePrefersReducedMotion(): boolean {
 }
 
 interface HeroTicketStageProps {
-  /** Goes on the outer frame, which never transforms. */
+  /**
+   * Goes on the outer frame, which never transforms. The reel measures this
+   * element to know where to fly its own card to, so a tilted box here would
+   * land the load sequence off its mark.
+   */
   id?: string;
   className?: string;
 }
@@ -37,8 +42,9 @@ interface HeroTicketStageProps {
  * The landing page's hero ticket, made to behave like a card someone is holding.
  *
  * A mouse tips it on two axes and lifts it towards the viewer. A tap turns it
- * over onto its back, "No more waiting." — a flourish drawn from the product's
- * own vocabulary rather than invented for the landing page.
+ * over onto its back — the same "No more waiting." face the load reel resolves
+ * from, so the flourish is drawn from the product's own vocabulary rather than
+ * invented for the landing page.
  *
  * Transforms are written straight to the node instead of through state: a
  * pointer move fires far more often than a render is worth, and the position is
@@ -49,7 +55,12 @@ export function HeroTicketStage({ id, className }: HeroTicketStageProps): JSX.El
   const flipped = useRef(false);
   const reduced = usePrefersReducedMotion();
 
-  const armed = useCallback((): boolean => !reduced, [reduced]);
+  // The reel hides this element and flies its own copy into place. Tilting
+  // underneath would fight an animation the visitor is already watching.
+  const armed = useCallback(
+    (): boolean => !reduced && !document.documentElement.hasAttribute(REEL_ATTR),
+    [reduced],
+  );
 
   const paint = useCallback(
     (tiltX: number, tiltY: number, lift: number, durationMs: number): void => {
