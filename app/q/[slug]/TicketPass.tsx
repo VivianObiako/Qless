@@ -320,15 +320,7 @@ function WaitingScreen({
           <div className="flex-1 lg:hidden" />
 
           <div className="space-y-2">
-            {close && (
-              <PresenceButton
-                presence={presence}
-                value="on-my-way"
-                label="I'm on my way"
-                done="On my way"
-                onSet={setPresence}
-              />
-            )}
+            {close && <PresencePanel stage="close" presence={presence} onSet={setPresence} />}
             <Button variant="ghost" fullWidth onClick={onCancel}>
               Cancel my place
             </Button>
@@ -396,14 +388,7 @@ function NextScreen({
           <div className="flex-1 lg:hidden" />
 
           <div className="space-y-2">
-            <PresenceButton
-              presence={presence}
-              value="here"
-              label="I'm here"
-              done="You're marked as here"
-              onSet={setPresence}
-              variant="contrast"
-            />
+            <PresencePanel stage="next" presence={presence} onSet={setPresence} />
             <Button variant="ghost" fullWidth onClick={onCancel}>
               Cancel my place
             </Button>
@@ -450,25 +435,7 @@ function TurnScreen({
           <div className="mt-10 flex-1 lg:hidden" />
 
           <div className="mt-8 space-y-2 lg:max-w-xs">
-            <PresenceButton
-              presence={presence}
-              value="on-my-way"
-              label="On my way"
-              done="On my way"
-              onSet={setPresence}
-              variant="onSignal"
-            />
-            {/* A hold, not a cancel: two minutes is a request, and the number
-                stays theirs for one more call. */}
-            {presence === "hold" ? (
-              <p className="text-center text-[13px] leading-[1.55] text-white">
-                Holding your number for one more call. Nothing is cancelled.
-              </p>
-            ) : (
-              <Button variant="ghostOnSignal" fullWidth onClick={() => setPresence("hold")}>
-                I need two minutes
-              </Button>
-            )}
+            <PresencePanel stage="current" presence={presence} onSet={setPresence} onSignal />
             <button
               type="button"
               onClick={onCancel}
@@ -484,56 +451,98 @@ function TurnScreen({
 }
 
 /**
- * "I'm here" and "On my way". The tap is recorded on this phone and the
- * button says so; the counter starts receiving it once the API carries it.
+ * What the customer can tell the counter, and only what moves things forward
+ * from where they are.
+ *
+ *   getting close  — "I'm on my way", then "I'm here" once that is said
+ *   you're next    — "I'm here", or the confirmation once it is said
+ *   your turn      — "I'm here" with "I need two minutes" beneath it, or, for
+ *                    someone already here, just "Go to the counter"
+ *
+ * Once "I'm here" is said nothing else is asked: two minutes is only for
+ * somebody who is not here. Each tap is recorded on this phone and the panel
+ * says so, until the API carries it to the counter.
  */
-function PresenceButton({
+function PresencePanel({
+  stage,
   presence,
-  value,
-  label,
-  done,
   onSet,
-  variant = "contrast",
+  onSignal = false,
 }: {
+  stage: "close" | "next" | "current";
   presence: Presence;
-  value: Exclude<Presence, null | "hold">;
-  label: string;
-  done: string;
   onSet: (next: Presence) => void;
-  variant?: "contrast" | "onSignal";
+  onSignal?: boolean;
 }): JSX.Element {
-  const set = presence === value || presence === "here";
+  const here = presence === "here";
+  const primary = onSignal ? "onSignal" : "contrast";
+  const secondary = onSignal ? "ghostOnSignal" : "ghost";
+  const line = onSignal ? "text-center text-[13px] leading-[1.55] text-white" : "text-center text-[13px] leading-[1.55] text-muted";
+  const held = onSignal ? "mt-1.5 text-center text-[12px] text-white/90" : "mt-1.5 text-center text-[12px] text-muted";
+  const done = onSignal
+    ? "flex h-[46px] items-center justify-center gap-2 rounded-full border border-white/70 text-[15px] font-medium text-white"
+    : "flex h-[46px] items-center justify-center gap-2 rounded-full border border-faint text-[15px] font-medium text-strong";
 
-  if (set) {
+  if (here) {
     return (
       <div>
-        <div
-          className={
-            variant === "onSignal"
-              ? "flex h-[46px] items-center justify-center gap-2 rounded-full border border-white/70 text-[15px] font-medium text-white"
-              : "flex h-[46px] items-center justify-center gap-2 rounded-full border border-faint text-[15px] font-medium text-strong"
-          }
-        >
+        <div className={done}>
           <Icon icon={Check} size={16} />
-          {done}
+          {stage === "current" ? "You're here" : "You're marked as here"}
         </div>
-        {/* <p
-          className={
-            variant === "onSignal"
-              ? "mt-1.5 text-center text-[12px] text-white/90"
-              : "mt-1.5 text-center text-[12px] text-muted"
-          }
-        >
-          Held on this phone for now.
-        </p> */}
+        <p className={held}>
+          {stage === "current"
+            ? "Go to the counter."
+            : stage === "next"
+              ? "Wait to be called."
+              : "Held on this phone for now."}
+        </p>
       </div>
     );
   }
 
+  if (stage === "close") {
+    return presence === "on-my-way" ? (
+      <div className="space-y-2">
+        <div className={done}>
+          <Icon icon={Check} size={16} />
+          On my way
+        </div>
+        <Button variant={primary} fullWidth onClick={() => onSet("here")}>
+          I&rsquo;m here
+        </Button>
+      </div>
+    ) : (
+      <Button variant={primary} fullWidth onClick={() => onSet("on-my-way")}>
+        I&rsquo;m on my way
+      </Button>
+    );
+  }
+
+  if (stage === "next") {
+    return (
+      <Button variant={primary} fullWidth onClick={() => onSet("here")}>
+        I&rsquo;m here
+      </Button>
+    );
+  }
+
+  // Your turn, and not here yet.
   return (
-    <Button variant={variant} fullWidth onClick={() => onSet(value)}>
-      {label}
-    </Button>
+    <div className="space-y-2">
+      <Button variant={primary} fullWidth onClick={() => onSet("here")}>
+        I&rsquo;m here
+      </Button>
+      {/* A hold, not a cancel: two minutes is a request, and the number
+          stays theirs for one more call. */}
+      {presence === "hold" ? (
+        <p className={line}>Holding your number for one more call. Nothing is cancelled.</p>
+      ) : (
+        <Button variant={secondary} fullWidth onClick={() => onSet("hold")}>
+          I need two minutes
+        </Button>
+      )}
+    </div>
   );
 }
 
