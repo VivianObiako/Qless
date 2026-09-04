@@ -130,7 +130,10 @@ export function DashboardChrome({
             desktop those are in the sidebar and it carries the page's name
             and state. */}
         <header className="border-b border-shell-line">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
+          {/* The same capped, centred column as the content below, so the
+              bar's title and the page's heading share a left edge at every
+              width. */}
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:px-12">
             <div className="min-w-0 lg:hidden">
               <QueueSwitcher currentQueueId={queueId} />
             </div>
@@ -152,7 +155,7 @@ export function DashboardChrome({
           </div>
 
           {destinations.length > 0 && (
-            <nav aria-label="This queue" className="overflow-x-auto px-4 lg:hidden">
+            <nav aria-label="This queue" className="overflow-x-auto px-5 sm:px-8 lg:hidden">
               <ul className="flex gap-5">
                 {destinations.map((destination) => (
                   <TabItem key={destination.id} destination={destination} current={destination.id === tab} />
@@ -162,11 +165,15 @@ export function DashboardChrome({
           )}
         </header>
 
-        {/* One column for every screen, so the content's left edge never
-            moves between them: a narrow screen simply stops short of the
-            right edge rather than centring itself. */}
-        <main className="min-w-0 flex-1 px-4 py-6 pb-24 lg:px-8">
-          <div className={cn("max-w-6xl", width === "narrow" && "max-w-2xl")}>{children}</div>
+        {/* One column for every screen. It is capped and sits in the middle
+            of the pane on a wide monitor, so the content is neither glued to
+            the corner nor stretched across it, and its left edge is the same
+            on every screen: a narrow screen stops short of the column's right
+            edge rather than centring itself on its own. */}
+        <main className="min-w-0 flex-1 py-8 pb-24 lg:py-12">
+          <div className="mx-auto w-full max-w-5xl px-5 sm:px-8 lg:px-12">
+            <div className={cn(width === "narrow" && "max-w-2xl")}>{children}</div>
+          </div>
         </main>
       </div>
     </div>
