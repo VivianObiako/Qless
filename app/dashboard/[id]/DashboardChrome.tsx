@@ -126,21 +126,18 @@ export function DashboardChrome({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* The bar. On a phone it carries the switcher and the menu; on a
-            desktop those are in the sidebar and it carries the page's name
-            and state. */}
-        <header className="border-b border-shell-line">
-          {/* The same capped, centred column as the content below, so the
-              bar's title and the page's heading share a left edge at every
-              width. */}
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:px-12">
+        {/* The top row. No line under it and no title in it: the page's own
+            heading is the only title, as in the reference. On a desktop the
+            row carries the queue's state at the right and keeps its height
+            even when empty, so headings sit at the same height on every
+            screen. On a phone it carries the switcher and the menu, with the
+            four screens as tabs on a hairline beneath. */}
+        <header>
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:min-h-14 lg:justify-end lg:px-12 lg:py-0">
             <div className="min-w-0 lg:hidden">
               <QueueSwitcher currentQueueId={queueId} />
             </div>
-            <h1 className="hidden min-w-0 truncate text-[15px] font-medium text-strong lg:block">
-              {title}
-            </h1>
-            <span className="sr-only lg:hidden">{title}</span>
+            <h1 className="sr-only">{title}</h1>
 
             <div className="flex shrink-0 items-center gap-4">
               {connection && <LiveIndicator state={connection} />}
@@ -155,7 +152,7 @@ export function DashboardChrome({
           </div>
 
           {destinations.length > 0 && (
-            <nav aria-label="This queue" className="overflow-x-auto px-5 sm:px-8 lg:hidden">
+            <nav aria-label="This queue" className="overflow-x-auto border-b border-shell-line px-5 sm:px-8 lg:hidden">
               <ul className="flex gap-5">
                 {destinations.map((destination) => (
                   <TabItem key={destination.id} destination={destination} current={destination.id === tab} />
@@ -170,7 +167,7 @@ export function DashboardChrome({
             the corner nor stretched across it, and its left edge is the same
             on every screen: a narrow screen stops short of the column's right
             edge rather than centring itself on its own. */}
-        <main className="min-w-0 flex-1 py-8 pb-24 lg:py-12">
+        <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-24 lg:pt-8">
           <div className="mx-auto w-full max-w-5xl px-5 sm:px-8 lg:px-12">
             <div className={cn(width === "narrow" && "max-w-2xl")}>{children}</div>
           </div>
