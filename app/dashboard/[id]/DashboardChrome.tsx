@@ -162,10 +162,11 @@ export function DashboardChrome({
           )}
         </header>
 
-        <main className={cn("min-w-0 flex-1 px-4 lg:px-8", width === "narrow" ? "pb-24 pt-10" : "py-6")}>
-          <div className={cn("mx-auto", width === "narrow" ? "max-w-2xl" : "max-w-6xl")}>
-            {children}
-          </div>
+        {/* One column for every screen, so the content's left edge never
+            moves between them: a narrow screen simply stops short of the
+            right edge rather than centring itself. */}
+        <main className="min-w-0 flex-1 px-4 py-6 pb-24 lg:px-8">
+          <div className={cn("max-w-6xl", width === "narrow" && "max-w-2xl")}>{children}</div>
         </main>
       </div>
     </div>

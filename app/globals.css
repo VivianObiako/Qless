@@ -311,6 +311,16 @@
     @apply border-border;
   }
 
+  /*
+    In the base layer on purpose: a component that draws its own focus — a
+    field's border and halo — has to be able to turn this ring off with a
+    utility, and an unlayered rule would beat every utility regardless.
+  */
+  :focus-visible {
+    outline: 2px solid var(--strong);
+    outline-offset: 2px;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     @apply font-sans;
@@ -348,11 +358,6 @@
 
 .ticket-flip-muted {
   color: var(--flip-ticket-muted);
-}
-
-:focus-visible {
-  outline: 2px solid var(--strong);
-  outline-offset: 2px;
 }
 
 /* The live dot is the only ambient motion in the product. */
