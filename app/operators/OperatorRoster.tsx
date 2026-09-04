@@ -150,10 +150,10 @@ export function OperatorRoster(): JSX.Element {
 
     return (
     <div>
-      <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Your team.
+      <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Your team
       </h2>
-      <p className="mt-4 max-w-lg font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-lg text-[15px] leading-[1.6] text-dim">
         Operators work the counter on the queues you assign them. They can serve, skip and pause —
         they cannot close a queue, clear it, change its settings, or see this screen.
       </p>
@@ -184,12 +184,12 @@ export function OperatorRoster(): JSX.Element {
 
       {revoked.length > 0 && (
         <section className="mt-12">
-          <MonoLabel as="h3" size={10} tone="muted">
+          <MonoLabel as="h3" size={12} tone="muted">
             No longer working here
           </MonoLabel>
-          <ul className="mt-4 flex flex-col gap-2">
+          <ul className="mt-3 flex flex-col gap-2">
             {revoked.map((operator) => (
-              <li key={operator.id} className="font-mono text-[12px] text-muted">
+              <li key={operator.id} className="text-[13.5px] text-muted">
                 {operator.displayName} — access withdrawn. Kept so your history still says who did
                 what.
               </li>
@@ -218,7 +218,7 @@ export function OperatorRoster(): JSX.Element {
 function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell">
-      <header className="border-b border-shell-mid">
+      <header className="border-b border-shell-line">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-5">
           <Wordmark />
           <ThemeToggle variant="quiet" className="sm:hidden" />
@@ -276,10 +276,10 @@ function OperatorRow({
     <li className="py-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="truncate font-sans text-[22px] leading-tight text-strong">
+          <p className="truncate text-[17px] font-medium leading-tight tracking-[-0.01em] text-strong">
             {operator.displayName}
           </p>
-          <p className="mt-1.5 font-mono text-[11px] text-muted">
+          <p className="mt-1 text-[13px] text-muted">
             {operator.queueIds.length === 0
               ? "No queues assigned"
               : `${operator.queueIds.length} of ${queues.length} queues`}
@@ -318,11 +318,7 @@ function OperatorRow({
                 disabled={busy}
                 aria-pressed={on}
                 onClick={() => toggleQueue(queue.id)}
-                className={
-                  on
-                    ? "rounded-[var(--radius-badge)] border border-strong bg-strong px-2.5 py-[6px] font-mono text-[10px] uppercase tracking-[0.16em] text-shell transition-colors disabled:opacity-60"
-                    : "rounded-[var(--radius-badge)] border border-shell-line px-2.5 py-[6px] font-mono text-[10px] uppercase tracking-[0.16em] text-muted transition-colors hover:border-strong hover:text-strong disabled:opacity-60"
-                }
+                className={on ? "rounded-full border border-strong bg-strong px-3 py-1 text-[12.5px] font-medium text-shell transition-colors disabled:opacity-60" : "rounded-full border border-shell-line px-3 py-1 text-[12.5px] font-medium text-dim transition-colors hover:border-strong hover:text-strong disabled:opacity-60"}
               >
                 {queue.name}
               </button>
@@ -332,7 +328,7 @@ function OperatorRow({
       )}
 
       {error && (
-        <p className="mt-3 font-mono text-[11px] leading-relaxed text-strong">{error}</p>
+        <p className="mt-3 text-[13px] font-medium text-strong">{error}</p>
       )}
 
       <ConfirmDialog
@@ -398,11 +394,11 @@ function AddOperator({
 
   return (
     <section aria-labelledby="add-operator" className="mt-10">
-      <MonoLabel as="h2" size={10} tone="muted" id="add-operator">
+      <h3 id="add-operator" className="text-[15px] font-medium text-strong">
         Add someone
-      </MonoLabel>
+      </h3>
 
-      <form onSubmit={onSubmit} noValidate className="mt-5 space-y-5">
+      <form onSubmit={onSubmit} noValidate className="mt-4 space-y-5">
         <Field
           label="Their name"
           value={name}
@@ -416,10 +412,8 @@ function AddOperator({
 
         {queues.length > 0 && (
           <div>
-            <MonoLabel size={10} tone="muted">
-              Queues they can work
-            </MonoLabel>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <p className="text-[13px] font-medium text-dim">Queues they can work</p>
+            <div className="mt-2 flex flex-wrap gap-2">
               {queues.map((queue) => {
                 const on = selected.includes(queue.id);
                 return (
@@ -432,11 +426,7 @@ function AddOperator({
                         on ? current.filter((id) => id !== queue.id) : [...current, queue.id],
                       )
                     }
-                    className={
-                      on
-                        ? "rounded-[var(--radius-badge)] border border-strong bg-strong px-2.5 py-[6px] font-mono text-[10px] uppercase tracking-[0.16em] text-shell"
-                        : "rounded-[var(--radius-badge)] border border-shell-line px-2.5 py-[6px] font-mono text-[10px] uppercase tracking-[0.16em] text-muted transition-colors hover:border-strong hover:text-strong"
-                    }
+                    className={on ? "rounded-full border border-strong bg-strong px-3 py-1 text-[12.5px] font-medium text-shell transition-colors disabled:opacity-60" : "rounded-full border border-shell-line px-3 py-1 text-[12.5px] font-medium text-dim transition-colors hover:border-strong hover:text-strong disabled:opacity-60"}
                   >
                     {queue.name}
                   </button>
@@ -452,7 +442,7 @@ function AddOperator({
           </Notice>
         )}
 
-        <Button type="submit" variant="contrast" loading={saving}>
+        <Button type="submit" variant="contrast" size="md" loading={saving}>
           Add operator
         </Button>
       </form>
@@ -485,15 +475,15 @@ function IssuedCode({
 
   return (
     <div>
-      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        {operator.displayName}&rsquo;s code.
+      <h1 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        {operator.displayName}&rsquo;s code
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Give this to them. They enter it once on each device they work from, and it keeps working
         until you replace it or remove them.
       </p>
 
-      <TicketCard className="mt-9 p-[22px]">
+      <TicketCard className="mt-8 p-[22px]">
         <MonoLabel size={10} tone="paper">
           Access code
         </MonoLabel>
@@ -503,7 +493,7 @@ function IssuedCode({
 
         <Perforation className="-mx-[22px] my-5" notchColor="shell" />
 
-        <p className="font-mono text-[11px] leading-[1.7] text-paper-muted">
+        <p className="text-[13px] leading-[1.55] text-paper-muted">
           We will not show this again — but you can issue a new one whenever you like, which
           immediately retires this one.
         </p>

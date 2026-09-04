@@ -33,6 +33,8 @@ interface DashboardChromeProps {
   heading?: string;
   status?: QueueStatus;
   connection?: ConnectionState;
+  /** Something for the middle of the top row on a desktop: the counter's finder. */
+  toolbar?: ReactNode;
   /**
    * The counter fills the screen; the rest are reading columns. The bar above
    * them keeps one width regardless, so moving between them never slides
@@ -90,6 +92,7 @@ export function DashboardChrome({
   heading = "Queue dashboard",
   status,
   connection,
+  toolbar,
   width = "wide",
 }: DashboardChromeProps): JSX.Element {
   const isClient = useIsClient();
@@ -134,13 +137,18 @@ export function DashboardChrome({
             screen. On a phone it carries the switcher and the menu, with the
             four screens as tabs on a hairline beneath. */}
         <header>
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:min-h-14 lg:justify-end lg:px-12 lg:py-0">
+          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:grid lg:min-h-14 lg:grid-cols-[1fr_auto_1fr] lg:px-12 lg:py-0">
             <div className="min-w-0 lg:hidden">
               <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
             </div>
+            <span className="hidden lg:block" />
             <h1 className="sr-only">{title}</h1>
 
-            <div className="flex shrink-0 items-center gap-4">
+            {/* Centred, like the reference's search. Only on a desktop: on a
+                phone the row already holds the switcher and the menu. */}
+            <div className="hidden justify-self-center lg:block">{toolbar}</div>
+
+            <div className="flex shrink-0 items-center gap-4 lg:justify-self-end">
               {connection && <LiveIndicator state={connection} />}
               {status && (
                 <span className="inline-flex items-center gap-2 text-[13px] text-dim">

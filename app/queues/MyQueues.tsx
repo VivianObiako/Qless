@@ -96,11 +96,15 @@ export function MyQueues(): JSX.Element {
     return (
       <div>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-            Your queues.
+          <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+            Your queues
           </h2>
 
-          {result.role === "OWNER" && <LinkButton href="/create">New queue</LinkButton>}
+          {result.role === "OWNER" && (
+            <LinkButton href="/create" size="md">
+              New queue
+            </LinkButton>
+          )}
         </div>
 
         {/* A ledger, not a card: hairlines between rows and text on the
@@ -111,7 +115,7 @@ export function MyQueues(): JSX.Element {
           ))}
         </ul>
 
-        <p className="mt-6 font-mono text-[11px] leading-[1.7] text-muted">
+        <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">
           {result.role === "OWNER"
             ? "You're signed in as the owner of these queues on this device."
             : "You're signed in as an operator. Your manager decides which queues appear here."}
@@ -138,7 +142,7 @@ export function MyQueues(): JSX.Element {
 function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell">
-      <header className="border-b border-shell-mid">
+      <header className="border-b border-shell-line">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-5">
           <Wordmark />
           <ThemeToggle variant="quiet" className="sm:hidden" />
@@ -158,10 +162,10 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
         className="-mx-3 flex items-center gap-5 rounded-[8px] px-3 py-4 transition-colors hover:bg-shell-mid"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-sans text-[22px] leading-tight text-strong">
+          <span className="block truncate text-[17px] font-medium leading-tight tracking-[-0.01em] text-strong">
             {queue.name}
           </span>
-          <span className="mt-1.5 block truncate font-mono text-[11px] text-muted">
+          <span className="mt-1 block truncate font-mono text-[12.5px] text-muted">
             /q/{queue.slug}
           </span>
         </span>
@@ -171,8 +175,8 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
             unremarkable case anyway. Paused and closed are what a person
             scanning this list needs to catch. */}
         {queue.status !== "OPEN" && (
-          <span className="shrink-0 rounded-[var(--radius-badge)] border border-current px-2 py-[5px] font-mono text-[9px] uppercase tracking-[0.18em] text-strong">
-            {queue.status}
+          <span className="shrink-0 rounded-full border border-shell-line px-2.5 py-[3px] text-[12px] font-medium text-dim">
+            {queue.status === "PAUSED" ? "Paused" : "Closed"}
           </span>
         )}
       </Link>
@@ -183,10 +187,10 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
 function SignedOut(): JSX.Element {
   return (
     <div>
-      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Sign in with your code.
+      <h1 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Sign in with your code
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Qless has no passwords. Your recovery code — or the access code your manager gave you — is
         what brings your queues back on this device.
       </p>
@@ -204,10 +208,10 @@ function SignedOut(): JSX.Element {
 function NoQueuesYet(): JSX.Element {
   return (
     <div>
-      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        No queues yet.
+      <h1 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        No queues yet
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Create one and share its code. Everything else — the dashboard, the QR sheet, the customer
         view — comes with it.
       </p>
@@ -229,10 +233,10 @@ function NotAssigned(): JSX.Element {
       <MonoLabel size={10} tone="muted">
         Signed in
       </MonoLabel>
-      <h1 className="mt-3 font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        No queues assigned.
+      <h1 className="mt-2 text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        No queues assigned
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Your code works — there is just nothing on it yet. Ask your manager to assign you a queue,
         then reload this page.
       </p>

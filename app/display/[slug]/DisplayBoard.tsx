@@ -9,6 +9,7 @@ import { QrCode } from "@/components/QrCode";
 import { QueueArranging } from "@/components/QueueArranging";
 import { usePublicQueue } from "@/hooks/usePublicQueue";
 import { useOrigin } from "@/hooks/useStoredValue";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import type { PublicState, QueueStatus } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
@@ -26,6 +27,9 @@ const UP_NEXT = 3;
 export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   const queue = usePublicQueue(slug);
   const origin = useOrigin();
+
+  // A wall screen that goes to sleep is a blank wall.
+  useWakeLock();
 
   if (queue.loading) {
     return (
@@ -109,7 +113,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
             )}
           </div>
 
-          <p className="font-mono text-[clamp(11px,1.4vw,13px)] uppercase tracking-[0.2em] text-muted">
+          <p className="text-[clamp(13px,1.4vw,16px)] text-muted">
             {state.queue.name}
             <span aria-hidden="true"> · </span>
             {state.waitingCount} waiting
@@ -119,16 +123,25 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
         <div aria-hidden="true" className="hidden w-px shrink-0 bg-white/15 lg:block" />
 
-        <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[300px]">
+        <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[clamp(220px,22vw,380px)]">
           {/* Staff read this from across the room to know the board is still
               the queue and not a photograph of it. */}
           <LiveIndicator state={queue.connection} className="lg:justify-end" />
 
           <div className="flex flex-col items-center gap-4">
             <JoinCode origin={origin} state={state} />
-            <MonoLabel size={13} tone="muted" className="text-center">
-              Scan to join the queue
-            </MonoLabel>
+            <div className="text-center">
+              <MonoLabel size={13} tone="muted" className="block">
+                Scan to join the queue
+              </MonoLabel>
+              {/* For a camera that will not lock on. Short, and the same on
+                  the print sheet. */}
+              {origin && (
+                <p className="mt-1.5 font-mono text-[clamp(13px,1.2vw,16px)] text-strong">
+                  {`${origin.replace(/^https?:\/\//, "")}/q/${state.queue.slug}`}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -162,7 +175,7 @@ function JoinCode({ origin, state }: { origin: string; state: PublicState }): JS
   // Sized as a square before the origin is known, so the board does not reflow
   // around the code the moment it appears.
   return (
-    <div className="aspect-square w-full max-w-[220px] sm:max-w-[300px]">
+    <div className="aspect-square w-full max-w-[220px] sm:max-w-[clamp(220px,22vw,380px)]">
       {origin && (
         <QrCode
           value={`${origin}/q/${state.queue.slug}`}

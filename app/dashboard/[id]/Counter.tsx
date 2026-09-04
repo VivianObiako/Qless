@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import { ChevronDown, MoreHorizontal, Search } from "lucide-react";
+import { useEffect, useId, useRef, type JSX } from "react";
+import { MoreHorizontal, Search } from "lucide-react";
 import { Button, controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { Numeral } from "@/components/Numeral";
@@ -28,6 +28,9 @@ interface CounterProps {
   serving: boolean;
   pendingEntryId: string | null;
   pendingAction: QueueAction | null;
+  /** The finder's text. Owned above so the chrome's top row can hold the input. */
+  query: string;
+  onQuery: (query: string) => void;
   onServeNext: () => Promise<void>;
   onEntry: (entryId: string, action: EntryAction) => void;
   onQueue: (action: QueueAction) => void;
@@ -70,6 +73,8 @@ export function Counter({
   serving,
   pendingEntryId,
   pendingAction,
+  query,
+  onQuery,
   onServeNext,
   onEntry,
   onQueue,
@@ -77,7 +82,13 @@ export function Counter({
 }: CounterProps): JSX.Element {
   return (
     <div className="flex flex-col gap-8">
-      <CounterHeading />
+      <CounterHeading
+        queue={view.queue}
+        isOwner={isOwner}
+        pendingAction={pendingAction}
+        onAct={onQueue}
+        onConfirm={onConfirm}
+      />
       <Stats view={view} />
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
         <AtTheCounter
@@ -89,24 +100,36 @@ export function Counter({
         />
         <WaitingList
           waiting={view.waiting}
+          query={query}
+          onQuery={onQuery}
           pendingEntryId={pendingEntryId}
           onCall={(entryId) => onEntry(entryId, "serve")}
           onAttend={(entryId) => onEntry(entryId, "attend")}
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
         />
       </div>
-      <QueueControls
-        queue={view.queue}
-        isOwner={isOwner}
-        pendingAction={pendingAction}
-        onAct={onQueue}
-        onConfirm={onConfirm}
-      />
+      <QueueStatusLine queue={view.queue} />
     </div>
   );
 }
 
-function CounterHeading(): JSX.Element {
+/**
+ * The heading, the date, and the controls an operator reaches for a few
+ * times a day: pause, and for owners the end-of-day actions behind More.
+ */
+function CounterHeading({
+  queue,
+  isOwner,
+  pendingAction,
+  onAct,
+  onConfirm,
+}: {
+  queue: Queue;
+  isOwner: boolean;
+  pendingAction: QueueAction | null;
+  onAct: (action: QueueAction) => void;
+  onConfirm: (confirmation: Confirmation) => void;
+}): JSX.Element {
   const now = useNow(60_000);
   const today = new Date(now).toLocaleDateString(undefined, {
     weekday: "long",
@@ -115,14 +138,97 @@ function CounterHeading(): JSX.Element {
   });
 
   return (
-    <div>
-      <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
-        Counter
-      </h2>
-      <p className="mt-2 text-[13px] text-muted" suppressHydrationWarning>
-        {today}
-      </p>
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div>
+        <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+          Counter
+        </h2>
+        <p className="mt-2 text-[13px] text-muted" suppressHydrationWarning>
+          {today}
+        </p>
+      </div>
+      <QueueControls
+        queue={queue}
+        isOwner={isOwner}
+        pendingAction={pendingAction}
+        onAct={onAct}
+        onConfirm={onConfirm}
+      />
     </div>
+  );
+}
+
+/** One line under everything: whether the queue is taking people. */
+function QueueStatusLine({ queue }: { queue: Queue }): JSX.Element {
+  const closed = queue.status === "CLOSED";
+  const paused = queue.status === "PAUSED";
+  const line = paused
+    ? "Paused: nobody new can join. Everyone waiting keeps their place."
+    : closed
+      ? "Closed: nobody new can join. Everyone waiting keeps their place."
+      : "New customers can join by scanning the code.";
+
+  return (
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-shell-line pt-5 text-[13.5px] text-muted">
+      <span className="inline-flex items-center gap-2 font-medium text-strong">
+        <StatusDot status={queue.status} />
+        {closed ? "Queue is closed" : paused ? "Queue is paused" : "Queue is open"}
+      </span>
+      {line}
+    </p>
+  );
+}
+
+/**
+ * The finder. Rendered in the chrome's top row on a desktop and in the list's
+ * own header on a phone, from the same text, so ⌘K lands in whichever is on
+ * screen.
+ */
+export function Finder({
+  query,
+  onQuery,
+  className,
+}: {
+  query: string;
+  onQuery: (query: string) => void;
+  className?: string;
+}): JSX.Element {
+  const ref = useRef<HTMLInputElement>(null);
+  const id = useId();
+
+  // ⌘K / Ctrl+K puts the cursor here. It is the one shortcut on the counter,
+  // and it is the one a busy operator reaches for.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        const input = ref.current;
+        if (!input || input.offsetParent === null) return;
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <label htmlFor={id} className={cn("relative block w-full", className)}>
+      <span className="sr-only">Find a customer or number</span>
+      <Icon icon={Search} size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+      <input
+        ref={ref}
+        id={id}
+        type="search"
+        value={query}
+        onChange={(event) => onQuery(event.target.value)}
+        placeholder="Find a customer or number"
+        className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-11 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none"
+      />
+      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-[4px] border border-shell-line px-1 text-[10.5px] text-muted">
+        ⌘K
+      </kbd>
+    </label>
   );
 }
 
@@ -251,35 +357,22 @@ function AtTheCounter({
 
 function WaitingList({
   waiting,
+  query,
+  onQuery,
   pendingEntryId,
   onCall,
   onAttend,
   onSkip,
 }: {
   waiting: WaitingRow[];
+  query: string;
+  onQuery: (query: string) => void;
   pendingEntryId: string | null;
   onCall: (entryId: string) => void;
   onAttend: (entryId: string) => void;
   onSkip: (entry: WaitingRow) => void;
 }): JSX.Element {
   const now = useNow();
-  const [query, setQuery] = useState("");
-  const findRef = useRef<HTMLInputElement>(null);
-  const findId = useId();
-
-  // ⌘K / Ctrl+K puts the cursor in the finder. It is the one shortcut on the
-  // counter, and it is the one a busy operator reaches for.
-  useEffect(() => {
-    const onKey = (event: globalThis.KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        findRef.current?.focus();
-        findRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   const needle = query.trim().toLowerCase();
   const shown = needle
@@ -295,22 +388,7 @@ function WaitingList({
         <h3 id="waiting-heading" className="text-[12.5px] text-muted">
           Waiting · {waiting.length}
         </h3>
-        <label htmlFor={findId} className="relative block w-full max-w-[220px]">
-          <span className="sr-only">Find a name or number</span>
-          <Icon icon={Search} size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            ref={findRef}
-            id={findId}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find"
-            className="h-8 w-full rounded-full border border-shell-line bg-shell-soft pl-8 pr-10 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none"
-          />
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-[4px] border border-shell-line px-1 text-[10.5px] text-muted">
-            ⌘K
-          </kbd>
-        </label>
+        <Finder query={query} onQuery={onQuery} className="max-w-[240px] lg:hidden" />
       </div>
 
       {waiting.length === 0 ? (
@@ -431,11 +509,9 @@ function RowMenu({
 }
 
 /**
- * The controls an operator reaches for a few times a day rather than a few
- * times a minute. Pausing is shared with operators and stays in the open;
- * closing and clearing end the day, belong to the owner, and sit behind a
- * disclosure — a confirm dialog alone is weak protection against a
- * fat-finger on a counter tablet.
+ * Pause, shared with operators, in the open; close and clear, the owner's
+ * end-of-day actions, behind a disclosure — a confirm dialog alone is weak
+ * protection against a fat-finger on a counter tablet.
  */
 function QueueControls({
   queue,
@@ -452,98 +528,70 @@ function QueueControls({
 }): JSX.Element {
   const closed = queue.status === "CLOSED";
   const paused = queue.status === "PAUSED";
-
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreId = useId();
-  const toggleRef = useRef<HTMLButtonElement>(null);
-
-  function onKeyDown(event: KeyboardEvent<HTMLElement>): void {
-    if (event.key !== "Escape" || !moreOpen) return;
-    setMoreOpen(false);
-    toggleRef.current?.focus();
-  }
-
-  const line = paused
-    ? "Paused: nobody new can join. Everyone waiting keeps their place."
-    : closed
-      ? "Closed: nobody new can join. Everyone waiting keeps their place."
-      : "New customers can join by scanning the code.";
+  const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
 
   return (
-    <section
-      aria-labelledby="controls-heading"
-      onKeyDown={onKeyDown}
-      className="border-t border-shell-line pt-6"
-    >
-      <h3 id="controls-heading" className="sr-only">
-        Queue controls
-      </h3>
+    <div ref={containerRef} className="relative flex items-center gap-2">
+      {closed ? (
+        <Button
+          variant="contrast"
+          size="md"
+          loading={pendingAction === "resume"}
+          onClick={() => onAct("resume")}
+        >
+          Reopen queue
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="md"
+          loading={pendingAction === (paused ? "resume" : "pause")}
+          onClick={() => onAct(paused ? "resume" : "pause")}
+        >
+          {paused ? "Resume queue" : "Pause queue"}
+        </Button>
+      )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <span className="inline-flex items-center gap-2 text-[13.5px] font-medium text-strong">
-          <StatusDot status={queue.status} />
-          {closed ? "Queue is closed" : paused ? "Queue is paused" : "Queue is open"}
-        </span>
-        <p className="text-[13.5px] text-muted">{line}</p>
-
-        <div className="ml-auto flex items-center gap-2">
-          {closed ? (
-            <Button
-              variant="contrast"
-              size="md"
-              loading={pendingAction === "resume"}
-              onClick={() => onAct("resume")}
-            >
-              Reopen queue
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="md"
-              loading={pendingAction === (paused ? "resume" : "pause")}
-              onClick={() => onAct(paused ? "resume" : "pause")}
-            >
-              {paused ? "Resume queue" : "Pause queue"}
-            </Button>
-          )}
-
-          {isOwner && (
-            <button
-              ref={toggleRef}
-              type="button"
-              aria-expanded={moreOpen}
-              aria-controls={moreId}
-              onClick={() => setMoreOpen((open) => !open)}
-              className={controlClasses("ghost", "md")}
-            >
-              More<span className="sr-only"> queue actions</span>
-              <Icon icon={ChevronDown} size={14} className={cn("transition-transform", moreOpen && "rotate-180")} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Inline, so it pushes the page down rather than floating over it.
-          Kept in the DOM and hidden so aria-controls always resolves. */}
       {isOwner && (
-        <div id={moreId} hidden={!moreOpen} className="mt-5 border-t border-shell-line pt-5">
-          <div className="flex flex-col gap-4">
+        <>
+          <button
+            ref={triggerRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label="More queue actions"
+            onClick={toggle}
+            className={cn(controlClasses("ghost", "md"), "px-3")}
+          >
+            <Icon icon={MoreHorizontal} size={16} />
+          </button>
+          <div
+            id={panelId}
+            hidden={!open}
+            className="absolute right-0 top-full z-20 mt-1.5 w-[300px] rounded-[12px] border border-shell-line bg-shell-soft p-1.5 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
+          >
             {!closed && (
               <DestructiveAction
                 label="Close queue"
-                description="Stops anyone new joining. Everyone already waiting keeps their place, and you can reopen whenever you like."
-                onClick={() => onConfirm({ kind: "close" })}
+                description="Stops anyone new joining. Everyone waiting keeps their place, and you can reopen whenever you like."
+                onClick={() => {
+                  setOpen(false);
+                  onConfirm({ kind: "close" });
+                }}
               />
             )}
             <DestructiveAction
               label="Clear queue"
               description="Removes everyone waiting and starts numbering again at 1. Today's history is kept."
-              onClick={() => onConfirm({ kind: "reset" })}
+              onClick={() => {
+                setOpen(false);
+                onConfirm({ kind: "reset" });
+              }}
             />
           </div>
-        </div>
+        </>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -558,11 +606,13 @@ function DestructiveAction({
   onClick: () => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-      <Button variant="ghost" size="md" onClick={onClick} className="shrink-0 self-start sm:self-auto">
-        {label}
-      </Button>
-      <p className="text-[13.5px] leading-[1.6] text-muted">{description}</p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full rounded-[8px] px-3 py-2.5 text-left transition-colors hover:bg-shell-mid"
+    >
+      <span className="block text-[13.5px] font-medium text-strong">{label}</span>
+      <span className="mt-0.5 block text-[12.5px] leading-[1.5] text-muted">{description}</span>
+    </button>
   );
 }

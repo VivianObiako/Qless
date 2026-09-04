@@ -76,14 +76,14 @@ export function PrintSheet({ slug }: { slug: string }): JSX.Element {
           {signedIn && (
             <Link
               href={`/dashboard/${queue.id}`}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-strong"
+              className="text-[13.5px] text-dim transition-colors hover:text-strong"
             >
               ← Dashboard
             </Link>
           )}
           <Link
             href={`/q/${queue.slug}`}
-            className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-strong"
+            className="text-[13.5px] text-dim transition-colors hover:text-strong"
           >
             Customer view
           </Link>
@@ -99,7 +99,7 @@ export function PrintSheet({ slug }: { slug: string }): JSX.Element {
         <Wordmark asLink={false} size={26} />
 
         <div className="flex flex-col items-center">
-          <h1 className="font-sans text-[clamp(30px,6vw,44px)] leading-[1.05] tracking-[-0.02em] text-strong">
+          <h1 className="text-[clamp(30px,6vw,44px)] font-medium leading-[1.05] tracking-[-0.03em] text-strong">
             {queue.name}
           </h1>
 
@@ -123,12 +123,12 @@ export function PrintSheet({ slug }: { slug: string }): JSX.Element {
             )}
           </div>
 
-          <p className="mt-5 break-all font-mono text-[11px] leading-relaxed text-muted">
+          <p className="mt-5 break-all font-mono text-[13px] leading-relaxed text-muted">
             {customerUrl || `/q/${queue.slug}`}
           </p>
         </div>
 
-        <p className="font-mono text-[11px] leading-[1.8] text-muted">
+        <p className="text-[14px] leading-[1.6] text-muted">
           No app. No account.
           <br />
           Take a number and we&rsquo;ll hold your place.

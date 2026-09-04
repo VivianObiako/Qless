@@ -7,9 +7,10 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
-import { Counter, type Confirmation } from "./Counter";
+import { Counter, Finder, type Confirmation } from "./Counter";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import type { QueueAction } from "@/lib/types";
 
 interface OperatorDashboardProps {
@@ -31,6 +32,10 @@ export function OperatorDashboard({
 }: OperatorDashboardProps): JSX.Element {
   const queue = useOperatorQueue(queueId, ownerTokenFromUrl);
   const [confirming, setConfirming] = useState<Confirmation>(null);
+  const [query, setQuery] = useState("");
+
+  // A counter tablet that dims to black is a blank counter.
+  useWakeLock();
 
   if (queue.loading) {
     return (
@@ -93,6 +98,7 @@ export function OperatorDashboard({
       queueName={view.queue.name}
       status={view.queue.status}
       connection={queue.connection}
+      toolbar={<Finder query={query} onQuery={setQuery} className="w-[320px]" />}
     >
       {queue.actionError && (
         <Notice tone="standing" title="That didn't go through" chip="!" className="mb-6">
@@ -114,6 +120,8 @@ export function OperatorDashboard({
         serving={queue.serving}
         pendingEntryId={queue.pendingEntryId}
         pendingAction={queue.pendingAction}
+        query={query}
+        onQuery={setQuery}
         onServeNext={queue.serveNextCustomer}
         onEntry={(entryId, action) => void queue.actOnCustomer(entryId, action)}
         onQueue={(action) => void queue.actOnThisQueue(action)}
