@@ -73,8 +73,13 @@ export function TicketReel(): JSX.Element | null {
     const strip = stripRef.current;
     if (!hero || !strip) return;
 
+    // Width too: the hero's column widens on a large screen, and the card
+    // that flies into it has to be the same size when it lands.
+    const overlay = overlayRef.current;
     const sync = (): void => {
-      strip.style.height = `${hero.getBoundingClientRect().height}px`;
+      const box = hero.getBoundingClientRect();
+      strip.style.height = `${box.height}px`;
+      overlay?.style.setProperty("--reel-w", `${box.width}px`);
     };
     sync();
 

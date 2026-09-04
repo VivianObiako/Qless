@@ -25,12 +25,15 @@ const steps: Step[] = [
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="min-h-dvh bg-shell">
+    // A viewport-high composition: the hero takes the room between the bar
+    // and the steps, and the steps sit on the bottom edge. On a short window
+    // it simply scrolls.
+    <div className="flex min-h-dvh flex-col bg-shell">
       <TicketReel />
       <SmoothScroll />
 
       <header className="border-b border-shell-mid">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-5">
+        <nav className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-6 px-6 py-5 lg:px-10 xl:px-14">
           <Wordmark asLink={false} />
 
           <div className="flex items-center gap-6">
@@ -58,10 +61,10 @@ export default function LandingPage(): JSX.Element {
         </nav>
       </header>
 
-      <main>
-        <section className="mx-auto grid max-w-6xl gap-14 px-6 py-16 lg:grid-cols-[1fr_360px] lg:items-center lg:gap-16 lg:py-24">
+      <main className="flex flex-1 flex-col">
+        <section className="mx-auto grid w-full max-w-[1400px] flex-1 content-center gap-14 px-6 py-16 lg:grid-cols-[1fr_360px] lg:items-center lg:gap-16 lg:px-10 lg:py-20 xl:grid-cols-[1fr_420px] xl:px-14">
           <div>
-            <h1 className="animate-reveal font-sans text-[clamp(56px,11vw,104px)] leading-[0.92] tracking-[-0.035em] text-strong">
+            <h1 className="animate-reveal text-[clamp(56px,8.5vw,128px)] font-medium leading-[0.92] tracking-[-0.04em] text-strong">
               Stop waiting
               <div className="mt-2" />
               in line.
@@ -121,7 +124,7 @@ export default function LandingPage(): JSX.Element {
               the customer sees — not a picture of it. Capped below lg: a ticket
               is a held object, and stretching it to the full column width makes
               it read as a banner instead. */}
-          <div className="max-w-90 lg:w-90 justify-self-center lg:justify-self-end">
+          <div className="w-full max-w-90 justify-self-center lg:w-90 lg:justify-self-end xl:w-[420px] xl:max-w-[420px]">
             <HeroTicketStage id="hero-ticket" />
           </div>
         </section>
@@ -129,7 +132,7 @@ export default function LandingPage(): JSX.Element {
         <section
           id="how-it-works"
           aria-labelledby="how-it-works-heading"
-          className="scroll-mt-8 border-t border-shell-mid"
+          className="mt-auto scroll-mt-8 border-t border-shell-mid"
         >
           {/* The five steps are the section's whole content and read as a
               heading to anybody who can see them. A screen reader jumping
@@ -138,7 +141,7 @@ export default function LandingPage(): JSX.Element {
             How it works
           </h2>
 
-          <ol className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="mx-auto grid w-full max-w-[1400px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 lg:px-4 xl:px-8">
             {steps.map((step, index) => {
               // Step 05 is the second and last place vermilion appears in the
               // entire product. It is the promise the whole thing is selling.
