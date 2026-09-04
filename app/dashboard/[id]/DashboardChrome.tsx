@@ -109,9 +109,10 @@ export function DashboardChrome({
     ? queueDestinations(queueId).filter((destination) => isOwner || !destination.ownerOnly)
     : [];
 
-  // The counter is worked, not read: it takes the pane, so a big screen gets
-  // a big ledger. The reading screens keep a column a person can scan.
-  const column = width === "wide" ? "max-w-[1680px]" : "max-w-5xl";
+  // Every screen takes the pane. The narrow ones cap their own content
+  // inside it, so a form does not stretch across a big screen while its
+  // heading and the bar still share the pane's edges.
+  const column = "max-w-[1680px]";
 
   return (
     <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
