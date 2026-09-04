@@ -9,7 +9,19 @@ import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
+import { ArrowRight } from "lucide-react";
+import { controlClasses } from "@/components/Button";
+import { Icon } from "@/components/Icon";
 import { DashboardChrome } from "@/app/dashboard/[id]/DashboardChrome";
+import { StatusDot } from "@/app/dashboard/[id]/QueueSwitcher";
+import { cn } from "@/lib/utils";
+import type { QueueStatus } from "@/lib/types";
+
+const statusWord: Record<QueueStatus, string> = {
+  OPEN: "Open",
+  PAUSED: "Paused",
+  CLOSED: "Closed",
+};
 import { ApiError, getMyQueues } from "@/lib/api";
 import {
   clearSession,
@@ -159,7 +171,7 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
     <li>
       <Link
         href={`/dashboard/${queue.id}`}
-        className="-mx-3 flex items-center gap-5 rounded-[8px] px-3 py-4 transition-colors hover:bg-shell-mid"
+        className="group -mx-3 flex items-center gap-4 rounded-[8px] px-3 py-4 transition-colors hover:bg-shell-mid sm:gap-6"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-medium leading-tight tracking-[-0.01em] text-strong">
@@ -170,15 +182,17 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
           </span>
         </span>
 
-        {/* Only when it is not open. On a row you click, a pill reading "OPEN"
-            is read as the button that opens it — and a queue being open is the
-            unremarkable case anyway. Paused and closed are what a person
-            scanning this list needs to catch. */}
-        {queue.status !== "OPEN" && (
-          <span className="shrink-0 rounded-full border border-shell-line px-2.5 py-[3px] text-[12px] font-medium text-dim">
-            {queue.status === "PAUSED" ? "Paused" : "Closed"}
-          </span>
-        )}
+        {/* The queue's state as a dot and a word, and the way in said
+            outright — a row that is only a link gives no sign it goes
+            anywhere. */}
+        <span className="inline-flex shrink-0 items-center gap-2 text-[13px] text-dim">
+          <StatusDot status={queue.status} />
+          {statusWord[queue.status]}
+        </span>
+        <span className={cn(controlClasses("ghost", "sm"), "shrink-0 gap-1.5")}>
+          Open counter
+          <Icon icon={ArrowRight} size={14} />
+        </span>
       </Link>
     </li>
   );

@@ -109,6 +109,10 @@ export function DashboardChrome({
     ? queueDestinations(queueId).filter((destination) => isOwner || !destination.ownerOnly)
     : [];
 
+  // The counter is worked, not read: it takes the pane, so a big screen gets
+  // a big ledger. The reading screens keep a column a person can scan.
+  const column = width === "wide" ? "max-w-[1680px]" : "max-w-5xl";
+
   return (
     <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
       {/* The sidebar, from lg. Pinned to the viewport and exactly its height,
@@ -137,7 +141,12 @@ export function DashboardChrome({
             screen. On a phone it carries the switcher and the menu, with the
             four screens as tabs on a hairline beneath. */}
         <header>
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:grid lg:min-h-14 lg:grid-cols-[1fr_auto_1fr] lg:px-12 lg:py-0">
+          <div
+            className={cn(
+              "mx-auto flex w-full items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:grid lg:min-h-14 lg:grid-cols-[1fr_auto_1fr] lg:px-12 lg:py-0",
+              column,
+            )}
+          >
             <div className="min-w-0 lg:hidden">
               <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
             </div>
@@ -171,13 +180,12 @@ export function DashboardChrome({
           )}
         </header>
 
-        {/* One column for every screen. It is capped and sits in the middle
-            of the pane on a wide monitor, so the content is neither glued to
-            the corner nor stretched across it, and its left edge is the same
-            on every screen: a narrow screen stops short of the column's right
+        {/* One column per kind of screen, centred in the pane, so nothing is
+            glued to the corner and the left edge is the same on every screen
+            of that kind: a narrow screen stops short of the column's right
             edge rather than centring itself on its own. */}
         <main className="min-w-0 flex-1 py-6 pb-24 lg:pb-24 lg:pt-8">
-          <div className="mx-auto w-full max-w-5xl px-5 sm:px-8 lg:px-12">
+          <div className={cn("mx-auto w-full px-5 sm:px-8 lg:px-12", column)}>
             <div className={cn(width === "narrow" && "max-w-2xl")}>{children}</div>
           </div>
         </main>

@@ -90,7 +90,7 @@ export function Counter({
         onConfirm={onConfirm}
       />
       <Stats view={view} />
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] 2xl:gap-24">
         <AtTheCounter
           view={view}
           serving={serving}
@@ -293,12 +293,12 @@ function AtTheCounter({
 
       {/* Height reserved in both states so promoting a customer never shifts
           the Serve Next button under the operator's cursor. */}
-      <div role="status" aria-live="polite" className="mt-3 flex min-h-[170px] flex-col justify-end">
+      <div role="status" aria-live="polite" className="mt-3 flex min-h-[170px] flex-col justify-end 2xl:min-h-[220px]">
         {current ? (
           <>
             {/* The one colour on the screen: this number is being called, the
                 same vermilion the customer's phone has turned. */}
-            <Numeral value={current.number} scale="next" className="text-signal" />
+            <Numeral value={current.number} scale="next" className="text-signal 2xl:text-[200px]" />
             <p className="mt-4 flex items-center gap-2.5 text-[22px] font-medium leading-tight tracking-[-0.02em] text-strong">
               {nameFor(current)}
               <PresenceTag presence={current.presence} />
@@ -402,7 +402,7 @@ function WaitingList({
           {shown.map((entry) => (
             <li
               key={entry.id}
-              className="animate-row-in grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-shell-line py-2.5 sm:grid-cols-[48px_minmax(0,1fr)_auto_auto] sm:gap-4"
+              className="animate-row-in grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-shell-line py-2.5 sm:grid-cols-[48px_minmax(0,1fr)_auto_auto] sm:gap-4 2xl:py-3.5"
             >
               <Numeral
                 value={entry.number}
