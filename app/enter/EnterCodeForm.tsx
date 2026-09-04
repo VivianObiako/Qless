@@ -92,15 +92,15 @@ function Form({ onRedeemed }: { onRedeemed: (redeemed: RedeemResponse) => void }
 
   return (
     <div>
-      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Enter your code.
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Enter your code
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Your recovery code if you own the queues, or the access code your manager gave you. We work
         out the rest.
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
+      <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
         <Field
           label="Code"
           mono
@@ -136,7 +136,7 @@ function Form({ onRedeemed }: { onRedeemed: (redeemed: RedeemResponse) => void }
         </Button>
       </form>
 
-      <p className="mt-8 font-mono text-[11px] leading-[1.7] text-muted">
+      <p className="mt-8 text-[13.5px] leading-[1.6] text-muted">
         Don&rsquo;t have a code?{" "}
         <Link href="/create" className="text-strong underline underline-offset-4">
           Create a queue

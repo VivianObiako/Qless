@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type FormEvent, type JSX } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
+import { LinkButton } from "@/components/LinkButton";
 import { MonoLabel } from "@/components/Label";
 import { Notice } from "@/components/Notice";
 import { QrCode, downloadQrPng } from "@/components/QrCode";
@@ -100,14 +100,14 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
 
   return (
     <div>
-      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Create a queue.
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Create a queue
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         No account needed. You&rsquo;ll get a link to share and a private dashboard to run it from.
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
+      <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
         <Field
           label="Business or queue name"
           value={name}
@@ -200,12 +200,12 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
 
   return (
     <div>
-      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Your queue is ready.
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Your queue is ready
       </h1>
 
-      <TicketCard className="mt-10 p-[22px]">
-        <p className="font-sans text-[28px] leading-none text-paper-ink">{queue.name}</p>
+      <TicketCard className="mt-8 p-[22px]">
+        <p className="text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink">{queue.name}</p>
 
         <Perforation className="-mx-[22px] my-5" />
 
@@ -214,7 +214,7 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
             <MonoLabel size={10} tone="paper">
               Customer link
             </MonoLabel>
-            <p className="mt-2 break-all font-mono text-[13px] leading-relaxed text-paper-ink">
+            <p className="mt-1.5 break-all font-mono text-[13px] leading-relaxed text-paper-ink">
               {customerUrl || `/q/${queue.slug}`}
             </p>
             <MonoLabel size={10} tone="paper" className="mt-4 block">
@@ -242,18 +242,12 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
         <Button variant="ghost" onClick={downloadQr} disabled={!origin}>
           Download QR
         </Button>
-        <Link
-          href={`/print/${queue.slug}`}
-          className="rounded-[var(--radius-control)] border border-shell-line px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:border-strong hover:text-strong"
-        >
+        <LinkButton href={`/print/${queue.slug}`} variant="ghost">
           Print sheet
-        </Link>
-        <Link
-          href={`/q/${queue.slug}`}
-          className="rounded-[var(--radius-control)] border border-shell-line px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:border-strong hover:text-strong"
-        >
+        </LinkButton>
+        <LinkButton href={`/q/${queue.slug}`} variant="ghost">
           Open customer view
-        </Link>
+        </LinkButton>
       </div>
 
       <Notice
@@ -262,12 +256,9 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
         chip="!"
         className="mt-8"
         action={
-          <Link
-            href={dashboardUrl}
-            className="inline-flex rounded-[var(--radius-control)] bg-strong px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-shell transition-opacity hover:opacity-90"
-          >
+          <LinkButton href={dashboardUrl} size="md">
             Open queue dashboard
-          </Link>
+          </LinkButton>
         }
       >
         This browser can run the queue from now on. On any other device, enter the recovery code you

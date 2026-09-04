@@ -86,24 +86,24 @@ export function RecoveryCode({
       <div className="hidden print:mb-9 print:flex print:items-center print:justify-between print:gap-4">
         <Wordmark asLink={false} />
         <span
-          className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted"
+          className="text-[12px] text-muted"
           suppressHydrationWarning
         >
           Issued {new Date().toLocaleDateString()}
         </span>
       </div>
 
-      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Save your recovery code.
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Save your recovery code
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         This is how you get back to your queues on a new phone or a new laptop. We show it once and
         we cannot show it again.
       </p>
 
-      <TicketCard className="recovery-ticket mt-10 p-[22px]">
+      <TicketCard className="recovery-ticket mt-8 p-[22px]">
         {queueName && (
-          <p className="mb-4 hidden font-sans text-[24px] leading-none text-paper-ink print:block">
+          <p className="mb-4 hidden text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink print:block">
             {queueName}
           </p>
         )}
@@ -118,12 +118,12 @@ export function RecoveryCode({
 
         <Perforation className="-mx-[22px] my-5" notchColor="shell" />
 
-        <p className="font-mono text-[11px] leading-[1.7] text-paper-muted">
+        <p className="text-[13px] leading-[1.55] text-paper-muted">
           Anyone holding this code can run your queues. Keep it somewhere only you can reach — a
           password manager, or the drawer behind the till.
         </p>
 
-        <p className="mt-3 hidden font-mono text-[11px] leading-[1.7] text-paper-muted print:block">
+        <p className="mt-3 hidden text-[13px] leading-[1.55] text-paper-muted print:block">
           Enter it at {origin || "the Qless site"}/enter on any device. Redeeming it issues a fresh
           code and retires this one, so print the replacement and shred this sheet.
         </p>
@@ -152,7 +152,7 @@ export function RecoveryCode({
           onChange={(event) => setAcknowledged(event.target.checked)}
           className="mt-0.5 size-4 shrink-0 accent-[var(--strong)]"
         />
-        <span className="font-mono text-[12px] leading-[1.6] text-dim">
+        <span className="text-[13.5px] leading-[1.55] text-dim">
           I&rsquo;ve saved my recovery code somewhere safe.
         </span>
       </label>

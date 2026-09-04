@@ -1,16 +1,21 @@
 "use client";
 
-import type { JSX, ReactNode } from "react";
+import { useCallback, type JSX, type ReactNode } from "react";
+import { Check } from "lucide-react";
 import { Board } from "@/components/Board";
 import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
 import { MonoLabel } from "@/components/Label";
 import { Notice } from "@/components/Notice";
 import { Numeral } from "@/components/Numeral";
 import { Perforation, TicketBadge, TicketCard, TicketProgress } from "@/components/TicketCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Wordmark } from "@/components/Wordmark";
+import { useStoredValue } from "@/hooks/useStoredValue";
 import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotifications";
 import { deriveBoardRows } from "@/lib/board";
+import { writeSession } from "@/lib/session";
 import { proximityOf, type CustomerView, type Proximity, type QueueEntry } from "@/lib/types";
 
 interface TicketPassProps {
@@ -21,17 +26,33 @@ interface TicketPassProps {
 }
 
 /**
- * The customer's whole product: where am I, how long, is it fair — in one
- * glance, on one screen.
- *
- * Four states form an escalation ladder carried by inversion rather than
- * colour. Paper on shell, then a full flip, then the whole screen. Only the
- * last state is allowed the signal colour.
- *
- * The handoff is a 390px reference. On desktop the stack becomes a two-column
- * composition — the ticket held at a readable size beside the board, rather
- * than a phone layout stretched across a monitor.
+ * What the customer has told the counter about where they are. Held on this
+ * phone for now: the counter cannot receive it until the API carries it, and
+ * the screen says so rather than pretending.
  */
+type Presence = "on-my-way" | "here" | "hold" | null;
+
+function presenceKey(slug: string, number: number): string {
+  return `qless.presence.${slug}.${number}`;
+}
+
+function usePresence(slug: string, number: number): [Presence, (next: Presence) => void] {
+  const key = presenceKey(slug, number);
+  const stored = useStoredValue(key);
+  const presence: Presence =
+    stored === "on-my-way" || stored === "here" || stored === "hold" ? stored : null;
+
+  const set = useCallback(
+    (next: Presence): void => {
+      if (next === null) return;
+      writeSession(key, next);
+    },
+    [key],
+  );
+
+  return [presence, set];
+}
+
 /**
  * What a screen reader is told when the queue moves. One sentence, rebuilt on
  * every change, read politely — the screen itself is doing the shouting.
@@ -55,9 +76,18 @@ function announcementFor(proximity: Proximity, entry: QueueEntry, view: Customer
   }
 }
 
+/**
+ * The customer's whole product: where am I, how long, is it fair — in one
+ * glance, on one screen.
+ *
+ * Four states form an escalation ladder carried by inversion rather than
+ * colour. White on the page, then a full flip to ink, then the whole screen in
+ * vermilion. Only the last state is allowed the signal colour.
+ */
 export function TicketPass({ view, entry, connection, onCancel }: TicketPassProps): JSX.Element {
   const proximity = proximityOf(entry, view.peopleAhead);
   const announcement = announcementFor(proximity, entry, view);
+  const [presence, setPresence] = usePresence(view.state.queue.slug, entry.number);
 
   // Mounted here rather than on the waiting screen: the ladder has to survive
   // the customer being escalated from one state to the next, and each of those
@@ -71,9 +101,16 @@ export function TicketPass({ view, entry, connection, onCancel }: TicketPassProp
 
   const screen =
     proximity === "current" ? (
-      <TurnScreen view={view} entry={entry} onCancel={onCancel} />
+      <TurnScreen view={view} entry={entry} onCancel={onCancel} presence={presence} setPresence={setPresence} />
     ) : proximity === "next" ? (
-      <NextScreen view={view} entry={entry} connection={connection} onCancel={onCancel} />
+      <NextScreen
+        view={view}
+        entry={entry}
+        connection={connection}
+        onCancel={onCancel}
+        presence={presence}
+        setPresence={setPresence}
+      />
     ) : (
       <WaitingScreen
         view={view}
@@ -82,18 +119,16 @@ export function TicketPass({ view, entry, connection, onCancel }: TicketPassProp
         onCancel={onCancel}
         close={proximity === "close"}
         alerts={alerts}
+        presence={presence}
+        setPresence={setPresence}
       />
     );
 
   return (
     <>
-      {/*
-        The live region sits outside the screens rather than inside one of them.
-        Escalating from "close" to "next" replaces the entire screen, and a
-        live region that is inserted along with the change is not reliably
-        announced — it has to have been there first. Polite, and it never takes
-        focus: the customer may be typing, or reading something else entirely.
-      */}
+      {/* Outside the screens rather than inside one of them: escalating
+          replaces the whole screen, and a live region inserted with the change
+          is not reliably announced — it has to have been there first. */}
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
@@ -103,18 +138,40 @@ export function TicketPass({ view, entry, connection, onCancel }: TicketPassProp
 }
 
 /**
- * The opt-in, and the one place the product's central promise — "we'll let you
- * know when you're close" — is either kept or honestly withdrawn.
- *
- * Never a nag and never a gate: the button asks once, a browser that has
- * already answered is not asked again, and a browser that cannot do this at all
- * simply says what the page does instead.
+ * The opt-in, said in terms of what is still ahead. At six away the three
+ * nudges are all to come; at one away only the last one is, and promising
+ * "three away" to someone who is second in line reads as a screen that has
+ * not noticed where they are.
  */
+function alertsCopy(peopleAhead: number): ReactNode {
+  if (peopleAhead > 3) {
+    return (
+      <>
+        at <span className="text-strong">three away</span>, one away, and your turn
+      </>
+    );
+  }
+  if (peopleAhead > 1) {
+    return (
+      <>
+        at <span className="text-strong">one away</span> and your turn
+      </>
+    );
+  }
+  return (
+    <>
+      the moment <span className="text-strong">it&rsquo;s your turn</span>
+    </>
+  );
+}
+
 function AlertsNotice({
   permission,
+  peopleAhead,
   onRequest,
 }: {
   permission: AlertPermission;
+  peopleAhead: number;
   onRequest: () => void;
 }): JSX.Element {
   if (permission === "default") {
@@ -128,8 +185,7 @@ function AlertsNotice({
           </Button>
         }
       >
-        We can nudge you at <span className="text-strong">three away</span>, one away, and your
-        turn. Your place is held either way.
+        We can nudge you {alertsCopy(peopleAhead)}. Your place is held either way.
       </Notice>
     );
   }
@@ -137,25 +193,20 @@ function AlertsNotice({
   return (
     <Notice tone="quiet" chip="!">
       {permission === "granted" ? (
-        <>
-          Alerting you at <span className="text-strong">three away</span>, one away, and your turn.
-          Your place is held if you close this.
-        </>
+        <>Alerting you {alertsCopy(peopleAhead)}. Your place is held if you close this.</>
       ) : permission === "denied" ? (
         <>
           Alerts are blocked for this site, so keep an eye on this page. Your place is held if you
           close it.
         </>
       ) : (
-        <>
-          Keep this page open and it will keep up. Your place is held if you close it.
-        </>
+        <>Keep this page open and it will keep up. Your place is held if you close it.</>
       )}
     </Notice>
   );
 }
 
-/** States 01 and 02 — paper ticket on the shell. */
+/** States 01 and 02 — the ticket on the page. */
 function WaitingScreen({
   view,
   entry,
@@ -163,50 +214,47 @@ function WaitingScreen({
   onCancel,
   close,
   alerts,
+  presence,
+  setPresence,
 }: TicketPassProps & {
   close: boolean;
   alerts: { permission: AlertPermission; request: () => void };
+  presence: Presence;
+  setPresence: (next: Presence) => void;
 }): JSX.Element {
   const rows = deriveBoardRows({
     servingNumber: view.state.servingNumber,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
   });
+  const oneAhead = view.peopleAhead === 1;
 
   return (
     <Shell connection={connection} showToggle>
       <div className="flex flex-1 flex-col gap-4 lg:grid lg:flex-none lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
         <TicketCard className="p-[22px] lg:p-8">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="font-sans text-[28px] leading-none text-paper-ink lg:text-[34px]">
+            <h1 className="text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink lg:text-[26px]">
               {view.state.queue.name}
             </h1>
             <TicketBadge inverted={close}>{close ? "Getting close" : "In queue"}</TicketBadge>
           </div>
 
-          <div className="mt-5 flex items-start justify-between gap-4 lg:mt-8">
+          <div className="mt-5 flex items-end justify-between gap-4 lg:mt-8">
             <div className="min-w-0">
               <MonoLabel size={10} tone="paper">
-                Your no.
+                Your number
               </MonoLabel>
-              <Numeral
-                value={entry.number}
-                scale="hero"
-                className="mt-2 text-paper-ink lg:text-[164px]"
-              />
+              <Numeral value={entry.number} scale="hero" className="mt-2 text-paper-ink lg:text-[150px]" />
             </div>
 
-            <dl className="shrink-0 space-y-4 text-right lg:space-y-6">
+            <dl className="shrink-0 space-y-3 text-right lg:space-y-5">
               <div>
                 <MonoLabel as="dt" size={10} tone="paper">
                   Now serving
                 </MonoLabel>
                 <dd>
-                  <Numeral
-                    value={view.state.servingNumber}
-                    scale="small"
-                    className="mt-1 text-paper-ink lg:text-[44px]"
-                  />
+                  <Numeral value={view.state.servingNumber} scale="small" className="mt-1 text-paper-ink lg:text-[40px]" />
                 </dd>
               </div>
               <div>
@@ -214,11 +262,7 @@ function WaitingScreen({
                   Ahead
                 </MonoLabel>
                 <dd>
-                  <Numeral
-                    value={view.peopleAhead}
-                    scale="small"
-                    className="mt-1 text-paper-ink lg:text-[44px]"
-                  />
+                  <Numeral value={view.peopleAhead} scale="small" className="mt-1 text-paper-ink lg:text-[40px]" />
                 </dd>
               </div>
             </dl>
@@ -229,14 +273,16 @@ function WaitingScreen({
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
               <MonoLabel size={10} tone="paper">
-                Est. wait
+                Estimated wait
               </MonoLabel>
-              <p className="numeral mt-1.5 text-[clamp(30px,9vw,40px)] text-paper-ink lg:text-[46px]">
+              <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink lg:text-[42px]">
                 {view.estimate?.label ?? "Almost there"}
               </p>
             </div>
 
-            {close && (
+            {/* Only while there is somewhere to head back from. Second in
+                line, the walk is already over. */}
+            {close && !oneAhead && (
               <MonoLabel size={11} tone="paper" className="shrink-0 text-right">
                 Start heading
                 <br />
@@ -257,18 +303,36 @@ function WaitingScreen({
 
           {close && (
             <Notice tone="standing" chip="!">
-              {view.peopleAhead === 1 ? "One ahead" : `${view.peopleAhead} ahead`} of you. About
-              five minutes&rsquo; walk is all you have.
+              {oneAhead
+                ? "One person ahead of you. We'll tell you the moment it's your turn."
+                : `${view.peopleAhead} ahead of you. About five minutes' walk is all you have.`}
             </Notice>
           )}
 
-          <AlertsNotice permission={alerts.permission} onRequest={alerts.request} />
+          {!close && (
+            <AlertsNotice
+              permission={alerts.permission}
+              peopleAhead={view.peopleAhead}
+              onRequest={alerts.request}
+            />
+          )}
 
           <div className="flex-1 lg:hidden" />
 
-          <Button variant="ghost" fullWidth onClick={onCancel}>
-            Cancel my place
-          </Button>
+          <div className="space-y-2">
+            {close && (
+              <PresenceButton
+                presence={presence}
+                value="on-my-way"
+                label="I'm on my way"
+                done="On my way"
+                onSet={setPresence}
+              />
+            )}
+            <Button variant="ghost" fullWidth onClick={onCancel}>
+              Cancel my place
+            </Button>
+          </div>
         </div>
       </div>
     </Shell>
@@ -276,7 +340,14 @@ function WaitingScreen({
 }
 
 /** State 03 — the screen flips against the base theme. */
-function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX.Element {
+function NextScreen({
+  view,
+  entry,
+  connection,
+  onCancel,
+  presence,
+  setPresence,
+}: TicketPassProps & { presence: Presence; setPresence: (next: Presence) => void }): JSX.Element {
   const rows = deriveBoardRows({
     servingNumber: view.state.servingNumber,
     waitingNumbers: view.state.waitingNumbers,
@@ -289,19 +360,17 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
       <div className="flex flex-1 flex-col gap-4 lg:grid lg:flex-none lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
         <div className="ticket-flip overflow-hidden rounded-[var(--radius-ticket)] p-[22px] lg:p-8">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="font-sans text-[28px] leading-none lg:text-[34px]">
+            <h1 className="text-[22px] font-medium leading-tight tracking-[-0.02em] lg:text-[26px]">
               {view.state.queue.name}
             </h1>
-            <TicketBadge className="border-current bg-transparent">
-              You&rsquo;re next
-            </TicketBadge>
+            <TicketBadge className="border-current bg-transparent">You&rsquo;re next</TicketBadge>
           </div>
 
           <div className="mt-5 lg:mt-8">
             <MonoLabel size={10} tone="inherit" className="ticket-flip-muted">
-              Your no.
+              Your number
             </MonoLabel>
-            <Numeral value={entry.number} scale="next" className="mt-2 lg:text-[196px]" />
+            <Numeral value={entry.number} scale="next" className="mt-2 lg:text-[180px]" />
           </div>
 
           <div aria-hidden="true" className="-mx-[22px] my-5 flex h-6 items-center lg:-mx-8 lg:my-7">
@@ -310,14 +379,14 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
             <span className="h-6 w-3 rounded-l-full bg-shell" />
           </div>
 
-          <p className="font-sans text-[34px] leading-tight lg:text-[40px]">
+          <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] lg:text-[30px]">
             {view.state.servingNumber === null
               ? "You're up next."
               : `You're up after ${view.state.servingNumber}.`}
           </p>
-          <p className="ticket-flip-muted mt-3 font-mono text-[12px] leading-[1.6]">
-            Be inside now — if you&rsquo;re not here when you&rsquo;re called, you&rsquo;ll be
-            skipped and can rejoin.
+          <p className="ticket-flip-muted mt-3 text-[13.5px] leading-[1.55]">
+            Be inside now. If you&rsquo;re not here when you&rsquo;re called, you&rsquo;ll be skipped and
+            can rejoin.
           </p>
         </div>
 
@@ -327,9 +396,14 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
           <div className="flex-1 lg:hidden" />
 
           <div className="space-y-2">
-            <Button variant="contrast" fullWidth>
-              I&rsquo;m here
-            </Button>
+            <PresenceButton
+              presence={presence}
+              value="here"
+              label="I'm here"
+              done="You're marked as here"
+              onSet={setPresence}
+              variant="contrast"
+            />
             <Button variant="ghost" fullWidth onClick={onCancel}>
               Cancel my place
             </Button>
@@ -341,47 +415,67 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
 }
 
 /** State 04 — the only vermilion screen in the product. */
-function TurnScreen({ view, entry, onCancel }: Omit<TicketPassProps, "connection">): JSX.Element {
+function TurnScreen({
+  view,
+  entry,
+  onCancel,
+  presence,
+  setPresence,
+}: Omit<TicketPassProps, "connection"> & {
+  presence: Presence;
+  setPresence: (next: Presence) => void;
+}): JSX.Element {
   return (
     <Shell connection="called" surface="signal">
       <div className="flex flex-1 flex-col gap-6 lg:grid lg:flex-none lg:grid-cols-[auto_1fr] lg:items-center lg:gap-16">
         <div>
           {/* The screen's heading, and the only one it has. Set at label size
               because the numeral under it is the thing being announced. */}
-          <MonoLabel
-            as="h1"
-            size={13}
-           
-            weight={600}
-            tone="inherit"
-            className="text-white"
-          >
+          <h1 className="text-[13px] font-medium uppercase tracking-[0.06em] text-white">
             It&rsquo;s your turn
-          </MonoLabel>
-          <Numeral value={entry.number} scale="turn" className="mt-3 text-white lg:text-[300px]" />
+          </h1>
+          <Numeral value={entry.number} scale="turn" className="mt-3 text-white lg:text-[280px]" />
         </div>
 
         <div className="lg:border-l lg:border-white/35 lg:pl-16">
           <hr className="mb-6 border-0 border-t border-white/35 lg:hidden" />
 
-          <p className="font-sans text-[clamp(30px,9vw,40px)] leading-tight text-white lg:text-[52px]">
+          <p className="text-[clamp(26px,8vw,34px)] font-medium leading-tight tracking-[-0.02em] text-white lg:text-[44px]">
             {view.state.queue.name} is ready for you.
           </p>
           {/* Plain white. A tinted white on this ground drops back under
               4.5:1, so the step down in hierarchy is size, not opacity. */}
-          <p className="mt-3 font-mono text-[12px] leading-[1.6] text-white">
-            Show this screen if anyone asks.
-          </p>
+          <p className="mt-3 text-[13.5px] leading-[1.55] text-white">Show this screen if anyone asks.</p>
 
           <div className="mt-10 flex-1 lg:hidden" />
 
           <div className="mt-8 space-y-2 lg:max-w-xs">
-            <Button variant="onSignal" fullWidth>
-              On my way
-            </Button>
-            <Button variant="ghostOnSignal" fullWidth onClick={onCancel}>
-              I need two minutes
-            </Button>
+            <PresenceButton
+              presence={presence}
+              value="on-my-way"
+              label="On my way"
+              done="On my way"
+              onSet={setPresence}
+              variant="onSignal"
+            />
+            {/* A hold, not a cancel: two minutes is a request, and the number
+                stays theirs for one more call. */}
+            {presence === "hold" ? (
+              <p className="text-center text-[13px] leading-[1.55] text-white">
+                Holding your number for one more call. Nothing is cancelled.
+              </p>
+            ) : (
+              <Button variant="ghostOnSignal" fullWidth onClick={() => setPresence("hold")}>
+                I need two minutes
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={onCancel}
+              className="block w-full py-2 text-center text-[13px] text-white/90 underline-offset-4 hover:underline"
+            >
+              Cancel my place
+            </button>
           </div>
         </div>
       </div>
@@ -390,10 +484,64 @@ function TurnScreen({ view, entry, onCancel }: Omit<TicketPassProps, "connection
 }
 
 /**
+ * "I'm here" and "On my way". The tap is recorded on this phone and the
+ * button says so; the counter starts receiving it once the API carries it.
+ */
+function PresenceButton({
+  presence,
+  value,
+  label,
+  done,
+  onSet,
+  variant = "contrast",
+}: {
+  presence: Presence;
+  value: Exclude<Presence, null | "hold">;
+  label: string;
+  done: string;
+  onSet: (next: Presence) => void;
+  variant?: "contrast" | "onSignal";
+}): JSX.Element {
+  const set = presence === value || presence === "here";
+
+  if (set) {
+    return (
+      <div>
+        <div
+          className={
+            variant === "onSignal"
+              ? "flex h-[46px] items-center justify-center gap-2 rounded-full border border-white/70 text-[15px] font-medium text-white"
+              : "flex h-[46px] items-center justify-center gap-2 rounded-full border border-faint text-[15px] font-medium text-strong"
+          }
+        >
+          <Icon icon={Check} size={16} />
+          {done}
+        </div>
+        <p
+          className={
+            variant === "onSignal"
+              ? "mt-1.5 text-center text-[12px] text-white/90"
+              : "mt-1.5 text-center text-[12px] text-muted"
+          }
+        >
+          Held on this phone for now.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Button variant={variant} fullWidth onClick={() => onSet(value)}>
+      {label}
+    </Button>
+  );
+}
+
+/**
  * The phone is the ticket's shell on mobile. On a larger screen the pass
  * becomes a centred composition instead of a column pinned to the left edge.
  *
- * The theme control disappears from state 03 onwards: at that point the
+ * The appearance control disappears from state 03 onwards: at that point the
  * customer is being called, and nothing should compete with the number.
  */
 function Shell({
@@ -412,23 +560,17 @@ function Shell({
       data-surface={surface}
       className="min-h-dvh bg-shell transition-colors duration-500 motion-reduce:transition-none"
     >
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-6 lg:max-w-[1000px] lg:justify-center lg:px-10 lg:py-12">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-5 lg:max-w-[1000px] lg:justify-center lg:px-10 lg:py-12">
         <header className="flex items-center justify-between">
-          <MonoLabel size={10} tone="muted">
-            Qless pass
-          </MonoLabel>
+          <Wordmark size={20} />
           <div className="flex items-center gap-3">
             {showToggle && <ThemeToggle variant="quiet" />}
             <LiveIndicator state={connection} />
           </div>
         </header>
 
-        {/* flex-none from lg, like the screens inside it: on a phone the pass
-            fills the height so the cancel action sits at the bottom, and on a
-            monitor it becomes a composition the shell centres. */}
         <main className="flex flex-1 flex-col gap-4 lg:flex-none">{children}</main>
       </div>
     </div>
   );
 }
-

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type JSX, type ReactNode } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
@@ -11,6 +10,7 @@ import { Numeral } from "@/components/Numeral";
 import { Perforation, TicketCard } from "@/components/TicketCard";
 import { QueueArranging } from "@/components/QueueArranging";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
 import type { CustomerView, QueueEntry } from "@/lib/types";
 import { JoinQueueForm } from "./JoinQueueForm";
@@ -97,10 +97,10 @@ function JoinScreen({
     <PlainShell connection={connection}>
       <TicketCard className="p-[22px]">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="font-sans text-[28px] leading-none text-paper-ink">{summary.name}</h1>
+          <h1 className="text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink">{summary.name}</h1>
         </div>
         {summary.description && (
-          <p className="mt-2 font-mono text-[11px] text-paper-muted">{summary.description}</p>
+          <p className="mt-2 text-[13px] leading-[1.55] text-paper-muted">{summary.description}</p>
         )}
 
         <div className="mt-6 flex items-start justify-between gap-4">
@@ -123,7 +123,7 @@ function JoinScreen({
         <MonoLabel size={10} tone="paper">
           Est. wait if you join now
         </MonoLabel>
-        <p className="numeral mt-1.5 text-[clamp(30px,9vw,40px)] text-paper-ink">
+        <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink">
           {view.joinEstimate?.label ?? "No wait"}
         </p>
       </TicketCard>
@@ -200,17 +200,13 @@ function PlainShell({
 }): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell transition-colors duration-500 motion-reduce:transition-none">
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-6 lg:justify-center">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-5 lg:justify-center">
         <header className="flex items-center justify-between">
           {/* The only way off this page. A customer arrives here by scanning a
               code, so there is no history to go back through — and the ticket
               itself is recovered from storage on return, so leaving costs
               nothing. */}
-          <Link href="/" className="rounded-[var(--radius-control)] transition-colors hover:text-strong">
-            <MonoLabel size={10} tone="muted">
-              Qless pass
-            </MonoLabel>
-          </Link>
+          <Wordmark size={20} />
           <div className="flex items-center gap-3">
             <ThemeToggle variant="quiet" />
             <LiveIndicator state={connection} />
@@ -225,11 +221,9 @@ function PlainShell({
 function LoadingShell(): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell" aria-busy="true">
-      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-6 lg:max-w-md lg:justify-center">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 py-5 lg:justify-center">
         <header className="flex items-center justify-between">
-          <MonoLabel size={10} tone="muted">
-            Qless pass
-          </MonoLabel>
+          <Wordmark size={20} />
           <LiveIndicator state="reconnecting" />
         </header>
         <QueueArranging label="Loading the queue" />
