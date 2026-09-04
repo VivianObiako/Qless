@@ -10,6 +10,7 @@ import type {
   OperatorResponse,
   OperatorsResponse,
   OperatorView,
+  Presence,
   QueueAction,
   RedeemResponse,
   UpdateOperatorInput,
@@ -174,6 +175,19 @@ export function joinQueue(
   return request<JoinResponse>(`/api/queues/${encodeURIComponent(slug)}/join`, {
     method: "POST",
     body: { name },
+    customerToken,
+  });
+}
+
+/** Tell the counter where you are: on the way, here, or needing a moment. */
+export function setPresence(
+  slug: string,
+  presence: Presence,
+  customerToken: string,
+): Promise<CustomerView> {
+  return request<CustomerView>(`/api/queues/${encodeURIComponent(slug)}/presence`, {
+    method: "POST",
+    body: { presence },
     customerToken,
   });
 }

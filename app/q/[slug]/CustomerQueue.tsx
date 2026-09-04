@@ -49,6 +49,7 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
           entry={activeEntry}
           connection={queue.connection}
           onCancel={() => setConfirmingLeave(true)}
+          onSay={(presence) => void queue.say(presence)}
         />
       ) : (
         <JoinScreen

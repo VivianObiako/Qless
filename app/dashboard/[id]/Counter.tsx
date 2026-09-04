@@ -9,7 +9,7 @@ import { useDisclosure } from "@/hooks/useDisclosure";
 import { minutesSince, useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./QueueSwitcher";
-import type { EntryAction, OperatorView, Queue, QueueAction, WaitingRow } from "@/lib/types";
+import type { EntryAction, OperatorView, Presence, Queue, QueueAction, WaitingRow } from "@/lib/types";
 
 /**
  * What the operator is being asked to confirm, if anything. A dialog on skip,
@@ -37,6 +37,27 @@ interface CounterProps {
 /** A row's name, or the number said as a name when the queue keeps names to its owner. */
 function nameFor(entry: { customerName: string; number: number }): string {
   return entry.customerName || `Customer ${entry.number}`;
+}
+
+/**
+ * What the customer said about where they are, as a tag. "Here" is filled
+ * because it is the one the operator acts on; the others are quieter.
+ */
+function PresenceTag({ presence }: { presence: Presence | null }): JSX.Element | null {
+  if (!presence) return null;
+  const word = presence === "HERE" ? "Here" : presence === "ON_THE_WAY" ? "On my way" : "Asked for 2 min";
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border px-2 py-px text-[11.5px] font-medium",
+        presence === "HERE"
+          ? "border-strong bg-strong text-shell"
+          : "border-shell-line text-dim",
+      )}
+    >
+      {word}
+    </span>
+  );
 }
 
 /**
@@ -172,14 +193,21 @@ function AtTheCounter({
             {/* The one colour on the screen: this number is being called, the
                 same vermilion the customer's phone has turned. */}
             <Numeral value={current.number} scale="next" className="text-signal" />
-            <p className="mt-4 text-[22px] font-medium leading-tight tracking-[-0.02em] text-strong">
+            <p className="mt-4 flex items-center gap-2.5 text-[22px] font-medium leading-tight tracking-[-0.02em] text-strong">
               {nameFor(current)}
+              <PresenceTag presence={current.presence} />
             </p>
             <p className="mt-1 text-[13px] text-muted" suppressHydrationWarning>
               {current.startedAt && `Called ${minutesSince(current.startedAt, now)} min ago`}
               {current.startedAt && " · "}
               waited {minutesSince(current.joinedAt, now)} min
             </p>
+            {current.presence === "HOLD" && current.presenceAt && (
+              <p className="mt-2 text-[13px] leading-[1.55] text-dim" suppressHydrationWarning>
+                Asked for two minutes {minutesSince(current.presenceAt, now)} min ago. Skip keeps their
+                record if you need the counter; they can rejoin when they arrive.
+              </p>
+            )}
           </>
         ) : (
           <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] text-muted">
@@ -311,6 +339,7 @@ function WaitingList({
                     Next
                   </span>
                 )}
+                <PresenceTag presence={entry.presence} />
               </span>
               <span className="hidden text-[12.5px] tabular-nums text-muted sm:block" suppressHydrationWarning>
                 {minutesSince(entry.joinedAt, now)} min

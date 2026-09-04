@@ -31,6 +31,9 @@ export interface Queue extends QueueSummary {
   updatedAt: string;
 }
 
+/** What a customer has told the counter about where they are. */
+export type Presence = "ON_THE_WAY" | "HERE" | "HOLD";
+
 export interface QueueEntry {
   id: string;
   queueId: string;
@@ -40,6 +43,9 @@ export interface QueueEntry {
   joinedAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  /** Null until the customer says something. Never on a public surface. */
+  presence: Presence | null;
+  presenceAt: string | null;
 }
 
 export interface Estimate {
@@ -229,7 +235,8 @@ export type QueueEventType =
   | "QUEUE_PAUSED"
   | "QUEUE_RESUMED"
   | "QUEUE_CLOSED"
-  | "QUEUE_RESET";
+  | "QUEUE_RESET"
+  | "CUSTOMER_PRESENCE";
 
 export interface PublicEvent {
   type: QueueEventType;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type JSX, type ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
 import { Check } from "lucide-react";
 import { Board } from "@/components/Board";
 import { Button } from "@/components/Button";
@@ -12,45 +12,23 @@ import { Numeral } from "@/components/Numeral";
 import { Perforation, TicketBadge, TicketCard, TicketProgress } from "@/components/TicketCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
-import { useStoredValue } from "@/hooks/useStoredValue";
 import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotifications";
 import { deriveBoardRows } from "@/lib/board";
-import { writeSession } from "@/lib/session";
-import { proximityOf, type CustomerView, type Proximity, type QueueEntry } from "@/lib/types";
+import {
+  proximityOf,
+  type CustomerView,
+  type Presence,
+  type Proximity,
+  type QueueEntry,
+} from "@/lib/types";
 
 interface TicketPassProps {
   view: CustomerView;
   entry: QueueEntry;
   connection: ConnectionState;
   onCancel: () => void;
-}
-
-/**
- * What the customer has told the counter about where they are. Held on this
- * phone for now: the counter cannot receive it until the API carries it, and
- * the screen says so rather than pretending.
- */
-type Presence = "on-my-way" | "here" | "hold" | null;
-
-function presenceKey(slug: string, number: number): string {
-  return `qless.presence.${slug}.${number}`;
-}
-
-function usePresence(slug: string, number: number): [Presence, (next: Presence) => void] {
-  const key = presenceKey(slug, number);
-  const stored = useStoredValue(key);
-  const presence: Presence =
-    stored === "on-my-way" || stored === "here" || stored === "hold" ? stored : null;
-
-  const set = useCallback(
-    (next: Presence): void => {
-      if (next === null) return;
-      writeSession(key, next);
-    },
-    [key],
-  );
-
-  return [presence, set];
+  /** Tell the counter where you are. The entry comes back carrying it. */
+  onSay: (presence: Presence) => void;
 }
 
 /**
@@ -84,10 +62,13 @@ function announcementFor(proximity: Proximity, entry: QueueEntry, view: Customer
  * colour. White on the page, then a full flip to ink, then the whole screen in
  * vermilion. Only the last state is allowed the signal colour.
  */
-export function TicketPass({ view, entry, connection, onCancel }: TicketPassProps): JSX.Element {
+export function TicketPass({ view, entry, connection, onCancel, onSay }: TicketPassProps): JSX.Element {
   const proximity = proximityOf(entry, view.peopleAhead);
   const announcement = announcementFor(proximity, entry, view);
-  const [presence, setPresence] = usePresence(view.state.queue.slug, entry.number);
+  // What this entry has said. It lives on the server, so it is the same on
+  // every device the customer opens the pass on.
+  const presence = entry.presence;
+  const setPresence = onSay;
 
   // Mounted here rather than on the waiting screen: the ladder has to survive
   // the customer being escalated from one state to the next, and each of those
@@ -101,13 +82,21 @@ export function TicketPass({ view, entry, connection, onCancel }: TicketPassProp
 
   const screen =
     proximity === "current" ? (
-      <TurnScreen view={view} entry={entry} onCancel={onCancel} presence={presence} setPresence={setPresence} />
+      <TurnScreen
+        view={view}
+        entry={entry}
+        onCancel={onCancel}
+        onSay={onSay}
+        presence={presence}
+        setPresence={setPresence}
+      />
     ) : proximity === "next" ? (
       <NextScreen
         view={view}
         entry={entry}
         connection={connection}
         onCancel={onCancel}
+        onSay={onSay}
         presence={presence}
         setPresence={setPresence}
       />
@@ -117,6 +106,7 @@ export function TicketPass({ view, entry, connection, onCancel }: TicketPassProp
         entry={entry}
         connection={connection}
         onCancel={onCancel}
+        onSay={onSay}
         close={proximity === "close"}
         alerts={alerts}
         presence={presence}
@@ -219,7 +209,7 @@ function WaitingScreen({
 }: TicketPassProps & {
   close: boolean;
   alerts: { permission: AlertPermission; request: () => void };
-  presence: Presence;
+  presence: Presence | null;
   setPresence: (next: Presence) => void;
 }): JSX.Element {
   const rows = deriveBoardRows({
@@ -339,7 +329,7 @@ function NextScreen({
   onCancel,
   presence,
   setPresence,
-}: TicketPassProps & { presence: Presence; setPresence: (next: Presence) => void }): JSX.Element {
+}: TicketPassProps & { presence: Presence | null; setPresence: (next: Presence) => void }): JSX.Element {
   const rows = deriveBoardRows({
     servingNumber: view.state.servingNumber,
     waitingNumbers: view.state.waitingNumbers,
@@ -407,7 +397,7 @@ function TurnScreen({
   presence,
   setPresence,
 }: Omit<TicketPassProps, "connection"> & {
-  presence: Presence;
+  presence: Presence | null;
   setPresence: (next: Presence) => void;
 }): JSX.Element {
   return (
@@ -460,8 +450,7 @@ function TurnScreen({
  *                    someone already here, just "Go to the counter"
  *
  * Once "I'm here" is said nothing else is asked: two minutes is only for
- * somebody who is not here. Each tap is recorded on this phone and the panel
- * says so, until the API carries it to the counter.
+ * somebody who is not here.
  */
 function PresencePanel({
   stage,
@@ -470,11 +459,11 @@ function PresencePanel({
   onSignal = false,
 }: {
   stage: "close" | "next" | "current";
-  presence: Presence;
+  presence: Presence | null;
   onSet: (next: Presence) => void;
   onSignal?: boolean;
 }): JSX.Element {
-  const here = presence === "here";
+  const here = presence === "HERE";
   const primary = onSignal ? "onSignal" : "contrast";
   const secondary = onSignal ? "ghostOnSignal" : "ghost";
   const line = onSignal ? "text-center text-[13px] leading-[1.55] text-white" : "text-center text-[13px] leading-[1.55] text-muted";
@@ -490,30 +479,22 @@ function PresencePanel({
           <Icon icon={Check} size={16} />
           {stage === "current" ? "You're here" : "You're marked as here"}
         </div>
-        <p className={held}>
-          {stage === "current"
-            ? "Go to the counter."
-            : stage === "next"
-              ? "Wait to be called."
-              : "Held on this phone for now."}
-        </p>
+        {stage !== "close" && (
+          <p className={held}>{stage === "current" ? "Go to the counter." : "Wait to be called."}</p>
+        )}
       </div>
     );
   }
 
+  // Getting close: "on my way" once, and after that the only thing left to
+  // say is that they have arrived.
   if (stage === "close") {
-    return presence === "on-my-way" ? (
-      <div className="space-y-2">
-        <div className={done}>
-          <Icon icon={Check} size={16} />
-          On my way
-        </div>
-        <Button variant={primary} fullWidth onClick={() => onSet("here")}>
-          I&rsquo;m here
-        </Button>
-      </div>
+    return presence === "ON_THE_WAY" ? (
+      <Button variant={primary} fullWidth onClick={() => onSet("HERE")}>
+        I&rsquo;m here
+      </Button>
     ) : (
-      <Button variant={primary} fullWidth onClick={() => onSet("on-my-way")}>
+      <Button variant={primary} fullWidth onClick={() => onSet("ON_THE_WAY")}>
         I&rsquo;m on my way
       </Button>
     );
@@ -521,7 +502,7 @@ function PresencePanel({
 
   if (stage === "next") {
     return (
-      <Button variant={primary} fullWidth onClick={() => onSet("here")}>
+      <Button variant={primary} fullWidth onClick={() => onSet("HERE")}>
         I&rsquo;m here
       </Button>
     );
@@ -530,15 +511,15 @@ function PresencePanel({
   // Your turn, and not here yet.
   return (
     <div className="space-y-2">
-      <Button variant={primary} fullWidth onClick={() => onSet("here")}>
+      <Button variant={primary} fullWidth onClick={() => onSet("HERE")}>
         I&rsquo;m here
       </Button>
       {/* A hold, not a cancel: two minutes is a request, and the number
           stays theirs for one more call. */}
-      {presence === "hold" ? (
+      {presence === "HOLD" ? (
         <p className={line}>Holding your number for one more call. Nothing is cancelled.</p>
       ) : (
-        <Button variant={secondary} fullWidth onClick={() => onSet("hold")}>
+        <Button variant={secondary} fullWidth onClick={() => onSet("HOLD")}>
           I need two minutes
         </Button>
       )}
