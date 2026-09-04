@@ -12,8 +12,10 @@ interface TicketCardProps {
   className?: string;
 }
 
+// The ticket is the same white as the page, so its edge is what makes it a
+// ticket: a hairline on paper, none where the surface itself is the contrast.
 const surfaceClasses = {
-  paper: "bg-paper text-paper-ink",
+  paper: "border border-paper-line bg-paper text-paper-ink",
   ink: "bg-paper-ink text-paper",
   signal: "bg-signal text-white",
 } as const;

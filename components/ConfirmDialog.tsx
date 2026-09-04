@@ -68,12 +68,9 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
             aria-busy={loading || undefined}
-            className={cn(
-              "rounded-[var(--radius-control)] font-mono text-[11px] uppercase tracking-[0.18em]",
-              destructive
-                ? "bg-strong text-shell hover:opacity-90"
-                : "bg-paper text-paper-ink hover:bg-white",
-            )}
+            // Ink either way: escalation in this product is carried by the
+            // confirm step itself, not by a red button.
+            className="rounded-[var(--radius-control)] bg-strong font-mono text-[11px] uppercase tracking-[0.18em] text-shell hover:opacity-90"
           >
             {confirmLabel}
           </AlertDialogAction>

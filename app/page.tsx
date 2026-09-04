@@ -50,7 +50,7 @@ export default function LandingPage(): JSX.Element {
             <ThemeToggle className="hidden sm:inline-flex" />
             <Link
               href="/create"
-              className="rounded-(--radius-control) bg-paper px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-colors hover:bg-white active:scale-[0.99]"
+              className="rounded-(--radius-control) bg-strong px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-shell transition-opacity hover:opacity-90 active:scale-[0.99]"
             >
               Create a queue
             </Link>
@@ -81,7 +81,7 @@ export default function LandingPage(): JSX.Element {
             >
               <Link
                 href="/create"
-                className="rounded-(--radius-control) bg-paper px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-[background-color,transform] hover:bg-white active:scale-[0.99]"
+                className="rounded-(--radius-control) bg-strong px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-shell transition-[opacity,transform] hover:opacity-90 active:scale-[0.99]"
               >
                 Create a queue
               </Link>

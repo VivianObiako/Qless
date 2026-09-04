@@ -22,9 +22,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  paper: "bg-paper text-paper-ink hover:bg-white",
+  // Paper stock is the page colour now, so the primary fill is ink on it —
+  // the same thing "contrast" already was. Kept as a name until step 2.
+  paper: "bg-strong text-shell hover:opacity-90",
   contrast: "bg-strong text-shell hover:opacity-90",
-  onSignal: "bg-white text-signal hover:bg-paper",
+  onSignal: "bg-white text-signal hover:bg-white/90",
   // The outline is what makes a ghost control a control, so it takes the
   // palette's quietest legible tone rather than the row hairline — which sits
   // at 1.4:1 against the shell and is not a boundary anybody can see.

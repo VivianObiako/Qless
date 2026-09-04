@@ -2,8 +2,8 @@ export type Theme = "dark" | "light";
 
 export const THEME_STORAGE_KEY = "qless.theme";
 
-/** The direction's default. Light is a preference, not the baseline. */
-export const DEFAULT_THEME: Theme = "dark";
+/** The direction's default. Dark is a preference, not the baseline. */
+export const DEFAULT_THEME: Theme = "light";
 
 export function isTheme(value: string | null): value is Theme {
   return value === "dark" || value === "light";

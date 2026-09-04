@@ -264,7 +264,7 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
         action={
           <Link
             href={dashboardUrl}
-            className="inline-flex rounded-[var(--radius-control)] bg-paper px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-colors hover:bg-white"
+            className="inline-flex rounded-[var(--radius-control)] bg-strong px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-shell transition-opacity hover:opacity-90"
           >
             Open queue dashboard
           </Link>

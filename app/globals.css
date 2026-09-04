@@ -3,211 +3,207 @@
 @import "shadcn/tailwind.css";
 
 /*
-  Qless — "Ticket Pass".
+  Qless — "Paper".
 
-  A physical ticket rendered in serif numerals on a neutral near-black shell.
-  Category-neutral by design: the only per-venue variable is the business name.
-  There is no accent-colour system.
+  Black on white. One family, Geist, at two weights; Geist Mono only where a
+  person transcribes a code. Hairlines and space divide the page; nothing is
+  tinted. Light is the baseline and dark is a preference, so the bare :root is
+  the light set and [data-theme="dark"] is the inversion.
 
-  Escalation is carried by INVERSION, not hue. Vermilion appears on exactly two
-  surfaces in the whole product — the "it's your turn" screen and step 05 of the
-  landing page. Using it anywhere else stops it meaning "your turn".
+  Colour means one thing. Vermilion appears where a person is being called:
+  the customer's "it's your turn" screen, the number at the counter, and step
+  05 of the landing page. Nowhere else, or it stops meaning that.
+
+  The token names are the ones every screen already reads — shell, paper,
+  strong / dim / muted / faint, the board set — so the recolour is this file.
+  "Paper" the token is the ticket's stock, which is now the same white as the
+  page and reads as a ticket by its edge rather than its tint.
 */
 
 :root {
-  color-scheme: dark;
-
-  --shell: #111111;
-  --shell-soft: #1a1a1a;
-  --shell-mid: #262626;
-  --shell-line: #2e2e2e;
-
-  --paper: #f7f3ea;
-  --paper-ink: #1a1714;
-  --paper-line: #c6bca9;
-  --paper-muted: #756d63;
-
-  --strong: #ffffff;
-  --dim: #b4b4b4;
-  --muted: #8e8e8e;
-  --faint: #7d7d7d;
-
-  --board-row: #1a1a1a;
-  --board-serving-bg: #262626;
-  --board-serving-fg: #ffffff;
-  --board-hi-bg: #ffffff;
-  --board-hi-fg: #111111;
-
-  /* The logo chip has to stay legible whichever surface it lands on. */
-  --chip-bg: #f7f3ea;
-  --chip-fg: #1a1714;
-}
-
-[data-theme="light"] {
   color-scheme: light;
 
-  --shell: #efefec;
+  --shell: #ffffff;
   --shell-soft: #ffffff;
-  --shell-mid: #e5e5e5;
-  --shell-line: #d4d4d4;
+  --shell-mid: #f4f4f4;
+  --shell-line: #e8e8e8;
 
-  --paper: #fffdf7;
-  --paper-ink: #1a1714;
-  --paper-line: #c6bca9;
-  --paper-muted: #756d63;
+  --paper: #ffffff;
+  --paper-ink: #0a0a0a;
+  --paper-line: #d2d2d2;
+  --paper-muted: #6b6b6b;
 
-  --strong: #111111;
-  --dim: #515151;
-  --muted: #636363;
-  --faint: #808080;
+  --strong: #0a0a0a;
+  --dim: #4a4a4a;
+  --muted: #6b6b6b;
+  /* The control-boundary tone, never small text: 3.3:1 on white. */
+  --faint: #8a8a8a;
 
   --board-row: #ffffff;
-  --board-serving-bg: #e5e5e5;
-  --board-serving-fg: #111111;
-  --board-hi-bg: #111111;
+  --board-serving-bg: #f4f4f4;
+  --board-serving-fg: #0a0a0a;
+  --board-hi-bg: #0a0a0a;
   --board-hi-fg: #ffffff;
 
-  --chip-bg: #111111;
+  /* The logo chip has to stay legible whichever surface it lands on. */
+  --chip-bg: #0a0a0a;
   --chip-fg: #ffffff;
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --shell: #0a0a0a;
+  --shell-soft: #0f0f0f;
+  --shell-mid: #1a1a1a;
+  --shell-line: #262626;
+
+  --paper: #141414;
+  --paper-ink: #fafafa;
+  --paper-line: #383838;
+  --paper-muted: #a3a3a3;
+
+  --strong: #fafafa;
+  --dim: #c4c4c4;
+  --muted: #a3a3a3;
+  --faint: #6e6e6e;
+
+  --board-row: #0f0f0f;
+  --board-serving-bg: #1a1a1a;
+  --board-serving-fg: #fafafa;
+  --board-hi-bg: #fafafa;
+  --board-hi-fg: #0a0a0a;
+
+  --chip-bg: #fafafa;
+  --chip-fg: #0a0a0a;
+}
+
 /*
-  The operator's tool, and the print sheet.
-
-  Light mode is the warm paper palette the dashboard has always run on — a
-  working screen under shop lighting. Dark mode defines nothing at all and lets
-  the shell through, so the dashboard reads as part of the same product as every
-  other screen rather than a permanently lit exception.
-
-  The print sheet takes this palette unconditionally, whatever the theme: it is
-  a document headed for a printer, and ink on cream is what survives the browser
-  dropping background colours.
+  The print sheet takes the light set unconditionally, whatever the theme: it
+  is a document headed for a printer, and ink on white is what survives the
+  browser dropping background colours.
 */
-[data-theme="light"] [data-surface="paper"],
 [data-surface="print"] {
-  --shell: #f7f3ea;
-  --shell-soft: #ede6d9;
-  --shell-mid: #ddd4c4;
-  --shell-line: #ddd4c4;
+  --shell: #ffffff;
+  --shell-soft: #ffffff;
+  --shell-mid: #f4f4f4;
+  --shell-line: #e8e8e8;
 
-  --strong: #1a1714;
-  --dim: #585248;
-  --muted: #686158;
-  --faint: #8b8377;
+  --paper: #ffffff;
+  --paper-ink: #0a0a0a;
+  --paper-line: #d2d2d2;
+  --paper-muted: #6b6b6b;
 
-  --board-row: #ede6d9;
-  --board-serving-bg: #ede6d9;
-  --board-serving-fg: #1a1714;
-  --board-hi-bg: #1a1714;
-  --board-hi-fg: #f7f3ea;
+  --strong: #0a0a0a;
+  --dim: #4a4a4a;
+  --muted: #6b6b6b;
+  --faint: #8a8a8a;
 
-  --chip-bg: #1a1714;
-  --chip-fg: #f7f3ea;
+  --board-row: #ffffff;
+  --board-serving-bg: #f4f4f4;
+  --board-serving-fg: #0a0a0a;
+  --board-hi-bg: #0a0a0a;
+  --board-hi-fg: #ffffff;
+
+  --chip-bg: #0a0a0a;
+  --chip-fg: #ffffff;
 }
 
 /*
   State 03 — "you're next".
 
   Escalation is a reversal, so this flips against whatever the base theme is:
-  paper on a dark base, ink on a light one. Board, Notice and the ghost buttons
+  ink on a light base, white on a dark one. Board, Notice and the ghost buttons
   all re-tone from these variables without a single bespoke class.
 */
 [data-surface="flip"] {
-  --shell: #f7f3ea;
-  --shell-soft: #ede6d9;
-  --shell-mid: #ddd4c4;
-  --shell-line: #ddd4c4;
+  --shell: #0a0a0a;
+  --shell-soft: #0f0f0f;
+  --shell-mid: #1a1a1a;
+  --shell-line: #262626;
 
-  --strong: #1a1714;
-  --dim: #585248;
-  --muted: #686158;
-  --faint: #8b8377;
+  --strong: #fafafa;
+  --dim: #c4c4c4;
+  --muted: #a3a3a3;
+  --faint: #6e6e6e;
 
-  --board-row: #ede6d9;
-  --board-serving-bg: #ede6d9;
-  --board-serving-fg: #1a1714;
-  --board-hi-bg: #1a1714;
-  --board-hi-fg: #f7f3ea;
+  --board-row: #0f0f0f;
+  --board-serving-bg: #1a1a1a;
+  --board-serving-fg: #fafafa;
+  --board-hi-bg: #fafafa;
+  --board-hi-fg: #0a0a0a;
 
-  --chip-bg: #1a1714;
-  --chip-fg: #f7f3ea;
+  --chip-bg: #fafafa;
+  --chip-fg: #0a0a0a;
 
-  --flip-ticket-bg: #1a1714;
-  --flip-ticket-fg: #f7f3ea;
-  --flip-ticket-line: rgb(247 243 234 / 0.3);
-  --flip-ticket-muted: rgb(247 243 234 / 0.6);
+  --flip-ticket-bg: #161616;
+  --flip-ticket-fg: #fafafa;
+  --flip-ticket-line: #383838;
+  --flip-ticket-muted: #a3a3a3;
 }
 
-[data-theme="light"] [data-surface="flip"] {
-  --shell: #1a1714;
-  --shell-soft: #262320;
-  --shell-mid: #322e2a;
-  --shell-line: #3a3530;
+[data-theme="dark"] [data-surface="flip"] {
+  --shell: #ffffff;
+  --shell-soft: #ffffff;
+  --shell-mid: #f4f4f4;
+  --shell-line: #e8e8e8;
 
-  --strong: #f7f3ea;
-  --dim: #b8b0a2;
-  --muted: #938a7f;
-  --faint: #8a8177;
+  --strong: #0a0a0a;
+  --dim: #4a4a4a;
+  --muted: #6b6b6b;
+  --faint: #8a8a8a;
 
-  --board-row: #262320;
-  --board-serving-bg: #322e2a;
-  --board-serving-fg: #f7f3ea;
-  --board-hi-bg: #f7f3ea;
-  --board-hi-fg: #1a1714;
+  --board-row: #ffffff;
+  --board-serving-bg: #f4f4f4;
+  --board-serving-fg: #0a0a0a;
+  --board-hi-bg: #0a0a0a;
+  --board-hi-fg: #ffffff;
 
-  --chip-bg: #f7f3ea;
-  --chip-fg: #1a1714;
+  --chip-bg: #0a0a0a;
+  --chip-fg: #ffffff;
 
-  --flip-ticket-bg: #f7f3ea;
-  --flip-ticket-fg: #1a1714;
-  --flip-ticket-line: #c6bca9;
-  --flip-ticket-muted: #756d63;
+  --flip-ticket-bg: #ffffff;
+  --flip-ticket-fg: #0a0a0a;
+  --flip-ticket-line: #d2d2d2;
+  --flip-ticket-muted: #6b6b6b;
 }
 
 /*
   The room display.
 
-  Pinned to the dark shell in either theme, for the same reason the print sheet
-  is pinned to paper: nobody chooses a theme on a screen bolted to a wall, and
-  white numerals on near-black is what carries a number across a room. The
-  label gold is a display affordance — the departure-board idiom — and is not
-  the signal colour; the signal still means one thing and appears in one place.
+  Pinned to black in either theme, for the same reason the print sheet is
+  pinned to white: nobody chooses a theme on a screen bolted to a wall, and
+  white numerals on black is what carries a number across a room.
 */
 [data-surface="display"] {
   color-scheme: dark;
 
-  --shell: #111111;
-  --shell-soft: #1a1a1a;
-  --shell-mid: #262626;
-  --shell-line: #2e2e2e;
+  --shell: #0a0a0a;
+  --shell-soft: #0f0f0f;
+  --shell-mid: #1a1a1a;
+  --shell-line: #262626;
 
   --strong: #ffffff;
-  --dim: #b4b4b4;
-  --muted: #8e8e8e;
-  --faint: #7d7d7d;
+  --dim: #c4c4c4;
+  --muted: #a3a3a3;
+  --faint: #6e6e6e;
 
-  --board-row: #1a1a1a;
-  --board-serving-bg: #262626;
+  --board-row: #0f0f0f;
+  --board-serving-bg: #1a1a1a;
   --board-serving-fg: #ffffff;
   --board-hi-bg: #ffffff;
-  --board-hi-fg: #111111;
+  --board-hi-fg: #0a0a0a;
 
-  --chip-bg: #f7f3ea;
-  --chip-fg: #1a1714;
+  --chip-bg: #fafafa;
+  --chip-fg: #0a0a0a;
 }
 
 /*
-  State 04 — the turn screen. The only vermilion surface in the product.
+  State 04 — the turn screen. Vermilion, with plain white on it.
 
-  The hue is a shade deeper than the handoff's #E8552F. White on that lands at
-  3.64:1, which carries the 250px numeral and fails everything else on the
-  screen — the label, the line of copy, and both buttons. #CE4B2A is the
-  lightest vermilion that puts white text over 4.5:1, and it still reads on the
-  dark shell as large text where step 05 of the landing uses it.
-
-  Every text tone here is therefore plain white. Tinted whites lose the ratio
-  again — 80% white on this ground is 3.94:1 — so hierarchy on this screen is
-  carried by size and weight, which is what the direction says anyway.
+  #CE4B2A is the lightest vermilion that puts white text over 4.5:1, so every
+  text tone here is white and hierarchy is carried by size and weight. Tinted
+  whites lose the ratio again.
 */
 [data-surface="signal"] {
   --shell: #ce4b2a;
@@ -244,24 +240,30 @@
   --color-chip-bg: var(--chip-bg);
   --color-chip-fg: var(--chip-fg);
 
-  /* Signal colour. One meaning, one place. */
+  /* Signal colour. One meaning: a person being called. */
   --color-signal: #ce4b2a;
-  /* The room display's own label gold — a display affordance, not a signal. */
-  --color-display-label: #c9a227;
+  /* The room display's label tone. Monochrome, like the rest of the board. */
+  --color-display-label: #a3a3a3;
 
-  --font-serif: var(--font-instrument-serif), ui-serif, Georgia, serif;
-  --font-mono: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /*
+    Every screen still says `font-serif` where it means "the heading face".
+    Until step 2 renames those, the serif slot is the heading face, which is
+    now the sans.
+  */
+  --font-serif: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   --radius-shell: 24px;
   --radius-panel: 12px;
-  --radius-ticket: 10px;
-  --radius-control: 8px;
-  --radius-badge: 3px;
+  --radius-ticket: 14px;
+  --radius-control: 10px;
+  --radius-badge: 999px;
 }
 
 /*
-  shadcn's semantic variables mapped onto the shell palette, so registry
-  components inherit the direction rather than importing their own.
+  shadcn's semantic variables mapped onto the palette, so registry components
+  inherit the direction rather than importing their own.
 */
 :root {
   --background: var(--shell);
@@ -270,19 +272,19 @@
   --card-foreground: var(--strong);
   --popover: var(--shell-soft);
   --popover-foreground: var(--strong);
-  --primary: var(--paper);
-  --primary-foreground: var(--paper-ink);
+  --primary: var(--strong);
+  --primary-foreground: var(--shell);
   --secondary: var(--shell-mid);
   --secondary-foreground: var(--strong);
   --muted-bg: var(--shell-mid);
   --muted-foreground: var(--muted);
   --accent: var(--shell-mid);
   --accent-foreground: var(--strong);
-  --destructive: #ce4b2a;
+  --destructive: var(--strong);
   --border: var(--shell-line);
   --input: var(--shell-line);
   --ring: var(--strong);
-  --radius: 8px;
+  --radius: 10px;
 }
 
 @theme inline {
@@ -304,10 +306,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: 3px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
 }
 
 @layer base {
@@ -317,7 +319,7 @@
 
   html {
     -webkit-text-size-adjust: 100%;
-    @apply font-mono;
+    @apply font-sans;
   }
 
   body {
@@ -328,15 +330,16 @@
 }
 
 /*
-  Every queue number in the product is Instrument Serif with tabular figures,
-  so a 9 becoming a 10 does not shift the layout around it.
+  Every queue number in the product is Geist at 500 with tabular figures, so a
+  9 becoming a 10 does not shift the layout around it. Never heavier than 500:
+  weight reads heavier as size grows, and these run to 250px.
 */
 .numeral {
-  font-family: var(--font-serif);
-  font-weight: 400;
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.045em;
-  line-height: 0.8;
+  letter-spacing: -0.05em;
+  line-height: 0.85;
 }
 
 /* The state-03 ticket, whichever way the flip goes. */
