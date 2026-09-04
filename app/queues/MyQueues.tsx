@@ -103,7 +103,9 @@ export function MyQueues(): JSX.Element {
           {result.role === "OWNER" && <LinkButton href="/create">New queue</LinkButton>}
         </div>
 
-        <ul className="mt-9 flex flex-col gap-px overflow-hidden rounded-[var(--radius-panel)] bg-shell-line">
+        {/* A ledger, not a card: hairlines between rows and text on the
+            same left edge as the heading above it. */}
+        <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
           {result.queues.map((queue) => (
             <QueueRow key={queue.id} queue={queue} />
           ))}
@@ -153,7 +155,7 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
     <li>
       <Link
         href={`/dashboard/${queue.id}`}
-        className="flex items-center gap-5 bg-shell-soft px-6 py-5 transition-colors hover:bg-shell-mid"
+        className="-mx-3 flex items-center gap-5 rounded-[8px] px-3 py-4 transition-colors hover:bg-shell-mid"
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate font-sans text-[22px] leading-tight text-strong">

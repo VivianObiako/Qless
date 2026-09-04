@@ -159,7 +159,7 @@ export function OperatorRoster(): JSX.Element {
       </p>
 
       {active.length > 0 && (
-        <ul className="mt-9 flex flex-col gap-px overflow-hidden rounded-[var(--radius-panel)] bg-shell-line">
+        <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
           {active.map((operator) => (
             <OperatorRow
               key={operator.id}
@@ -273,7 +273,7 @@ function OperatorRow({
   }
 
   return (
-    <li className="bg-shell-soft px-6 py-5">
+    <li className="py-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="truncate font-sans text-[22px] leading-tight text-strong">

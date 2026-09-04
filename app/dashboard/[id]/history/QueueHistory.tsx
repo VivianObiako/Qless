@@ -121,7 +121,7 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
             left the queue.
           </p>
         ) : (
-          <ul className="mt-9 flex flex-col gap-px overflow-hidden rounded-[var(--radius-panel)] bg-shell-line">
+          <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
             {result.entries.map((entry) => (
               <HistoryRow key={entry.id} entry={entry} viewerIsOwner={role !== "OPERATOR"} />
             ))}
@@ -165,7 +165,7 @@ function HistoryRow({
           : "the owner";
 
   return (
-    <li className="flex items-center gap-4 bg-shell-soft px-5 py-4">
+    <li className="flex items-center gap-4 py-4">
       <Numeral
         value={entry.number}
         scale="board"
