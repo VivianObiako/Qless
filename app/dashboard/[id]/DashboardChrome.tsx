@@ -108,8 +108,9 @@ export function DashboardChrome({
 
   return (
     <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
-      {/* The sidebar, from lg. */}
-      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 border-r border-shell-line px-3 py-4 lg:flex">
+      {/* The sidebar, from lg. Pinned to the viewport and exactly its height,
+          so a long counter scrolls past it rather than dragging it along. */}
+      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 self-start border-r border-shell-line px-3 py-4 lg:sticky lg:top-0 lg:flex lg:h-dvh">
         <QueueSwitcher currentQueueId={queueId} />
 
         {destinations.length > 0 && (
