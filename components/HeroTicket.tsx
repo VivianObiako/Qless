@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { MonoLabel } from "./Label";
-import { QMark } from "./QMark";
+import { Mark } from "./Mark";
 import { Perforation, TicketBadge, TicketCard } from "./TicketCard";
 import { cn } from "@/lib/utils";
 
@@ -70,12 +70,7 @@ function BackFace(): JSX.Element {
     <>
       <div className="flex items-start justify-between gap-3">
         <span className="inline-flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="grid size-[22px] shrink-0 place-items-center rounded-[6px] bg-paper-ink text-paper"
-          >
-            <QMark size={14} />
-          </span>
+          <Mark size={22} className="shrink-0 text-paper-ink" />
           <span className="text-[15px] font-medium tracking-[-0.01em] text-paper-ink">Qless</span>
         </span>
         <TicketBadge>Admit one</TicketBadge>

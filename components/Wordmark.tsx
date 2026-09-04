@@ -2,7 +2,7 @@
 
 import type { JSX } from "react";
 import Link from "next/link";
-import { QMark } from "@/components/QMark";
+import { Mark } from "@/components/Mark";
 import { cn } from "@/lib/utils";
 import { sessionTokenKey } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
@@ -10,13 +10,14 @@ import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
 interface WordmarkProps {
   className?: string;
   asLink?: boolean;
-  /** Chip size in px. 22 in a nav bar, 44 on the landing hero. */
+  /** Mark size in px. 22 in a nav bar, 26 on the print sheet. */
   size?: number;
 }
 
 /**
- * Logo option B — ink chip carrying the Q mark, locked up with the wordmark. The same mark as the browser favicon (app/icon.svg), so the tab
- * and the header are one identity rather than two different Q's.
+ * The stub locked up with the wordmark. The same mark as the browser favicon
+ * (app/icon.svg) and the home-screen icon, so the tab and the header are one
+ * identity rather than two.
  *
  * Home is not a fixed address. For a visitor it is the landing page; for anyone
  * holding a session it is their queues, which is the screen they actually came
@@ -33,13 +34,7 @@ export function Wordmark({ className, asLink = true, size = 22 }: WordmarkProps)
 
   const content = (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span
-        aria-hidden="true"
-        className="grid shrink-0 place-items-center rounded-[6px] bg-chip-bg text-chip-fg"
-        style={{ width: size, height: size }}
-      >
-        <QMark size={size * 0.64} />
-      </span>
+      <Mark size={size} className="shrink-0 text-strong" />
       <span className="text-[15px] font-medium tracking-[-0.01em] text-strong">Qless</span>
     </span>
   );
