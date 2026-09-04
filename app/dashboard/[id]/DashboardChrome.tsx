@@ -1,24 +1,27 @@
 "use client";
 
-import { useId, useRef, useState, type JSX, type KeyboardEvent, type ReactNode } from "react";
+import type { JSX, ReactNode } from "react";
 import Link from "next/link";
-import { MonoLabel } from "@/components/Label";
+import { History, Share2, SlidersHorizontal, Ticket, type LucideIcon } from "lucide-react";
+import { Icon } from "@/components/Icon";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
-import { useStoredValue } from "@/hooks/useStoredValue";
-import { sessionRoleKey } from "@/lib/session";
+import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
+import { sessionRoleKey, sessionTokenKey } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { PersonalMenu } from "./PersonalMenu";
+import { QueueSwitcher, StatusDot } from "./QueueSwitcher";
+import type { QueueStatus } from "@/lib/types";
 
-export type DashboardTab = "counter" | "history" | "settings" | "queues" | "operators";
+export type DashboardTab = "counter" | "history" | "share" | "settings" | "queues" | "team";
 
 interface DashboardChromeProps {
   tab: DashboardTab;
   children: ReactNode;
   /**
-   * Absent on the business-level screens. Queues and operators belong to the
-   * owner rather than to any one queue, so they are reached from the same menu
-   * but have no counter behind them.
+   * Absent on the business-level screens. Queues and the team belong to the
+   * owner rather than to any one queue, so they are reached from the switcher
+   * and the personal menu and have no counter behind them.
    */
   queueId?: string;
   /** Absent while a screen is still loading, and on every error state. */
@@ -26,16 +29,14 @@ interface DashboardChromeProps {
   /**
    * What the page is called when there is no queue name to show — a loading
    * counter, or a screen that belongs to the business rather than a queue.
-   * Rendered unseen, because the visible title in those cases is the body's.
    */
   heading?: string;
-  status?: string;
-  customerHref?: string;
+  status?: QueueStatus;
   connection?: ConnectionState;
   /**
    * The counter fills the screen; the rest are reading columns. The bar above
-   * them keeps one width regardless, so moving between them never slides the
-   * wordmark sideways.
+   * them keeps one width regardless, so moving between them never slides
+   * anything sideways.
    */
   width?: "wide" | "narrow";
 }
@@ -44,30 +45,42 @@ interface Destination {
   id: DashboardTab;
   label: string;
   href: string;
+  icon: LucideIcon;
   ownerOnly: boolean;
 }
 
 function queueDestinations(queueId: string): readonly Destination[] {
   return [
-    { id: "counter", label: "Counter", href: `/dashboard/${queueId}`, ownerOnly: false },
-    { id: "history", label: "History", href: `/dashboard/${queueId}/history`, ownerOnly: false },
-    { id: "settings", label: "Settings", href: `/dashboard/${queueId}/settings`, ownerOnly: true },
+    { id: "counter", label: "Counter", href: `/dashboard/${queueId}`, icon: Ticket, ownerOnly: false },
+    { id: "history", label: "History", href: `/dashboard/${queueId}/history`, icon: History, ownerOnly: false },
+    { id: "share", label: "Share", href: `/dashboard/${queueId}/share`, icon: Share2, ownerOnly: false },
+    { id: "settings", label: "Settings", href: `/dashboard/${queueId}/settings`, icon: SlidersHorizontal, ownerOnly: true },
   ];
 }
 
-const businessDestinations: readonly Destination[] = [
-  { id: "queues", label: "Queues", href: "/queues", ownerOnly: false },
-  { id: "operators", label: "Operators", href: "/operators", ownerOnly: true },
-];
+const statusWord: Record<QueueStatus, string> = {
+  OPEN: "Open",
+  PAUSED: "Paused",
+  CLOSED: "Closed",
+};
 
 /**
- * The frame every dashboard screen sits in: the bar that names the queue, and
- * the drawer that reaches everything else.
+ * The frame every dashboard screen sits in.
+ *
+ * A sidebar built around three questions, top to bottom: which queue (the
+ * switcher), what am I doing (the queue's four screens), who am I (the
+ * personal menu). Below 1024px the sidebar becomes a bar with the switcher on
+ * the left and the menu on the right, and the four screens become a row of
+ * tabs under it.
  *
  * It is rendered by each screen's own client component rather than by a route
  * layout, because the things in the bar that change — the queue's name, its
  * status, the live dot — are that screen's state, and a layout sits above the
  * page it would have to read them from.
+ *
+ * A browser with no session gets a bare frame: the wordmark and a way in. That
+ * is what a revoked operator sees the moment their session is cleared, rather
+ * than a menu full of places they can no longer go.
  */
 export function DashboardChrome({
   tab,
@@ -76,159 +89,80 @@ export function DashboardChrome({
   queueName,
   heading = "Queue dashboard",
   status,
-  customerHref,
   connection,
   width = "wide",
 }: DashboardChromeProps): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const handleRef = useRef<HTMLButtonElement>(null);
-  const panelId = useId();
-
-  // The same reading the rest of the dashboard makes: a principal's type never
-  // changes, so storage cannot go stale, and a browser holding only a
-  // pre-session token is an owner by definition. This decides what is drawn.
-  // The server checks every request regardless.
+  const isClient = useIsClient();
+  const token = useStoredValue(sessionTokenKey());
   const isOwner = useStoredValue(sessionRoleKey()) !== "OPERATOR";
 
-  const permitted = (destination: Destination): boolean => isOwner || !destination.ownerOnly;
+  const title = queueName ?? heading;
 
-  function close(): void {
-    setOpen(false);
-    handleRef.current?.focus();
+  if (isClient && !token) {
+    return <SignedOutFrame title={title}>{children}</SignedOutFrame>;
   }
 
-  // Only ever reachable below 1280px, where the drawer overlays: above it the
-  // handle is not rendered, so there is nothing to close and no need to ask
-  // the viewport how wide it is.
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    if (event.key === "Escape" && open) {
-      event.stopPropagation();
-      close();
-    }
-  }
+  const destinations = queueId
+    ? queueDestinations(queueId).filter((destination) => isOwner || !destination.ownerOnly)
+    : [];
 
   return (
-    // A column so the row below can take the rest of the height: pinned, the
-    // drawer is a side of the page and has to reach its bottom, and a short
-    // screen would otherwise leave it hanging halfway down.
-    <div data-surface="paper" className="flex min-h-dvh flex-col bg-shell">
-      <header className="border-b border-shell-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-5">
-            <Wordmark />
-            {/* The page's heading. It lives in the bar because that is where the
-                queue is named, and it names every section of it — which is why
-                the other screens carry their own title as an h2 below. The
-                error states have no queue to name, so they carry the same
-                heading unseen rather than none. */}
-            {queueName ? (
-              <h1 className="font-sans text-[20px] leading-none text-strong">{queueName}</h1>
-            ) : (
-              <h1 className="sr-only">{heading}</h1>
-            )}
-          </div>
+    <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
+      {/* The sidebar, from lg. */}
+      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 border-r border-shell-line px-3 py-4 lg:flex">
+        <QueueSwitcher currentQueueId={queueId} />
 
-          {/* Four things, and two of them are state rather than controls. The
-              theme and the customer view moved into the drawer's footer: both
-              are reached occasionally, and taking them out of here is what
-              stopped this bar wrapping into a second row on a tablet. */}
-          <div className="flex items-center gap-4 sm:gap-5">
-            {connection && <LiveIndicator state={connection} />}
-            {status && (
-              <span className="rounded-[var(--radius-badge)] border border-current px-2 py-[5px] font-mono text-[9px] uppercase tracking-[0.18em] text-strong">
-                {status}
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <div className="relative flex flex-1" onKeyDown={onKeyDown}>
-        {/* Absolute below 1280px so the counter keeps its full width and the
-            panel lies over it; part of the row above that, where the page can
-            spare the column. */}
-        <div className="absolute inset-y-0 left-0 z-20 xl:static xl:w-[230px] xl:shrink-0">
-          <nav
-            id={panelId}
-            data-open={open}
-            aria-label="Dashboard"
-            className={cn(
-              "drawer-panel h-full w-[230px] border-r border-shell-line bg-shell-soft py-4",
-              // A shadow is how this reads as lifted on the warm palette and
-              // does nothing at all on #111, where the lighter surface and the
-              // hairline carry it instead.
-              "shadow-[6px_0_24px_rgb(26_23_20_/_0.16)] xl:shadow-none",
-            )}
-          >
-            {queueId && (
-              <Group label="This queue">
-                {queueDestinations(queueId)
-                  .filter(permitted)
-                  .map((destination) => (
-                    <Item key={destination.id} destination={destination} tab={tab} />
-                  ))}
-              </Group>
-            )}
-
-            <Group label="Your business" divided={queueId !== undefined}>
-              {businessDestinations.filter(permitted).map((destination) => (
-                <Item key={destination.id} destination={destination} tab={tab} />
+        {destinations.length > 0 && (
+          <nav aria-label="This queue">
+            <ul className="flex flex-col gap-px">
+              {destinations.map((destination) => (
+                <SideItem key={destination.id} destination={destination} current={destination.id === tab} />
               ))}
-            </Group>
-
-            {/* Drawn like the destinations above rather than like the labels
-                above them: uppercase mono is this product's heading voice, and
-                a link wearing it reads as a group nobody can open. */}
-            <div className="mt-4 flex flex-col items-start gap-2 border-t border-shell-line pt-4">
-              {/* A new tab, because the dashboard is the operator's working
-                  screen and a counter has a queue running on it. Checking what
-                  a customer sees should never cost them their place. */}
-              {customerHref && (
-                <a
-                  href={customerHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-2 font-mono text-[12px] text-muted transition-colors hover:text-strong"
-                >
-                  Customer view ↗
-                </a>
-              )}
-              <div className="px-4 pt-1">
-                <ThemeToggle />
-              </div>
-            </div>
+            </ul>
           </nav>
-        </div>
+        )}
 
-        {/* The handle rides the panel's edge rather than sitting at the page's,
-            so it is always attached to the thing it moves and its arrow is
-            always honest about the next click. */}
-        <button
-          ref={handleRef}
-          type="button"
-          aria-expanded={open}
-          aria-controls={panelId}
-          aria-label={open ? "Close menu" : "Open menu"}
-          onClick={() => setOpen((current) => !current)}
-          style={{ transform: open ? "translateX(230px)" : "translateX(0)" }}
-          className={cn(
-            "absolute left-0 top-4 z-30 grid h-9 w-7 place-items-center xl:hidden",
-            "rounded-r-[var(--radius-control)] bg-strong text-shell",
-            "transition-transform duration-[220ms] ease-[cubic-bezier(0.65,0,0.35,1)]",
-          )}
-        >
-          <Chevron pointing={open ? "left" : "right"} />
-        </button>
+        <PersonalMenu className="mt-auto" />
+      </aside>
 
-        <main
-          // The page makes room for the handle rather than letting it sit on
-          // top of the first panel. Above 1280 the drawer is a real column and
-          // the handle is gone, so the gutter goes back to normal.
-          className={cn(
-            "min-w-0 flex-1 pl-12 pr-6 xl:px-6",
-            width === "narrow" ? "pb-24 pt-12" : "py-8",
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* The bar. On a phone it carries the switcher and the menu; on a
+            desktop those are in the sidebar and it carries the page's name
+            and state. */}
+        <header className="border-b border-shell-line">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 lg:px-8">
+            <div className="min-w-0 lg:hidden">
+              <QueueSwitcher currentQueueId={queueId} />
+            </div>
+            <h1 className="hidden min-w-0 truncate text-[15px] font-medium text-strong lg:block">
+              {title}
+            </h1>
+            <span className="sr-only lg:hidden">{title}</span>
+
+            <div className="flex shrink-0 items-center gap-4">
+              {connection && <LiveIndicator state={connection} />}
+              {status && (
+                <span className="inline-flex items-center gap-2 text-[13px] text-dim">
+                  <StatusDot status={status} />
+                  {statusWord[status]}
+                </span>
+              )}
+              <PersonalMenu variant="avatar" opens="down" className="lg:hidden" />
+            </div>
+          </div>
+
+          {destinations.length > 0 && (
+            <nav aria-label="This queue" className="overflow-x-auto px-4 lg:hidden">
+              <ul className="flex gap-5">
+                {destinations.map((destination) => (
+                  <TabItem key={destination.id} destination={destination} current={destination.id === tab} />
+                ))}
+              </ul>
+            </nav>
           )}
-        >
+        </header>
+
+        <main className={cn("min-w-0 flex-1 px-4 lg:px-8", width === "narrow" ? "pb-24 pt-10" : "py-6")}>
           <div className={cn("mx-auto", width === "narrow" ? "max-w-2xl" : "max-w-6xl")}>
             {children}
           </div>
@@ -238,63 +172,56 @@ export function DashboardChrome({
   );
 }
 
-function Group({
-  label,
-  children,
-  divided = false,
-}: {
-  label: string;
-  children: ReactNode;
-  divided?: boolean;
-}): JSX.Element {
-  return (
-    // Labelled rather than headed: the visible label is decoration and the nav
-    // carries the name, so the drawer stays out of the page's heading outline.
-    <nav aria-label={label} className={cn(divided && "mt-4 border-t border-shell-line pt-4")}>
-      <MonoLabel size={10} tone="muted" aria-hidden className="block px-4 pb-2">
-        {label}
-      </MonoLabel>
-      <ul>{children}</ul>
-    </nav>
-  );
-}
-
-function Item({ destination, tab }: { destination: Destination; tab: DashboardTab }): JSX.Element {
-  const current = destination.id === tab;
-
+function SideItem({ destination, current }: { destination: Destination; current: boolean }): JSX.Element {
   return (
     <li>
       <Link
         href={destination.href}
         aria-current={current ? "page" : undefined}
         className={cn(
-          "block border-l-2 px-4 py-2 font-mono text-[12px] transition-colors",
-          // The marker is a bar on the left edge, which only works because the
-          // panel is flush to the page's edge with no gutter to fight.
-          current
-            ? "border-strong bg-shell-mid text-strong"
-            : "border-transparent text-muted hover:text-strong",
+          "flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] transition-colors",
+          current ? "bg-shell-mid font-medium text-strong" : "text-dim hover:bg-shell-mid hover:text-strong",
         )}
       >
+        <Icon icon={destination.icon} size={16} className={current ? "text-strong" : "text-muted"} />
         {destination.label}
       </Link>
     </li>
   );
 }
 
-function Chevron({ pointing }: { pointing: "left" | "right" }): JSX.Element {
+function TabItem({ destination, current }: { destination: Destination; current: boolean }): JSX.Element {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={pointing === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
-    </svg>
+    <li className="shrink-0">
+      <Link
+        href={destination.href}
+        aria-current={current ? "page" : undefined}
+        className={cn(
+          "-mb-px flex items-center gap-1.5 border-b-2 py-2.5 text-[13.5px] transition-colors",
+          current ? "border-strong font-medium text-strong" : "border-transparent text-dim hover:text-strong",
+        )}
+      >
+        <Icon icon={destination.icon} size={14} />
+        {destination.label}
+      </Link>
+    </li>
+  );
+}
+
+/** The frame for a browser that holds no session: nowhere to go but in. */
+function SignedOutFrame({ title, children }: { title: string; children: ReactNode }): JSX.Element {
+  return (
+    <div className="min-h-dvh bg-shell">
+      <header className="border-b border-shell-line">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-4">
+          <Wordmark />
+          <Link href="/enter" className="text-[13.5px] font-medium text-strong underline-offset-4 hover:underline">
+            Enter a code
+          </Link>
+        </div>
+      </header>
+      <h1 className="sr-only">{title}</h1>
+      <main className="mx-auto max-w-3xl px-6 pb-24 pt-10">{children}</main>
+    </div>
   );
 }

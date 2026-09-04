@@ -208,7 +208,7 @@ export function OperatorRoster(): JSX.Element {
   }
 
   return (
-    <DashboardChrome tab="operators" heading="Your team" width="narrow">
+    <DashboardChrome tab="team" heading="Your team" width="narrow">
       {body()}
     </DashboardChrome>
   );

@@ -9,11 +9,9 @@ import { MonoLabel } from "@/components/Label";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { Numeral } from "@/components/Numeral";
-import { QrCode, downloadQrPng } from "@/components/QrCode";
 import { QueueArranging } from "@/components/QueueArranging";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
-import { useOrigin } from "@/hooks/useStoredValue";
 import { cn } from "@/lib/utils";
 import type { OperatorView, Queue, QueueAction, WaitingRow } from "@/lib/types";
 
@@ -97,7 +95,6 @@ export function OperatorDashboard({
       tab="counter"
       queueName={view.queue.name}
       status={view.queue.status}
-      customerHref={`/q/${view.queue.slug}`}
       connection={queue.connection}
     >
       {queue.actionError && (
@@ -147,8 +144,6 @@ export function OperatorDashboard({
         onAct={(action) => void queue.actOnThisQueue(action)}
         onConfirm={setConfirming}
       />
-
-      <ShareQueue queue={view.queue} />
 
       <Confirmations
         confirming={confirming}
@@ -444,84 +439,6 @@ function Chevron({ open }: { open: boolean }): JSX.Element {
     >
       <path d="M1 1.25 5 4.75 9 1.25" />
     </svg>
-  );
-}
-
-/**
- * How customers get in. The operator sets this up once and then mostly ignores
- * it, so it sits under the working part of the screen rather than competing
- * with it — but it stays on the dashboard, because "turn the tablet round so
- * they can scan it" is a real thing that happens at a counter.
- */
-const shareQrId = "dashboard-share-qr";
-
-function ShareQueue({ queue }: { queue: Queue }): JSX.Element {
-  const origin = useOrigin();
-
-  const customerUrl = `${origin}/q/${queue.slug}`;
-
-  async function copyLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(customerUrl);
-      toast.success("Link copied");
-    } catch {
-      toast.error("Couldn't copy. Select the link and copy it manually.");
-    }
-  }
-
-  function downloadQr(): void {
-    if (downloadQrPng(shareQrId, `qless-${queue.slug}.png`)) {
-      toast.success("QR code saved");
-    } else {
-      toast.error("Couldn't save the QR code. Try the print sheet instead.");
-    }
-  }
-
-  return (
-    <section
-      aria-labelledby="share-heading"
-      className="mt-4 flex flex-col gap-6 rounded-[var(--radius-panel)] bg-shell-soft p-7 sm:flex-row sm:items-center sm:gap-8"
-    >
-      {origin && (
-        <QrCode
-          id={shareQrId}
-          value={customerUrl}
-          label={`QR code to join the queue at ${queue.name}`}
-          className="w-[132px] shrink-0"
-        />
-      )}
-
-      <div className="min-w-0">
-        <MonoLabel as="h2" size={10} tone="muted" id="share-heading">
-          Scan to join
-        </MonoLabel>
-        <p className="mt-2 break-all font-mono text-[12px] leading-relaxed text-strong">
-          {customerUrl || `/q/${queue.slug}`}
-        </p>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button variant="ghost" size="md" onClick={copyLink}>
-            Copy link
-          </Button>
-          <Button variant="ghost" size="md" onClick={downloadQr} disabled={!origin}>
-            Download QR
-          </Button>
-          <LinkButton href={`/print/${queue.slug}`} variant="ghost" size="md">
-            Print sheet
-          </LinkButton>
-          {/* The screen on the wall. A new tab because it is a second display,
-              not somewhere the counter navigates away to. */}
-          <a
-            href={`/display/${queue.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-faint px-4 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:border-strong hover:text-strong"
-          >
-            Display board
-          </a>
-        </div>
-      </div>
-    </section>
   );
 }
 

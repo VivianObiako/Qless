@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { reelInitScript } from "@/lib/reel";
-import { DEFAULT_THEME, themeInitScript } from "@/lib/theme";
+import { DEFAULT_PREFERENCE, resolveTheme, themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 // Everything: numerals, names, headings, body and controls. Two weights, and
@@ -48,7 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">): JSX.Element 
   return (
     <html
       lang="en"
-      data-theme={DEFAULT_THEME}
+      data-theme={resolveTheme(DEFAULT_PREFERENCE)}
       className={`${geist.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

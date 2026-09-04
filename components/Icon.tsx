@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface IconProps {
   icon: LucideIcon;
-  size?: 14 | 16 | 18 | 20;
+  size?: 14 | 15 | 16 | 18 | 20;
   className?: string;
 }
 

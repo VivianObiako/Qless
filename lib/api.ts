@@ -134,6 +134,15 @@ export function redeemAccessCode(code: string): Promise<RedeemResponse> {
  * Confirms the owner has the replacement code. Until this lands the redeemed
  * code still works, so this is the request that makes recovery single-use.
  */
+/**
+ * Signs out every other device holding this owner's session and keeps this
+ * one. Owner only, and never part of recovery: replacing a phone should not
+ * sign the counter tablet out unless the owner asks for exactly that.
+ */
+export function revokeOtherSessions(sessionToken: string): Promise<void> {
+  return request<void>("/api/sessions/revoke-others", { method: "POST", sessionToken });
+}
+
 export function acknowledgeRecoveryCode(sessionToken: string): Promise<void> {
   return request<void>("/api/access/recovery-code/acknowledge", {
     method: "POST",
