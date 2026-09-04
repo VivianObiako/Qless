@@ -477,83 +477,6 @@
   animation: qless-arrange-right 2600ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-/*
-  The landing reel: a strip of tickets feeding past a cutter, each tearing off
-  at its perforation, until the last one is left standing.
-
-  The strip advances one ticket-width per step. Tearing is choreographed by
-  delay rather than simulated — the tickets are not colliding with anything,
-  they are hitting their cue.
-*/
-@keyframes qless-reel-advance {
-  0% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(calc(-1 * var(--reel-step)));
-  }
-  50% {
-    transform: translateX(calc(-2 * var(--reel-step)));
-  }
-  75% {
-    transform: translateX(calc(-3 * var(--reel-step)));
-  }
-  100% {
-    transform: translateX(calc(-4 * var(--reel-step)));
-  }
-}
-
-@keyframes qless-ticket-tear {
-  0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(150%) rotate(-7deg);
-    opacity: 0;
-  }
-}
-
-.animate-reel-advance {
-  animation: qless-reel-advance 1040ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
-}
-
-.animate-ticket-tear {
-  animation: qless-ticket-tear 340ms cubic-bezier(0.4, 0, 1, 1) forwards;
-}
-
-/*
-  data-reel-skip is set before first paint whenever the reel should not run at
-  all. The overlay is still present in the server-rendered HTML at that point
-  — React's initial state has to match on server and client — so without this
-  rule the browser paints it, its animations start, and only then does
-  hydration's layout effect unmount it: a one-frame flash of tearing tickets on
-  every refresh after the first. display:none never lets those animations
-  start in the first place, which is what actually stops the flash; the
-  layout effect still removes the element afterwards for a clean DOM.
-
-  data-reel="playing" is deliberately not used for this: it is cleared partway
-  through a real playthrough to cue the landing's own entrance, and hiding the
-  overlay on that would cut the morph short.
-*/
-html[data-reel-skip] .reel-overlay {
-  display: none;
-}
-
-/*
-  While the reel is on screen the landing holds still underneath it: its
-  entrance is paused and the hero ticket stays invisible until the reel's own
-  final ticket has finished travelling into its place.
-*/
-html[data-reel="playing"] .animate-reveal {
-  animation-play-state: paused;
-}
-
-html[data-reel="playing"] #hero-ticket,
-html[data-reel="landing"] #hero-ticket {
-  opacity: 0;
-}
-
 /* A single entrance on load. Not ambient — it plays once and stops. */
 @keyframes qless-reveal {
   from {
@@ -592,11 +515,6 @@ html[data-reel="landing"] #hero-ticket {
   and drops the pulse and the transitions.
 */
 @media (prefers-reduced-motion: reduce) {
-  .animate-reel-advance,
-  .animate-ticket-tear {
-    animation: none !important;
-  }
-
   .animate-reveal {
     animation: none !important;
     opacity: 1 !important;
