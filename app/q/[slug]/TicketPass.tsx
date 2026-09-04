@@ -517,7 +517,7 @@ function PresenceButton({
           <Icon icon={Check} size={16} />
           {done}
         </div>
-        <p
+        {/* <p
           className={
             variant === "onSignal"
               ? "mt-1.5 text-center text-[12px] text-white/90"
@@ -525,7 +525,7 @@ function PresenceButton({
           }
         >
           Held on this phone for now.
-        </p>
+        </p> */}
       </div>
     );
   }

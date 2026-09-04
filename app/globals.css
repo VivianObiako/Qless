@@ -136,10 +136,11 @@
   --chip-bg: #fafafa;
   --chip-fg: #0a0a0a;
 
-  --flip-ticket-bg: #161616;
-  --flip-ticket-fg: #fafafa;
-  --flip-ticket-line: #383838;
-  --flip-ticket-muted: #a3a3a3;
+  /* The ticket inverts with the shell: white stock on an ink phone. */
+  --flip-ticket-bg: #ffffff;
+  --flip-ticket-fg: #0a0a0a;
+  --flip-ticket-line: #d2d2d2;
+  --flip-ticket-muted: #6b6b6b;
 }
 
 [data-theme="dark"] [data-surface="flip"] {
@@ -162,10 +163,11 @@
   --chip-bg: #0a0a0a;
   --chip-fg: #ffffff;
 
-  --flip-ticket-bg: #ffffff;
-  --flip-ticket-fg: #0a0a0a;
-  --flip-ticket-line: #d2d2d2;
-  --flip-ticket-muted: #6b6b6b;
+  /* And the other way round on a dark base: ink stock on a white phone. */
+  --flip-ticket-bg: #0a0a0a;
+  --flip-ticket-fg: #fafafa;
+  --flip-ticket-line: #383838;
+  --flip-ticket-muted: #a3a3a3;
 }
 
 /*
