@@ -111,7 +111,7 @@ export function DashboardChrome({
       {/* The sidebar, from lg. Pinned to the viewport and exactly its height,
           so a long counter scrolls past it rather than dragging it along. */}
       <aside className="hidden w-[236px] shrink-0 flex-col gap-4 self-start border-r border-shell-line px-3 py-4 lg:sticky lg:top-0 lg:flex lg:h-dvh">
-        <QueueSwitcher currentQueueId={queueId} />
+        <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
 
         {destinations.length > 0 && (
           <nav aria-label="This queue">
@@ -136,7 +136,7 @@ export function DashboardChrome({
         <header>
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:min-h-14 lg:justify-end lg:px-12 lg:py-0">
             <div className="min-w-0 lg:hidden">
-              <QueueSwitcher currentQueueId={queueId} />
+              <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
             </div>
             <h1 className="sr-only">{title}</h1>
 

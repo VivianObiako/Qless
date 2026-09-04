@@ -16,10 +16,19 @@ import type { Queue, QueueStatus } from "@/lib/types";
 interface QueueSwitcherProps {
   /** Absent on the business-level screens, where no queue is chosen. */
   currentQueueId?: string;
+  /** The current queue's name when the screen already knows it, so the row is right before the list arrives. */
+  currentQueueName?: string;
   /** What to show while the list is loading or when no queue is chosen. */
   fallbackLabel?: string;
   className?: string;
 }
+
+/**
+ * The list, kept across mounts. Every dashboard screen renders its own chrome,
+ * so the switcher is remounted on every navigation; without this it would
+ * refetch each time and flash its empty state while it waited.
+ */
+let remembered: { token: string; queues: Queue[] } | null = null;
 
 const statusWord: Record<QueueStatus, string> = {
   OPEN: "Open",
@@ -38,13 +47,16 @@ const statusWord: Record<QueueStatus, string> = {
  */
 export function QueueSwitcher({
   currentQueueId,
+  currentQueueName,
   fallbackLabel = "Your queues",
   className,
 }: QueueSwitcherProps): JSX.Element {
   const token = useStoredValue(sessionTokenKey());
   const isOwner = useStoredValue(sessionRoleKey()) !== "OPERATOR";
   const pathname = usePathname();
-  const [queues, setQueues] = useState<Queue[]>([]);
+  const [queues, setQueues] = useState<Queue[]>(() =>
+    remembered && remembered.token === token ? remembered.queues : [],
+  );
   const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
 
   useEffect(() => {
@@ -55,6 +67,7 @@ export function QueueSwitcher({
     void (async () => {
       try {
         const mine = await getMyQueues(token, controller.signal);
+        remembered = { token, queues: mine.queues };
         setQueues(mine.queues);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -75,10 +88,11 @@ export function QueueSwitcher({
   }, [pathname]);
 
   const current = queues.find((queue) => queue.id === currentQueueId) ?? null;
-  const label = current?.name ?? fallbackLabel;
+  const label = current?.name ?? currentQueueName ?? fallbackLabel;
+  // Always two lines, so the row never changes height while the list loads.
   const sub =
     queues.length === 0
-      ? null
+      ? "\u00a0"
       : queues.length === 1
         ? "1 queue"
         : `${queues.length} queues`;
@@ -100,7 +114,7 @@ export function QueueSwitcher({
         <Mark size={24} className="text-strong" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px] font-medium text-strong">{label}</span>
-          {sub && <span className="block text-[11.5px] text-muted">{sub}</span>}
+          <span className="block text-[11.5px] text-muted">{sub}</span>
         </span>
         <Icon icon={ChevronsUpDown} size={14} className="text-muted" />
       </button>
