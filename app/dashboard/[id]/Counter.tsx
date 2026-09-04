@@ -123,7 +123,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
   return (
     <div className="border-l border-shell-line px-5 py-4 first:border-l-0 first:pl-0 sm:[&:nth-child(3)]:border-l max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(3)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
       <dt className="text-[12.5px] text-muted">{label}</dt>
-      <dd className="numeral mt-1.5 text-[28px] text-strong">
+      <dd className="numeral mt-1.5 whitespace-nowrap text-[24px] text-strong sm:text-[28px]">
         {value}
         {unit && <span className="ml-1 font-sans text-[13px] tracking-normal text-muted">{unit}</span>}
       </dd>
