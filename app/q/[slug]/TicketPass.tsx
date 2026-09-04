@@ -178,7 +178,7 @@ function WaitingScreen({
       <div className="flex flex-1 flex-col gap-4 lg:grid lg:flex-none lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
         <TicketCard className="p-[22px] lg:p-8">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="font-serif text-[28px] leading-none text-paper-ink lg:text-[34px]">
+            <h1 className="font-sans text-[28px] leading-none text-paper-ink lg:text-[34px]">
               {view.state.queue.name}
             </h1>
             <TicketBadge inverted={close}>{close ? "Getting close" : "In queue"}</TicketBadge>
@@ -237,7 +237,7 @@ function WaitingScreen({
             </div>
 
             {close && (
-              <MonoLabel size={11} tone="paper" tracking="tight" className="shrink-0 text-right">
+              <MonoLabel size={11} tone="paper" className="shrink-0 text-right">
                 Start heading
                 <br />
                 back
@@ -289,7 +289,7 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
       <div className="flex flex-1 flex-col gap-4 lg:grid lg:flex-none lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
         <div className="ticket-flip overflow-hidden rounded-[var(--radius-ticket)] p-[22px] lg:p-8">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="font-serif text-[28px] leading-none lg:text-[34px]">
+            <h1 className="font-sans text-[28px] leading-none lg:text-[34px]">
               {view.state.queue.name}
             </h1>
             <TicketBadge className="border-current bg-transparent">
@@ -310,7 +310,7 @@ function NextScreen({ view, entry, connection, onCancel }: TicketPassProps): JSX
             <span className="h-6 w-3 rounded-l-full bg-shell" />
           </div>
 
-          <p className="font-serif text-[34px] leading-tight lg:text-[40px]">
+          <p className="font-sans text-[34px] leading-tight lg:text-[40px]">
             {view.state.servingNumber === null
               ? "You're up next."
               : `You're up after ${view.state.servingNumber}.`}
@@ -351,7 +351,7 @@ function TurnScreen({ view, entry, onCancel }: Omit<TicketPassProps, "connection
           <MonoLabel
             as="h1"
             size={13}
-            tracking="widest"
+           
             weight={600}
             tone="inherit"
             className="text-white"
@@ -364,7 +364,7 @@ function TurnScreen({ view, entry, onCancel }: Omit<TicketPassProps, "connection
         <div className="lg:border-l lg:border-white/35 lg:pl-16">
           <hr className="mb-6 border-0 border-t border-white/35 lg:hidden" />
 
-          <p className="font-serif text-[clamp(30px,9vw,40px)] leading-tight text-white lg:text-[52px]">
+          <p className="font-sans text-[clamp(30px,9vw,40px)] leading-tight text-white lg:text-[52px]">
             {view.state.queue.name} is ready for you.
           </p>
           {/* Plain white. A tinted white on this ground drops back under

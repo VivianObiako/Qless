@@ -97,7 +97,7 @@ function JoinScreen({
     <PlainShell connection={connection}>
       <TicketCard className="p-[22px]">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="font-serif text-[28px] leading-none text-paper-ink">{summary.name}</h1>
+          <h1 className="font-sans text-[28px] leading-none text-paper-ink">{summary.name}</h1>
         </div>
         {summary.description && (
           <p className="mt-2 font-mono text-[11px] text-paper-muted">{summary.description}</p>

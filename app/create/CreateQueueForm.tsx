@@ -100,7 +100,7 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
 
   return (
     <div>
-      <h1 className="font-serif text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Create a queue.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
@@ -200,12 +200,12 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
 
   return (
     <div>
-      <h1 className="font-serif text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Your queue is ready.
       </h1>
 
       <TicketCard className="mt-10 p-[22px]">
-        <p className="font-serif text-[28px] leading-none text-paper-ink">{queue.name}</p>
+        <p className="font-sans text-[28px] leading-none text-paper-ink">{queue.name}</p>
 
         <Perforation className="-mx-[22px] my-5" />
 

@@ -570,13 +570,13 @@ function AtTheCounter({
                 already the whole of what staff are given, so the line is
                 dropped rather than filled with a placeholder. */}
             {current.customerName && (
-              <p className="mt-3 font-serif text-[28px] leading-none text-strong">
+              <p className="mt-3 font-sans text-[28px] leading-none text-strong">
                 {current.customerName}
               </p>
             )}
           </>
         ) : (
-          <p className="font-serif text-[28px] leading-none text-muted">
+          <p className="font-sans text-[28px] leading-none text-muted">
             {next ? "Ready when you are." : "Nobody in the queue."}
           </p>
         )}
@@ -658,10 +658,10 @@ function WaitingList({
                     stays so the row keeps its shape: a queue of numbers should
                     read as the same list, not as numerals that have drifted
                     across into the estimates. */}
-                <span className="min-w-0 flex-1 truncate font-serif text-[19px] text-strong">
+                <span className="min-w-0 flex-1 truncate font-sans text-[19px] text-strong">
                   {entry.customerName}
                 </span>
-                <MonoLabel size={10} tone="muted" tracking="tight" className="shrink-0">
+                <MonoLabel size={10} tone="muted" className="shrink-0">
                   {index === 0 ? "Next" : (entry.estimate?.label ?? "—")}
                 </MonoLabel>
               </div>

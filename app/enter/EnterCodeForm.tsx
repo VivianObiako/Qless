@@ -92,7 +92,7 @@ function Form({ onRedeemed }: { onRedeemed: (redeemed: RedeemResponse) => void }
 
   return (
     <div>
-      <h1 className="font-serif text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Enter your code.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">

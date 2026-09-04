@@ -105,7 +105,7 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
 
     return (
       <div>
-        <h2 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+        <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
           History.
         </h2>
 
@@ -176,7 +176,7 @@ function HistoryRow({
       <span className="min-w-0 flex-1">
         {/* Blank on a queue that keeps names to the owner. */}
         {entry.customerName && (
-          <span className="block truncate font-serif text-[19px] leading-tight text-strong">
+          <span className="block truncate font-sans text-[19px] leading-tight text-strong">
             {entry.customerName}
           </span>
         )}

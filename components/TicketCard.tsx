@@ -29,11 +29,9 @@ export function TicketCard({
   return (
     <div
       id={id}
-      className={cn(
-        "rounded-[var(--radius-ticket)] overflow-hidden",
-        surfaceClasses[surface],
-        className,
-      )}
+      // Not clipped: the perforation's notches have to paint over the
+      // ticket's own edge to read as bites out of it.
+      className={cn("rounded-[var(--radius-ticket)]", surfaceClasses[surface], className)}
     >
       {children}
     </div>
@@ -63,9 +61,13 @@ const lineClasses = {
 } as const;
 
 /**
- * The tear line: a 12px notch bitten out of each edge with a dashed rule
- * between them. This is what makes the card read as a physical ticket rather
- * than another rounded rectangle.
+ * The tear line: a notch bitten out of each edge with a dashed rule between
+ * them. This is what makes the card read as a physical ticket rather than
+ * another rounded rectangle.
+ *
+ * Each notch sits one pixel over the ticket's edge, so the edge stops where
+ * the bite begins, and carries the hairline itself around its curve only —
+ * the straight side is open, the way a real cut is.
  */
 export function Perforation({
   notchColor = "shell",
@@ -75,11 +77,19 @@ export function Perforation({
   return (
     <div aria-hidden="true" className={cn("flex h-6 items-center", className)}>
       <span
-        className={cn("h-6 w-3 rounded-r-full", notchClasses[notchColor])}
+        className={cn(
+          "-ml-px h-6 w-[13px] shrink-0 rounded-r-full border border-l-0",
+          notchClasses[notchColor],
+          lineClasses[lineColor],
+        )}
       />
       <span className={cn("h-px flex-1 border-t border-dashed", lineClasses[lineColor])} />
       <span
-        className={cn("h-6 w-3 rounded-l-full", notchClasses[notchColor])}
+        className={cn(
+          "-mr-px h-6 w-[13px] shrink-0 rounded-l-full border border-r-0",
+          notchClasses[notchColor],
+          lineClasses[lineColor],
+        )}
       />
     </div>
   );
@@ -100,8 +110,8 @@ export function TicketBadge({
   return (
     <span
       className={cn(
-        "shrink-0 whitespace-nowrap rounded-[var(--radius-badge)] border px-2 py-[5px]",
-        "font-mono text-[9px] uppercase tracking-[0.18em]",
+        "shrink-0 whitespace-nowrap rounded-full border px-2.5 py-[3px]",
+        "text-[12px] font-medium leading-tight",
         inverted
           ? "border-paper-ink bg-paper-ink text-paper"
           : "border-current bg-transparent",

@@ -150,7 +150,7 @@ export function OperatorRoster(): JSX.Element {
 
     return (
     <div>
-      <h2 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Your team.
       </h2>
       <p className="mt-4 max-w-lg font-mono text-[13px] leading-[1.7] text-dim">
@@ -276,7 +276,7 @@ function OperatorRow({
     <li className="bg-shell-soft px-6 py-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="truncate font-serif text-[22px] leading-tight text-strong">
+          <p className="truncate font-sans text-[22px] leading-tight text-strong">
             {operator.displayName}
           </p>
           <p className="mt-1.5 font-mono text-[11px] text-muted">
@@ -485,7 +485,7 @@ function IssuedCode({
 
   return (
     <div>
-      <h1 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         {operator.displayName}&rsquo;s code.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">

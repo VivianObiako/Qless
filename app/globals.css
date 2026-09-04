@@ -247,12 +247,6 @@
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  /*
-    Every screen still says `font-serif` where it means "the heading face".
-    Until step 2 renames those, the serif slot is the heading face, which is
-    now the sans.
-  */
-  --font-serif: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   --radius-shell: 24px;
   --radius-panel: 12px;
@@ -354,13 +348,6 @@
 
 .ticket-flip-muted {
   color: var(--flip-ticket-muted);
-}
-
-/* Mono labels: uppercase, widely tracked, small. */
-.label {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
 }
 
 :focus-visible {

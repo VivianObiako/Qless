@@ -199,7 +199,7 @@ function Form({
 
   return (
     <div>
-      <h2 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Settings.
       </h2>
 

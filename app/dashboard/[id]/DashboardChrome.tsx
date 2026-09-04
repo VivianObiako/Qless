@@ -122,7 +122,7 @@ export function DashboardChrome({
                 error states have no queue to name, so they carry the same
                 heading unseen rather than none. */}
             {queueName ? (
-              <h1 className="font-serif text-[20px] leading-none text-strong">{queueName}</h1>
+              <h1 className="font-sans text-[20px] leading-none text-strong">{queueName}</h1>
             ) : (
               <h1 className="sr-only">{heading}</h1>
             )}

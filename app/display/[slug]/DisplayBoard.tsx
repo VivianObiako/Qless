@@ -61,7 +61,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
           <MonoLabel
             size={13}
-            tracking="widest"
+           
             tone="inherit"
             className="text-display-label lg:text-[15px]"
           >
@@ -85,12 +85,12 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
           </p>
 
           <div className="border-t border-white/15 pt-5">
-            <MonoLabel size={12} tracking="widest" tone="muted">
+            <MonoLabel size={12} tone="muted">
               Up next
             </MonoLabel>
 
             {upNext.length === 0 ? (
-              <p className="mt-2.5 font-serif text-[clamp(28px,5vw,44px)] leading-none text-muted">
+              <p className="mt-2.5 font-sans text-[clamp(28px,5vw,44px)] leading-none text-muted">
                 Nobody waiting
               </p>
             ) : (
@@ -126,7 +126,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
           <div className="flex flex-col items-center gap-4">
             <JoinCode origin={origin} state={state} />
-            <MonoLabel size={13} tracking="wide" tone="muted" className="text-center">
+            <MonoLabel size={13} tone="muted" className="text-center">
               Scan to join the queue
             </MonoLabel>
           </div>

@@ -96,7 +96,7 @@ export function MyQueues(): JSX.Element {
     return (
       <div>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+          <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
             Your queues.
           </h2>
 
@@ -156,7 +156,7 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
         className="flex items-center gap-5 bg-shell-soft px-6 py-5 transition-colors hover:bg-shell-mid"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-serif text-[22px] leading-tight text-strong">
+          <span className="block truncate font-sans text-[22px] leading-tight text-strong">
             {queue.name}
           </span>
           <span className="mt-1.5 block truncate font-mono text-[11px] text-muted">
@@ -181,7 +181,7 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
 function SignedOut(): JSX.Element {
   return (
     <div>
-      <h1 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         Sign in with your code.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
@@ -202,7 +202,7 @@ function SignedOut(): JSX.Element {
 function NoQueuesYet(): JSX.Element {
   return (
     <div>
-      <h1 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         No queues yet.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
@@ -227,7 +227,7 @@ function NotAssigned(): JSX.Element {
       <MonoLabel size={10} tone="muted">
         Signed in
       </MonoLabel>
-      <h1 className="mt-3 font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
+      <h1 className="mt-3 font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
         No queues assigned.
       </h1>
       <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">

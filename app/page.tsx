@@ -61,7 +61,7 @@ export default function LandingPage(): JSX.Element {
       <main>
         <section className="mx-auto grid max-w-6xl gap-14 px-6 py-16 lg:grid-cols-[1fr_360px] lg:items-center lg:gap-16 lg:py-24">
           <div>
-            <h1 className="animate-reveal font-serif text-[clamp(56px,11vw,104px)] leading-[0.92] tracking-[-0.035em] text-strong">
+            <h1 className="animate-reveal font-sans text-[clamp(56px,11vw,104px)] leading-[0.92] tracking-[-0.035em] text-strong">
               Stop waiting
               <div className="mt-2" />
               in line.

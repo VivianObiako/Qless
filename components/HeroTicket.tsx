@@ -38,7 +38,7 @@ function HeroFace(): JSX.Element {
   return (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className="font-serif text-[24px] leading-none text-paper-ink">
+        <p className="font-sans text-[24px] leading-none text-paper-ink">
           Ade&rsquo;s Barbershop
         </p>
         <TicketBadge>In queue</TicketBadge>
@@ -78,7 +78,7 @@ function ReelFace(): JSX.Element {
             aria-hidden="true"
             className="grid size-[22px] shrink-0 place-items-center rounded-[var(--radius-control)] bg-paper-ink"
           >
-            <span className="font-serif text-[14px] leading-none text-paper">Q</span>
+            <span className="font-sans text-[14px] leading-none text-paper">Q</span>
           </span>
           <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-paper-ink">
             Qless
@@ -89,7 +89,7 @@ function ReelFace(): JSX.Element {
 
       <div className="mt-auto">
         <Perforation className="-mx-[22px] mb-5" />
-        <p className="font-serif text-[38px] leading-[1.05] text-paper-ink">No more waiting.</p>
+        <p className="font-sans text-[38px] leading-[1.05] text-paper-ink">No more waiting.</p>
       </div>
     </>
   );

@@ -33,8 +33,8 @@ const chipClasses: Record<NoticeTone, string> = {
 /**
  * The shared shape for reassurance, paused, closed, full and error messages.
  *
- * Deliberately monochrome: the direction reserves its one colour for "your
- * turn", so weight and inversion carry urgency here instead of hue.
+ * Deliberately monochrome: the direction reserves its one colour for a person
+ * being called, so weight and inversion carry urgency here instead of hue.
  */
 export function Notice({
   tone = "quiet",
@@ -46,17 +46,13 @@ export function Notice({
 }: NoticeProps): JSX.Element {
   return (
     <div
-      className={cn(
-        "flex gap-3 rounded-[var(--radius-control)] border px-4 py-3.5",
-        toneClasses[tone],
-        className,
-      )}
+      className={cn("flex gap-3 rounded-[12px] border px-4 py-3.5", toneClasses[tone], className)}
     >
       {chip && (
         <span
           aria-hidden="true"
           className={cn(
-            "grid size-6 shrink-0 place-items-center rounded-md font-mono text-[11px]",
+            "grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-medium",
             chipClasses[tone],
           )}
         >
@@ -65,21 +61,20 @@ export function Notice({
       )}
 
       <div className="min-w-0 flex-1">
-        {title && <p className="font-mono text-[11px] uppercase tracking-[0.18em]">{title}</p>}
+        {title && <p className="text-[13.5px] font-medium">{title}</p>}
         {children && (
           <div
             className={cn(
-              "font-mono text-[12px] leading-[1.6]",
-              title && "mt-1.5",
+              "text-[13.5px] leading-[1.55]",
+              title && "mt-1",
               tone === "standing" && "text-dim",
             )}
           >
             {children}
           </div>
         )}
-        {action && <div className="mt-4">{action}</div>}
+        {action && <div className="mt-3.5">{action}</div>}
       </div>
     </div>
   );
 }
-

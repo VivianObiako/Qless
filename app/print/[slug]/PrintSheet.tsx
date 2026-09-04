@@ -99,11 +99,11 @@ export function PrintSheet({ slug }: { slug: string }): JSX.Element {
         <Wordmark asLink={false} size={26} />
 
         <div className="flex flex-col items-center">
-          <h1 className="font-serif text-[clamp(30px,6vw,44px)] leading-[1.05] tracking-[-0.02em] text-strong">
+          <h1 className="font-sans text-[clamp(30px,6vw,44px)] leading-[1.05] tracking-[-0.02em] text-strong">
             {queue.name}
           </h1>
 
-          <MonoLabel size={11} tone="muted" tracking="wide" className="mt-4">
+          <MonoLabel size={11} tone="muted" className="mt-4">
             Scan to join the queue
           </MonoLabel>
 

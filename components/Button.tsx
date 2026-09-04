@@ -2,10 +2,11 @@ import type { ButtonHTMLAttributes, JSX, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * paper         — primary on the dark shell (ticket stock fill)
+ * paper         — primary: ink on the page. The name is from the ticket-stock
+ *                 direction and is kept until the call sites move.
  * contrast      — primary that reads against whatever surface it lands on.
  *                 Used wherever the surface can invert: state 03 and the
- *                 operator dashboard.
+ *                 operator dashboard. On the page it is the same as paper.
  * onSignal      — white fill on the vermilion turn screen
  * ghost         — outline; re-tones with the surface
  * ghostOnSignal — outline on the vermilion turn screen
@@ -22,27 +23,28 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  // Paper stock is the page colour now, so the primary fill is ink on it —
-  // the same thing "contrast" already was. Kept as a name until step 2.
   paper: "bg-strong text-shell hover:opacity-90",
   contrast: "bg-strong text-shell hover:opacity-90",
   onSignal: "bg-white text-signal hover:bg-white/90",
   // The outline is what makes a ghost control a control, so it takes the
-  // palette's quietest legible tone rather than the row hairline — which sits
-  // at 1.4:1 against the shell and is not a boundary anybody can see.
-  ghost: "border border-faint text-muted hover:border-strong hover:text-strong",
-  ghostOnSignal: "border border-white/80 text-white hover:border-white hover:bg-white/10",
+  // palette's boundary tone rather than the row hairline, which is not a
+  // boundary anybody can see.
+  ghost: "border border-faint bg-transparent text-strong hover:border-strong hover:bg-shell-mid",
+  ghostOnSignal: "border border-white/70 text-white hover:border-white hover:bg-white/10",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-3 py-2 text-[10px]",
-  md: "px-4 py-3 text-[11px]",
-  lg: "px-5 py-[15px] text-[11px]",
+  sm: "h-8 px-3 text-[13px]",
+  md: "h-[38px] px-4 text-[13.5px]",
+  lg: "h-[46px] px-5 text-[15px]",
 };
 
 /**
  * The shared look of a control, so an anchor that acts as a button is styled
  * from the same source as the button rather than from a copy of its classes.
+ *
+ * A pill in sentence case at one weight. Hierarchy between controls is fill
+ * against outline, never size or shouting.
  */
 export function controlClasses(
   variant: ButtonVariant = "paper",
@@ -51,9 +53,8 @@ export function controlClasses(
   className?: string,
 ): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)]",
-    "font-mono uppercase tracking-[0.18em]",
-    "transition-[color,background-color,border-color,transform] duration-150",
+    "inline-flex items-center justify-center gap-2 rounded-full font-medium",
+    "transition-[color,background-color,border-color,opacity,transform] duration-150",
     "active:scale-[0.99] motion-reduce:active:scale-100",
     variantClasses[variant],
     sizeClasses[size],
@@ -78,7 +79,7 @@ export function Button({
       disabled={disabled || loading}
       className={cn(
         controlClasses(variant, size, fullWidth),
-        "disabled:cursor-not-allowed disabled:border disabled:border-shell-line disabled:bg-transparent disabled:text-faint",
+        "disabled:cursor-not-allowed disabled:border disabled:border-shell-line disabled:bg-transparent disabled:text-faint disabled:opacity-100",
         className,
       )}
       {...props}
@@ -93,8 +94,7 @@ function Spinner(): JSX.Element {
   return (
     <span
       aria-hidden="true"
-      className="size-3 shrink-0 animate-spin rounded-full border border-current border-t-transparent opacity-70"
+      className="size-3.5 shrink-0 animate-spin rounded-full border-[1.5px] border-current border-t-transparent opacity-70"
     />
   );
 }
-
