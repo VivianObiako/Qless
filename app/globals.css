@@ -571,6 +571,38 @@ html[data-reel="landing"] #hero-ticket {
   animation: qless-reveal 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/*
+  The hero ticket settling into place on arrival: the same tilt the cursor
+  gives it, played once as a wobble that dies away, like a card set down on
+  a counter. Held back while the reel is on screen, and released the moment
+  the reel hands over — removing the attribute is what starts it.
+*/
+@keyframes qless-settle {
+  0% {
+    transform: translateZ(0) rotateX(0deg) rotateY(0deg);
+  }
+  22% {
+    transform: translateZ(14px) rotateX(4deg) rotateY(-7deg);
+  }
+  52% {
+    transform: translateZ(8px) rotateX(-2.5deg) rotateY(4.5deg);
+  }
+  78% {
+    transform: translateZ(3px) rotateX(1deg) rotateY(-1.5deg);
+  }
+  100% {
+    transform: translateZ(0) rotateX(0deg) rotateY(0deg);
+  }
+}
+
+.animate-settle {
+  animation: qless-settle 1100ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
+}
+
+html[data-reel] .animate-settle {
+  animation: none;
+}
+
 .animate-pulse-live {
   animation: qless-pulse 2.4s ease-in-out infinite;
 }
@@ -604,7 +636,8 @@ html[data-reel="landing"] #hero-ticket {
   }
 
   .animate-arrange-left,
-  .animate-arrange-right {
+  .animate-arrange-right,
+  .animate-settle {
     animation: none !important;
     transform: none !important;
     opacity: 1 !important;

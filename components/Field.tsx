@@ -51,13 +51,18 @@ export function Field({
             "h-11 w-full rounded-[10px] border bg-shell-soft px-3.5 text-strong",
             mono ? "font-mono text-[16px] uppercase tracking-[0.08em]" : "text-[15px]",
             "placeholder:normal-case placeholder:tracking-normal placeholder:text-muted",
-            "transition-colors duration-150",
+            "transition-[border-color,box-shadow] duration-150",
+            // Focus is the border going to ink with a soft halo behind it,
+            // rather than the page's outline ring: on a field the ring drew a
+            // second line a hair outside the first. Plain :focus, since a text
+            // field shows its focus however it was reached.
+            "focus:outline-none focus:shadow-[0_0_0_3px_var(--shell-mid)]",
             // A field's outline is the only thing that says a field is there —
             // its fill and the page behind it are the same colour — so it
             // carries the palette's boundary tone rather than the row hairline.
             error
               ? "border-strong"
-              : "border-faint hover:border-muted focus-visible:border-strong",
+              : "border-faint hover:border-muted focus:border-strong",
             suffix && "pr-20",
           )}
           {...props}

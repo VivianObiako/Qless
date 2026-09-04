@@ -110,7 +110,7 @@ export function HeroTicketStage({ id, className }: HeroTicketStageProps): JSX.El
       <div
         ref={cardRef}
         className={cn(
-          "relative h-full [transform-style:preserve-3d] will-change-transform",
+          "animate-settle relative h-full [transform-style:preserve-3d] will-change-transform",
           !reduced && "cursor-pointer select-none",
         )}
       >
