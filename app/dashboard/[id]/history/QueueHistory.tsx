@@ -105,27 +105,37 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
 
     return (
       <div>
-        <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-          History.
+        <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+          History
         </h2>
 
         {!result.showsNames && (
-          <p className="mt-4 max-w-md font-mono text-[11px] leading-[1.7] text-muted">
+          <p className="mt-3 max-w-md text-[14px] leading-[1.6] text-muted">
             This queue keeps customer names to its owner, so this history shows numbers only.
           </p>
         )}
 
         {result.entries.length === 0 ? (
-          <p className="mt-6 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+          <p className="mt-6 max-w-md text-[14.5px] leading-[1.6] text-dim">
             Nothing finished yet. Customers appear here once they have been served, skipped, or have
             left the queue.
           </p>
         ) : (
-          <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
-            {result.entries.map((entry) => (
-              <HistoryRow key={entry.id} entry={entry} viewerIsOwner={role !== "OPERATOR"} />
+          <div className="mt-8 flex flex-col gap-8">
+            {groupByDay(result.entries).map((group) => (
+              <section key={group.key} aria-labelledby={`day-${group.key}`}>
+                <h3 id={`day-${group.key}`} className="text-[12.5px] text-muted">
+                  {group.label}
+                  <span className="ml-2 text-faint">{group.entries.length}</span>
+                </h3>
+                <ul className="mt-2 flex flex-col border-t border-shell-line">
+                  {group.entries.map((entry) => (
+                    <HistoryRow key={entry.id} entry={entry} viewerIsOwner={role !== "OPERATOR"} />
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     );
@@ -141,6 +151,47 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
       {body()}
     </DashboardChrome>
   );
+}
+
+interface DayGroup {
+  key: string;
+  label: string;
+  entries: HistoryEntry[];
+}
+
+/**
+ * The list arrives newest first, so the groups come out newest first too.
+ * Days are named relative to the reader — today, yesterday — because that is
+ * how an owner asks the question.
+ */
+function groupByDay(entries: HistoryEntry[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
+  const todayKey = dayKey(today);
+  const yesterdayKey = dayKey(yesterday);
+
+  for (const entry of entries) {
+    const finished = new Date(entry.completedAt ?? entry.joinedAt);
+    const key = dayKey(finished);
+    let group = groups.at(-1);
+    if (!group || group.key !== key) {
+      const label =
+        key === todayKey
+          ? "Today"
+          : key === yesterdayKey
+            ? "Yesterday"
+            : finished.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+      group = { key, label, entries: [] };
+      groups.push(group);
+    }
+    group.entries.push(entry);
+  }
+
+  return groups;
 }
 
 function HistoryRow({
@@ -165,22 +216,19 @@ function HistoryRow({
           : "the owner";
 
   return (
-    <li className="flex items-center gap-4 py-4">
+    <li className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-shell-line py-3">
       <Numeral
         value={entry.number}
         scale="board"
         animateOnChange={false}
-        className="w-12 shrink-0 text-strong"
+        className="text-strong"
       />
 
-      <span className="min-w-0 flex-1">
-        {/* Blank on a queue that keeps names to the owner. */}
-        {entry.customerName && (
-          <span className="block truncate font-sans text-[19px] leading-tight text-strong">
-            {entry.customerName}
-          </span>
-        )}
-        <span className="mt-1 block truncate font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+      <span className="min-w-0">
+        <span className="block truncate text-[14.5px] font-medium text-strong">
+          {entry.customerName || `Customer ${entry.number}`}
+        </span>
+        <span className="block truncate text-[12.5px] text-muted">
           {outcomeLabel[entry.status]}
           {by ? ` · by ${by}` : ""}
         </span>
@@ -190,7 +238,7 @@ function HistoryRow({
           every timestamp leaves the API in UTC precisely so this can. */}
       <time
         dateTime={finished}
-        className="shrink-0 font-mono text-[11px] text-muted"
+        className="shrink-0 text-[12.5px] tabular-nums text-muted"
         suppressHydrationWarning
       >
         {new Date(finished).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
@@ -198,4 +246,3 @@ function HistoryRow({
     </li>
   );
 }
-

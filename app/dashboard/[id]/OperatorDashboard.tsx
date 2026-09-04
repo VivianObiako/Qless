@@ -1,19 +1,16 @@
 "use client";
 
-import { useId, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useState, type JSX } from "react";
 import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
-import { Button, controlClasses } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { MonoLabel } from "@/components/Label";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
-import { Numeral } from "@/components/Numeral";
 import { QueueArranging } from "@/components/QueueArranging";
+import { Counter, type Confirmation } from "./Counter";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
-import { cn } from "@/lib/utils";
-import type { OperatorView, Queue, QueueAction, WaitingRow } from "@/lib/types";
+import type { QueueAction } from "@/lib/types";
 
 interface OperatorDashboardProps {
   queueId: string;
@@ -98,50 +95,28 @@ export function OperatorDashboard({
       connection={queue.connection}
     >
       {queue.actionError && (
-        <Notice tone="standing" title="That didn't go through" chip="!" className="mb-4">
+        <Notice tone="standing" title="That didn't go through" chip="!" className="mb-6">
           {queue.actionError.message}
         </Notice>
       )}
 
-      {/* Said once, quietly. Without it a counter of blank rows reads as a bug
-          rather than as the setting the owner chose. */}
+      {/* Said once, quietly. Without it a counter of numbers-as-names reads
+          as a bug rather than as the setting the owner chose. */}
       {!view.showsNames && (
-        <Notice tone="quiet" className="mb-4">
+        <Notice tone="quiet" className="mb-6">
           This queue keeps customer names to its owner. Call people by their number.
         </Notice>
       )}
 
-      <div className="grid gap-px overflow-hidden rounded-t-[var(--radius-panel)] bg-shell-line lg:grid-cols-[1fr_380px]">
-        <AtTheCounter
-          view={view}
-          serving={queue.serving}
-          onServeNext={queue.serveNextCustomer}
-          onAttend={(entryId) => void queue.actOnCustomer(entryId, "attend")}
-          pendingEntryId={queue.pendingEntryId}
-        />
-        <WaitingList
-          waiting={view.waiting}
-          pendingEntryId={queue.pendingEntryId}
-          onServe={(entryId) => void queue.actOnCustomer(entryId, "serve")}
-          onSkip={(entry) => setConfirming({ kind: "skip", entry })}
-        />
-      </div>
-
-      <dl className="mt-px grid grid-cols-2 gap-px overflow-hidden rounded-b-[var(--radius-panel)] bg-shell-line sm:grid-cols-3">
-        <Stat label="Waiting" value={String(view.waitingCount)} />
-        <Stat label="Avg service" value={`${view.queue.averageServiceMinutes}m`} />
-        <Stat
-          label="At the counter"
-          value={view.serving ? `#${view.serving.number}` : "—"}
-          className="col-span-2 sm:col-span-1"
-        />
-      </dl>
-
-      <QueueControls
-        queue={view.queue}
+      <Counter
+        view={view}
         isOwner={queue.isOwner}
+        serving={queue.serving}
+        pendingEntryId={queue.pendingEntryId}
         pendingAction={queue.pendingAction}
-        onAct={(action) => void queue.actOnThisQueue(action)}
+        onServeNext={queue.serveNextCustomer}
+        onEntry={(entryId, action) => void queue.actOnCustomer(entryId, action)}
+        onQueue={(action) => void queue.actOnThisQueue(action)}
         onConfirm={setConfirming}
       />
 
@@ -156,17 +131,6 @@ export function OperatorDashboard({
     </DashboardChrome>
   );
 }
-
-/**
- * What the operator is being asked to confirm, if anything. PROMPT.md asks for
- * a dialog on skip, close and reset — and deliberately not on serve next, which
- * is the action they take all day.
- */
-type Confirmation =
-  | { kind: "skip"; entry: WaitingRow }
-  | { kind: "close" }
-  | { kind: "reset" }
-  | null;
 
 function Confirmations({
   confirming,
@@ -260,374 +224,3 @@ function Confirmations({
     />
   );
 }
-
-/**
- * The controls an operator reaches for a few times a day rather than a few
- * times a minute, kept apart from the counter for exactly that reason.
- *
- * Pausing is shared with operators — stepping away from the counter is their
- * decision to make — and stays in the open, because it is the one control here
- * that gets used in an ordinary afternoon. Closing and clearing end the day,
- * belong to the owner, and sit behind a disclosure: a confirm dialog is weak
- * protection against a fat-finger on a counter tablet, since the dialog gets
- * tapped out of habit too.
- */
-function QueueControls({
-  queue,
-  isOwner,
-  pendingAction,
-  onAct,
-  onConfirm,
-}: {
-  queue: Queue;
-  isOwner: boolean;
-  pendingAction: QueueAction | null;
-  onAct: (action: QueueAction) => void;
-  onConfirm: (confirmation: Confirmation) => void;
-}): JSX.Element {
-  const closed = queue.status === "CLOSED";
-  const paused = queue.status === "PAUSED";
-
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreId = useId();
-  const toggleRef = useRef<HTMLButtonElement>(null);
-
-  // Escape is handled where the disclosure is rather than on the document: the
-  // panel is inline, so every key worth intercepting is raised inside this
-  // section and bubbles to here.
-  function onKeyDown(event: KeyboardEvent<HTMLElement>): void {
-    if (event.key !== "Escape" || !moreOpen) return;
-    setMoreOpen(false);
-    toggleRef.current?.focus();
-  }
-
-  return (
-    <section
-      aria-labelledby="controls-heading"
-      onKeyDown={onKeyDown}
-      className="mt-4 rounded-[var(--radius-panel)] bg-shell-soft p-7"
-    >
-      <MonoLabel as="h2" size={10} tone="muted" id="controls-heading">
-        Queue controls
-      </MonoLabel>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        {closed ? (
-          <Button
-            variant="contrast"
-            size="md"
-            loading={pendingAction === "resume"}
-            onClick={() => onAct("resume")}
-          >
-            Reopen queue
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="md"
-            loading={pendingAction === (paused ? "resume" : "pause")}
-            onClick={() => onAct(paused ? "resume" : "pause")}
-          >
-            {paused ? "Resume queue" : "Pause queue"}
-          </Button>
-        )}
-
-        {/* A disclosure, not a menu. Menu semantics promise roving tabindex,
-            arrow keys and typeahead; what is behind this is two ordinary
-            buttons that belong in the tab order.
-
-            ml-auto rather than justify-between on the row: at 320px the two
-            controls wrap, and the auto margin keeps this one on the right of
-            whichever line it lands on rather than dropping it under Pause. */}
-        {isOwner && (
-          <button
-            type="button"
-            ref={toggleRef}
-            aria-expanded={moreOpen}
-            aria-controls={moreId}
-            onClick={() => setMoreOpen((open) => !open)}
-            className={cn(controlClasses("ghost", "md"), "ml-auto gap-2.5")}
-          >
-            More<span className="sr-only"> queue actions</span>
-            <Chevron open={moreOpen} />
-          </button>
-        )}
-      </div>
-
-      <p className="mt-4 font-mono text-[11px] leading-[1.7] text-muted">
-        {paused
-          ? "Paused: nobody new can join. Everyone waiting keeps their place."
-          : closed
-            ? "Closed: nobody new can join. Everyone waiting keeps their place."
-            : "Pausing stops new customers joining without disturbing the queue."}
-      </p>
-
-      {/* Inline, so it pushes the page down rather than floating over it: no
-          absolute positioning to clip, and nothing to dismiss by clicking away.
-          Kept in the DOM and hidden so aria-controls always resolves. */}
-      {isOwner && (
-        <div id={moreId} hidden={!moreOpen} className="mt-5 border-t border-shell-line pt-5">
-          <div className="flex flex-col gap-4">
-            {!closed && (
-              <DestructiveAction
-                label="Close queue"
-                description="Stops anyone new joining. Everyone already waiting keeps their place, and you can reopen whenever you like."
-                onClick={() => onConfirm({ kind: "close" })}
-              />
-            )}
-            <DestructiveAction
-              label="Clear queue"
-              description="Removes everyone waiting and starts numbering again at 1. Today's history is kept."
-              onClick={() => onConfirm({ kind: "reset" })}
-            />
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-/**
- * One action behind the disclosure, with the line that says what it does.
- *
- * Monochrome, like everything else here. Escalation in this product is carried
- * by inversion and weight; the vermilion means "your turn" and nothing else.
- */
-function DestructiveAction({
-  label,
-  description,
-  onClick,
-}: {
-  label: string;
-  description: string;
-  onClick: () => void;
-}): JSX.Element {
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-      <Button
-        variant="ghost"
-        size="md"
-        onClick={onClick}
-        className="shrink-0 self-start sm:self-auto"
-      >
-        {label}
-      </Button>
-      <p className="font-mono text-[11px] leading-[1.7] text-muted">{description}</p>
-    </div>
-  );
-}
-
-/**
- * Drawn rather than imported. The product has no icon language — the theme
- * control draws its own mark from the ticket for the same reason — and one
- * chevron is not a reason to introduce one.
- */
-function Chevron({ open }: { open: boolean }): JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 10 6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn(
-        "h-1.5 w-2.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
-        open && "rotate-180",
-      )}
-    >
-      <path d="M1 1.25 5 4.75 9 1.25" />
-    </svg>
-  );
-}
-
-function AtTheCounter({
-  view,
-  serving,
-  onServeNext,
-  onAttend,
-  pendingEntryId,
-}: {
-  view: OperatorView;
-  serving: boolean;
-  onServeNext: () => Promise<void>;
-  onAttend: (entryId: string) => void;
-  pendingEntryId: string | null;
-}): JSX.Element {
-  const next = view.waiting[0];
-  const current = view.serving;
-
-  // The same request does both halves: it attends whoever is at the counter and
-  // promotes the next number. With nobody waiting only the first half happens,
-  // so the button stays live and says what it will actually do — otherwise the
-  // last customer of the day could never be closed out from here.
-  const label = next
-    ? `Serve next · ${next.number}`
-    : current
-      ? `Finish with ${current.customerName || `#${current.number}`}`
-      : "Serve next";
-
-  // min-w-0: a grid item sizes to its content by default, and a customer name
-  // can run to 60 characters — without it the column widens and the panel clips
-  // the name and the button rather than fitting them.
-  return (
-    <section aria-labelledby="counter-heading" className="min-w-0 bg-shell-soft p-7 sm:p-9">
-      <MonoLabel as="h2" size={10} tone="muted" id="counter-heading">
-        At the counter
-      </MonoLabel>
-
-      {/* Height reserved in both states so promoting a customer never shifts
-          the Serve Next button under the operator's cursor. */}
-      <div role="status" aria-live="polite" className="mt-4 flex min-h-[130px] flex-col justify-end">
-        {current ? (
-          <>
-            <Numeral value={current.number} scale="next" className="text-strong" />
-            {/* Blank when this queue keeps names to the owner. The number is
-                already the whole of what staff are given, so the line is
-                dropped rather than filled with a placeholder. */}
-            {current.customerName && (
-              <p className="mt-3 font-sans text-[28px] leading-none text-strong">
-                {current.customerName}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="font-sans text-[28px] leading-none text-muted">
-            {next ? "Ready when you are." : "Nobody in the queue."}
-          </p>
-        )}
-      </div>
-
-      <Button
-        variant="contrast"
-        fullWidth
-        loading={serving}
-        disabled={!next && !current}
-        onClick={() => void onServeNext()}
-        className="mt-7"
-      >
-        <span className="truncate">{label}</span>
-      </Button>
-
-      {/* Finishing with someone without calling the next customer. Serve Next
-          does both in one press and is the button for the busy case; this is
-          for the end of a run, when nobody should be called up next. */}
-      {current && next && (
-        <Button
-          variant="ghost"
-          size="md"
-          loading={pendingEntryId === current.id}
-          onClick={() => onAttend(current.id)}
-          className="mt-2 w-full"
-        >
-          <span className="truncate">Finish without calling anyone</span>
-        </Button>
-      )}
-
-      {!next && current && (
-        <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">
-          Nobody else is waiting.
-        </p>
-      )}
-    </section>
-  );
-}
-
-function WaitingList({
-  waiting,
-  pendingEntryId,
-  onServe,
-  onSkip,
-}: {
-  waiting: WaitingRow[];
-  pendingEntryId: string | null;
-  onServe: (entryId: string) => void;
-  onSkip: (entry: WaitingRow) => void;
-}): JSX.Element {
-  return (
-    <section aria-labelledby="waiting-heading" className="bg-shell-soft">
-      <div className="flex items-center justify-between px-5 py-4">
-        <MonoLabel as="h2" size={10} tone="muted" id="waiting-heading">
-          Waiting
-        </MonoLabel>
-        <MonoLabel size={10} tone="muted">
-          Est.
-        </MonoLabel>
-      </div>
-
-      {waiting.length === 0 ? (
-        <p className="px-5 pb-8 font-mono text-[11px] leading-[1.7] text-muted">
-          No one is waiting. Share the queue link and customers appear here.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-px bg-shell-line">
-          {waiting.map((entry, index) => (
-            <li key={entry.id} className="animate-row-in bg-shell-soft px-5 py-3.5">
-              <div className="flex items-center gap-4">
-                <Numeral
-                  value={entry.number}
-                  scale="board"
-                  animateOnChange={false}
-                  className="w-12 shrink-0 text-strong"
-                />
-                {/* Empty when this queue keeps names to the owner. The span
-                    stays so the row keeps its shape: a queue of numbers should
-                    read as the same list, not as numerals that have drifted
-                    across into the estimates. */}
-                <span className="min-w-0 flex-1 truncate font-sans text-[19px] text-strong">
-                  {entry.customerName}
-                </span>
-                <MonoLabel size={10} tone="muted" className="shrink-0">
-                  {index === 0 ? "Next" : (entry.estimate?.label ?? "—")}
-                </MonoLabel>
-              </div>
-
-              {/* Indented to the number's width so the actions read as
-                  belonging to this row rather than to the list. */}
-              <div className="mt-2.5 flex gap-2 pl-16">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  loading={pendingEntryId === entry.id}
-                  onClick={() => onServe(entry.id)}
-                >
-                  Serve
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={pendingEntryId === entry.id}
-                  onClick={() => onSkip(entry)}
-                >
-                  Skip
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}): JSX.Element {
-  return (
-    <div className={`bg-shell-soft px-5 py-4 ${className ?? ""}`}>
-      <MonoLabel as="dt" size={10} tone="muted">
-        {label}
-      </MonoLabel>
-      <dd className="numeral mt-1 text-[28px] text-strong">{value}</dd>
-    </div>
-  );
-}
-
-

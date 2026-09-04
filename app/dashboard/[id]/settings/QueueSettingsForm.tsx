@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type JSX } from "react";
+import { useEffect, useState, type FormEvent, type JSX, type ReactNode } from "react";
 import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
 import { Button } from "@/components/Button";
@@ -199,88 +199,119 @@ function Form({
 
   return (
     <div>
-      <h2 className="font-sans text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Settings.
+      <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Settings
       </h2>
 
-      <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
-        <Field
-          label="Business or queue name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          error={nameError}
-          hint="Changing this does not change your queue's link."
-          maxLength={80}
-          required
-        />
+      <form onSubmit={onSubmit} noValidate className="mt-8">
+        <Section title="Queue" description="What customers see when they scan in.">
+          <Field
+            label="Business or queue name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            error={nameError}
+            hint="Changing this does not change your queue's link."
+            maxLength={80}
+            required
+          />
+          <Field
+            label="Description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            hint="Optional. Shown to customers when they join."
+            placeholder="Walk-ins welcome"
+            maxLength={200}
+          />
+        </Section>
 
-        <Field
-          label="Description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          hint="Optional. Shown to customers when they join."
-          placeholder="Walk-ins welcome"
-          maxLength={200}
-        />
+        <Section title="Waiting" description="The estimate customers see, and how long the line can get.">
+          <Field
+            label="Average service time"
+            type="number"
+            inputMode="numeric"
+            value={serviceMinutes}
+            onChange={(event) => setServiceMinutes(event.target.value)}
+            hint="Used to estimate waits."
+            suffix="minutes"
+            min={1}
+            max={480}
+            required
+          />
+          <Field
+            label="Maximum queue size"
+            type="number"
+            inputMode="numeric"
+            value={capacity}
+            onChange={(event) => setCapacity(event.target.value)}
+            hint="Optional. Leave empty for no limit."
+            placeholder="No limit"
+            suffix="people"
+            min={1}
+            max={1000}
+          />
+        </Section>
 
-        <Field
-          label="Average service time"
-          type="number"
-          inputMode="numeric"
-          value={serviceMinutes}
-          onChange={(event) => setServiceMinutes(event.target.value)}
-          hint="Used to estimate waits."
-          suffix="minutes"
-          min={1}
-          max={480}
-          required
-        />
-
-        <Field
-          label="Maximum queue size"
-          type="number"
-          inputMode="numeric"
-          value={capacity}
-          onChange={(event) => setCapacity(event.target.value)}
-          hint="Optional. Leave empty for no limit."
-          placeholder="No limit"
-          suffix="people"
-          min={1}
-          max={1000}
-        />
-
-        <div className="rounded-[var(--radius-control)] border border-shell-line bg-shell-soft p-5">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={showNames}
-              onChange={(event) => setShowNames(event.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-[var(--strong)]"
-            />
+        <Section title="Privacy" description="Who sees customer names. Customers never see each other's.">
+          <label className="flex cursor-pointer items-start justify-between gap-4">
             <span>
-              <span className="block font-mono text-[12px] leading-[1.6] text-strong">
+              <span className="block text-[14.5px] font-medium text-strong">
                 Show customer names to operators
               </span>
-              <span className="mt-1.5 block font-mono text-[11px] leading-[1.7] text-muted">
-                You always see names. Operators you add see numbers only unless you turn this on — a
-                barbershop probably wants it, a clinic probably does not.
+              <span className="mt-1 block text-[13px] leading-[1.6] text-muted">
+                You always see names. Operators see numbers only unless this is on — a barbershop
+                probably wants it, a clinic probably does not.
               </span>
             </span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={showNames}
+              onChange={(event) => setShowNames(event.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-faint transition-colors peer-checked:bg-strong peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-strong after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-shell after:transition-transform peer-checked:after:translate-x-4"
+            />
           </label>
-        </div>
+        </Section>
 
         {error && (
-          <Notice tone="standing" title="Couldn't save your changes" chip="!">
+          <Notice tone="standing" title="Couldn't save your changes" chip="!" className="mt-6">
             {error}
           </Notice>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="contrast" loading={saving}>
+        <div className="mt-8 flex flex-wrap gap-2 border-t border-shell-line pt-6">
+          <Button type="submit" variant="contrast" size="md" loading={saving}>
             Save settings
           </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+/**
+ * A settings section as two columns: what it is and why on the left, the
+ * fields on the right. Stacks on a phone.
+ */
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <section className="grid gap-5 border-t border-shell-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
+      <div>
+        <h3 className="text-[15px] font-medium text-strong">{title}</h3>
+        <p className="mt-1 max-w-[30ch] text-[13px] leading-[1.55] text-muted">{description}</p>
+      </div>
+      <div className="flex max-w-lg flex-col gap-5">{children}</div>
+    </section>
   );
 }
