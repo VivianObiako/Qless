@@ -388,27 +388,7 @@ function HistoryTable({
         <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
           History
         </h2>
-        {/* The search lives with the heading, not the filters: the filter
-            row is full at tablet width and the search was falling off it. */}
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <label className="relative block w-full sm:w-[260px]">
-            <span className="sr-only">Find by name or number</span>
-            <Icon
-              icon={Search}
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-            />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Name or number"
-              className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
-            />
-          </label>
           <button
             type="button"
             onClick={exportCsv}
@@ -435,8 +415,29 @@ function HistoryTable({
         </p>
       ) : (
         <>
+          {/* The search, under the title and above the filters: the filter
+              row is full at tablet width and the search was falling off it. */}
+          <label className="relative mt-6 block w-full sm:max-w-[360px]">
+            <span className="sr-only">Find by name or number</span>
+            <Icon
+              icon={Search}
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Name or number"
+              className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
+            />
+          </label>
+
           {/* Filters. Each one narrows the rows and the summary together. */}
-          <div className="mt-6 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Select
               label="Day"
               value={day}
