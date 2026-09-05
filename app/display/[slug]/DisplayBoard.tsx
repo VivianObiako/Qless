@@ -97,7 +97,11 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
                 : `Now serving number ${state.servingNumber}.`}
             </span>
             <span aria-hidden="true">
-              <Numeral value={state.servingNumber} scale="display" className="text-strong lg:text-[clamp(180px,24vw,340px)]" />
+              <Numeral
+                value={state.servingNumber}
+                scale="display"
+                className="text-strong md:text-[clamp(180px,32vw,320px)] lg:text-[clamp(180px,24vw,340px)]"
+              />
             </span>
           </p>
 
@@ -235,7 +239,7 @@ function JoinCode({ origin, state }: { origin: string; state: PublicState }): JS
 function Frame({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div data-surface="display" className="min-h-dvh bg-shell">
-      <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-6 py-8 lg:px-11 lg:py-11">
+      <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] lg:px-11 lg:pb-[max(2.75rem,env(safe-area-inset-bottom))] lg:pt-[max(2.75rem,env(safe-area-inset-top))]">
         {children}
       </main>
     </div>

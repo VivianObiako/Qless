@@ -503,7 +503,7 @@ function SortHeader({
         type="button"
         onClick={onClick}
         className={cn(
-          "inline-flex items-center gap-1 text-[12.5px] transition-colors hover:text-strong",
+          "inline-flex items-center gap-1 text-[12.5px] transition-colors hover:text-strong pointer-coarse:py-2",
           active ? "text-strong" : "text-muted",
         )}
       >
@@ -534,7 +534,7 @@ function Select({
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-9 appearance-none rounded-full border border-shell-line bg-shell-soft pl-3.5 pr-10 text-[13px] text-strong focus:border-strong focus:outline-none"
+          className="h-9 appearance-none rounded-full border border-shell-line bg-shell-soft pl-3.5 pr-10 text-[13px] text-strong focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>

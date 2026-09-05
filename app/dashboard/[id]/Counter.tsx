@@ -110,7 +110,7 @@ export function Counter({
   addingWalkIn,
 }: CounterProps): JSX.Element {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="@container flex flex-col gap-8">
       <CounterHeading
         queue={view.queue}
         isOwner={isOwner}
@@ -121,7 +121,9 @@ export function Counter({
         addingWalkIn={addingWalkIn}
       />
       <Stats view={view} />
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] 2xl:gap-24">
+      {/* Split on the content's own width rather than the window's: a 12.9"
+          iPad held upright has the sidebar and not the room for two columns. */}
+      <div className="grid gap-10 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] @3xl:gap-14 @6xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] @6xl:gap-24">
         <AtTheCounter
           view={view}
           serving={serving}
@@ -357,7 +359,7 @@ export function Finder({
         value={query}
         onChange={(event) => onQuery(event.target.value)}
         placeholder="Find a customer or number"
-        className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-11 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none"
+        className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-11 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
       />
       <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-[4px] border border-shell-line px-1 text-[10.5px] text-muted">
         ⌘K
@@ -535,7 +537,7 @@ function AtTheCounter({
               type="button"
               disabled={pendingEntryId === current.id}
               onClick={() => onSkip(current)}
-              className="px-2 text-[13px] text-muted underline-offset-4 hover:text-strong hover:underline"
+              className="px-2 py-1 text-[13px] text-muted underline-offset-4 hover:text-strong hover:underline pointer-coarse:py-3"
             >
               {hold > 0 ? "Skip and hold instead" : "Skip instead"}
             </button>
@@ -594,6 +596,10 @@ function WaitingList({
         </h3>
         <Finder query={query} onQuery={onQuery} className="max-w-[240px] lg:hidden" />
       </div>
+      {/* Said in words as well as on hover: a tablet has no hover. */}
+      {busyWith !== null && waiting.length > 0 && (
+        <p className="mt-2 text-[12.5px] text-muted">Finish with {busyWith} before calling anyone else.</p>
+      )}
 
       {waiting.length === 0 ? (
         <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">

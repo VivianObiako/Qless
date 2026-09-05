@@ -121,7 +121,7 @@ export function DashboardChrome({
     <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
       {/* The sidebar, from lg. Pinned to the viewport and exactly its height,
           so a long counter scrolls past it rather than dragging it along. */}
-      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 self-start border-r border-shell-line px-3 py-4 lg:sticky lg:top-0 lg:flex lg:h-dvh">
+      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 self-start border-r border-shell-line px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] lg:sticky lg:top-0 lg:flex lg:h-dvh">
         <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
 
         {destinations.length > 0 && (
@@ -159,7 +159,7 @@ export function DashboardChrome({
         <header>
           <div
             className={cn(
-              "mx-auto flex w-full items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:grid lg:min-h-14 lg:grid-cols-[1fr_auto_1fr] lg:px-12 lg:py-0",
+              "mx-auto flex w-full items-center justify-between gap-3 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-8 lg:grid lg:min-h-14 lg:grid-cols-[1fr_auto_1fr] lg:px-12 lg:py-0 lg:pt-0",
               column,
             )}
           >
@@ -217,7 +217,7 @@ function SideItem({ destination, current }: { destination: Destination; current:
         href={destination.href}
         aria-current={current ? "page" : undefined}
         className={cn(
-          "flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] transition-colors",
+          "flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] transition-colors pointer-coarse:min-h-11",
           current ? "bg-shell-mid font-medium text-strong" : "text-dim hover:bg-shell-mid hover:text-strong",
         )}
       >

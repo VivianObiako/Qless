@@ -49,7 +49,7 @@ export function Field({
           aria-describedby={describedBy || undefined}
           className={cn(
             "h-11 w-full rounded-[10px] border bg-shell-soft px-3.5 text-strong",
-            mono ? "font-mono text-[16px] uppercase tracking-[0.08em]" : "text-[15px]",
+            mono ? "font-mono text-[16px] uppercase tracking-[0.08em]" : "text-[15px] pointer-coarse:text-[16px]",
             "placeholder:normal-case placeholder:tracking-normal placeholder:text-muted",
             "transition-[border-color,box-shadow] duration-150",
             // Focus is the border going to ink with a soft halo behind it,

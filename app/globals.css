@@ -309,6 +309,16 @@
 }
 
 @layer base {
+  /* A finger, not a cursor: a tap is a tap, not a wait for a double. Inputs
+     are sized at 16px under a finger by their own classes, so iOS does not
+     zoom the page on focus. */
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   * {
     @apply border-border;
   }

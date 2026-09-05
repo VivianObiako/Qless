@@ -34,9 +34,11 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-[13px]",
-  md: "h-[38px] px-4 text-[13.5px]",
-  lg: "h-[46px] px-5 text-[15px]",
+  // Taller under a finger: Apple's 44pt rule, met on the two sizes a
+  // tablet counter actually presses.
+  sm: "h-8 px-3 text-[13px] pointer-coarse:h-10",
+  md: "h-[38px] px-4 text-[13.5px] pointer-coarse:h-11",
+  lg: "h-[46px] px-5 text-[15px] pointer-coarse:h-12",
 };
 
 /**
