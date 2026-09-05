@@ -343,10 +343,10 @@ function Form({
         </div>
       </form>
 
-      <Section
-        title="Archive"
-        description="Put this queue away. Nothing is deleted."
-      >
+      {/* Wrapped so the section is a first child and draws no hairline of
+          its own: the save row above already has one. */}
+      <div className="mt-14">
+        <Section title="Archive" description="Put this queue away. Nothing is deleted.">
         <div>
           <p className="text-[13.5px] leading-[1.6] text-dim">
             An archived queue closes, leaves your list and stops taking joins. Its history stays, and
@@ -356,7 +356,8 @@ function Form({
             Archive this queue
           </Button>
         </div>
-      </Section>
+        </Section>
+      </div>
 
       <ConfirmDialog
         open={confirmingArchive}

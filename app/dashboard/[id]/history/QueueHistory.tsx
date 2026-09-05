@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { AccessNotice } from "@/components/AccessNotice";
 import { Button, controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
@@ -528,17 +528,26 @@ function Select({
   return (
     <label className="inline-flex items-center gap-2 text-[13px] text-muted">
       <span>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 rounded-full border border-shell-line bg-shell-soft px-3 pr-8 text-[13px] text-strong focus:border-strong focus:outline-none"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {/* The browser's own chevron sits on the edge of a pill; ours sits
+          inside it, with the padding to match. */}
+      <span className="relative inline-flex">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-9 appearance-none rounded-full border border-shell-line bg-shell-soft pl-3.5 pr-10 text-[13px] text-strong focus:border-strong focus:outline-none"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <Icon
+          icon={ChevronDown}
+          size={14}
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted"
+        />
+      </span>
     </label>
   );
 }

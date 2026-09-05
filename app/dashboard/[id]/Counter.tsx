@@ -518,7 +518,8 @@ function AtTheCounter({
 
         {/* Finishing with someone without calling the next customer. Serve
             next does both in one press and is the button for the busy case;
-            this is for the end of a run, when nobody should be called up. */}
+            this is for the end of a run, when nobody should be called up.
+            With nobody waiting the primary button already says this. */}
         {current && next && (
           <Button
             variant="ghost"
@@ -526,7 +527,7 @@ function AtTheCounter({
             loading={pendingEntryId === current.id}
             onClick={() => onAttend(current.id)}
           >
-            Done, nobody next
+            Done with {nameFor(current)}
           </Button>
         )}
         {/* Standing down the person at the counter. With a hold time they
