@@ -64,10 +64,30 @@ export function TicketReel(): JSX.Element | null {
     // Match the strip's height to the hero ticket it is going to become. The
     // hero card's height depends on how its copy wraps, so measuring beats
     // hardcoding — and without this the morph would land with a visible jump.
+    //
+    // Measured again whenever the hero's box changes, because it does: the
+    // web font arrives after first paint and reflows the card, and a strip
+    // sized to the fallback face lands a different height from the ticket it
+    // is meant to become.
     const hero = document.getElementById("hero-ticket");
     const strip = stripRef.current;
     if (!hero || !strip) return;
-    strip.style.height = `${hero.getBoundingClientRect().height}px`;
+
+    // Width too: the hero's column widens on a large screen, and the card
+    // that flies into it has to be the same size when it lands.
+    const overlay = overlayRef.current;
+    const sync = (): void => {
+      const box = hero.getBoundingClientRect();
+      strip.style.height = `${box.height}px`;
+      overlay?.style.setProperty("--reel-w", `${box.width}px`);
+    };
+    sync();
+
+    const observer = new ResizeObserver(sync);
+    observer.observe(hero);
+    void document.fonts.ready.then(sync);
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -189,7 +209,7 @@ export function TicketReel(): JSX.Element | null {
                 className="absolute inset-0 [backface-visibility:hidden]"
                 style={{ transform: "rotateY(180deg)" }}
               >
-                <HeroTicket mode="reel" />
+                <HeroTicket mode="back" />
               </div>
             </div>
           </div>

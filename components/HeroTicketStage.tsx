@@ -110,7 +110,7 @@ export function HeroTicketStage({ id, className }: HeroTicketStageProps): JSX.El
       <div
         ref={cardRef}
         className={cn(
-          "relative h-full [transform-style:preserve-3d] will-change-transform",
+          "animate-settle relative h-full [transform-style:preserve-3d] will-change-transform",
           !reduced && "cursor-pointer select-none",
         )}
       >
@@ -125,7 +125,7 @@ export function HeroTicketStage({ id, className }: HeroTicketStageProps): JSX.El
           aria-hidden="true"
           className="absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)]"
         >
-          <HeroTicket mode="reel" />
+          <HeroTicket mode="back" />
         </div>
       </div>
     </div>

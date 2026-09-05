@@ -26,11 +26,36 @@ handshake check it.
 |---|---|
 | `/` | Landing |
 | `/create` | Create a queue |
-| `/q/[slug]` | Customer view — join, watch your place, leave |
-| `/dashboard/[id]` | Operator counter, history and settings |
-| `/display/[slug]` | Full-screen board for a wall screen |
+| `/q/[slug]` | Customer view — join, watch your place, say you're here, leave |
+| `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in |
+| `/dashboard/[id]/history` | Every finished entry as a searchable, sortable, filterable, paginated table, with CSV export |
+| `/dashboard/[id]/share` | The link, the QR code, the print sheet, the display board and the customer view |
+| `/dashboard/[id]/settings` | Queue configuration (owner) |
+| `/display/[slug]` | Full-screen board for a wall screen, with an optional chime |
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
+
+## Tablets
+
+The counter is designed to run on an iPad. Controls grow under a coarse
+pointer, inputs read at 16px there so iOS does not zoom on focus, and the
+layout follows the content width so both orientations work. Add it to the
+home screen from Safari for a full-screen counter that keeps the screen awake.
+
+## Notifications
+
+The pass asks for notification permission once a customer holds a place.
+With permission it registers `public/sw.js` and subscribes through the API,
+which sends the nudges (close, next, your turn) itself. If the API has no
+VAPID keys the pass falls back to notifying from the page while the tab is
+alive. There is nothing to configure on the web side.
+
+## Design
+
+The current direction is **Paper**: black on white, Geist at two weights,
+hairlines instead of cards, and one colour (vermilion) with one meaning — a
+person being called. Tokens live in `app/globals.css`; the reasoning is in
+`docs/DECISIONS.md` under "Direction — Paper".
 
 ## Configuration
 

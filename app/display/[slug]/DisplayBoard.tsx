@@ -1,6 +1,8 @@
 "use client";
 
-import type { JSX, ReactNode } from "react";
+import { useEffect, useRef, type JSX, type ReactNode } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import { Icon } from "@/components/Icon";
 import { MonoLabel } from "@/components/Label";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { Notice } from "@/components/Notice";
@@ -9,6 +11,9 @@ import { QrCode } from "@/components/QrCode";
 import { QueueArranging } from "@/components/QueueArranging";
 import { usePublicQueue } from "@/hooks/usePublicQueue";
 import { useOrigin } from "@/hooks/useStoredValue";
+import { useChime } from "@/hooks/useChime";
+import { useWakeLock } from "@/hooks/useWakeLock";
+import { cn } from "@/lib/utils";
 import type { PublicState, QueueStatus } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
@@ -27,10 +32,35 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   const queue = usePublicQueue(slug);
   const origin = useOrigin();
 
+  // A wall screen that goes to sleep is a blank wall.
+  useWakeLock();
+
+  // A tone when the number changes, once the board has been told to. The
+  // first frame and a reconnect are not changes; only a number giving way to
+  // a different number is.
+  const chime = useChime();
+  const lastServing = useRef<number | null | undefined>(undefined);
+  const servingNumber = queue.state?.servingNumber;
+  useEffect(() => {
+    if (servingNumber === undefined) return;
+    const previous = lastServing.current;
+    lastServing.current = servingNumber;
+    if (
+      previous === undefined ||
+      previous === servingNumber ||
+      servingNumber === null
+    )
+      return;
+    chime.play();
+  }, [servingNumber, chime]);
+
   if (queue.loading) {
     return (
       <Frame>
-        <QueueArranging className="m-auto w-full max-w-md" label="Loading the board" />
+        <QueueArranging
+          className="m-auto w-full max-w-md"
+          label="Loading the board"
+        />
       </Frame>
     );
   }
@@ -50,8 +80,31 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   const { state } = queue;
   const upNext = state.waitingNumbers.slice(0, UP_NEXT);
 
+  const controls = (
+    <>
+      <button
+        type="button"
+        onClick={chime.toggle}
+        aria-pressed={chime.armed}
+        className={cn(
+          "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors",
+          chime.armed
+            ? "border-white/70 text-white"
+            : "border-white/25 text-white/60 hover:border-white/50 hover:text-white",
+        )}
+      >
+        <Icon icon={chime.armed ? Volume2 : VolumeX} size={14} />
+        {chime.armed ? "Sound on" : "Sound off"}
+      </button>
+      <LiveIndicator state={queue.connection} />
+    </>
+  );
+
   return (
     <Frame>
+      <div className="mb-7 flex items-center justify-between gap-4 lg:hidden">
+        {controls}
+      </div>
       <div className="flex flex-1 flex-col gap-9 lg:flex-row lg:gap-10">
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-9">
           {/* Unseen: the board's title is the venue, and on a wall that is the
@@ -61,9 +114,8 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
           <MonoLabel
             size={13}
-            tracking="widest"
             tone="inherit"
-            className="text-display-label lg:text-[15px]"
+            className="text-display-label lg:text-[17px]"
           >
             Now serving
           </MonoLabel>
@@ -80,17 +132,21 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
                 : `Now serving number ${state.servingNumber}.`}
             </span>
             <span aria-hidden="true">
-              <Numeral value={state.servingNumber} scale="display" className="text-strong" />
+              <Numeral
+                value={state.servingNumber}
+                scale="display"
+                className="text-strong md:text-[clamp(180px,32vw,320px)] lg:text-[clamp(180px,24vw,340px)]"
+              />
             </span>
           </p>
 
-          <div className="border-t border-white/15 pt-5">
-            <MonoLabel size={12} tracking="widest" tone="muted">
+          <div className="border-t border-white/15 pt-6">
+            <MonoLabel size={13} tone="muted" className="lg:text-[15px]">
               Up next
             </MonoLabel>
 
             {upNext.length === 0 ? (
-              <p className="mt-2.5 font-serif text-[clamp(28px,5vw,44px)] leading-none text-muted">
+              <p className="mt-2.5 font-sans text-[clamp(28px,5vw,44px)] leading-none text-muted">
                 Nobody waiting
               </p>
             ) : (
@@ -109,26 +165,49 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
             )}
           </div>
 
-          <p className="font-mono text-[clamp(11px,1.4vw,13px)] uppercase tracking-[0.2em] text-muted">
+          <p className="text-[clamp(13px,1.4vw,16px)] text-muted">
             {state.queue.name}
             <span aria-hidden="true"> · </span>
             {state.waitingCount} waiting
             {statusSuffix(state.queue.status)}
+            {state.queue.status === "PAUSED" && state.queue.pauseNote && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="text-strong">{state.queue.pauseNote}</span>
+              </>
+            )}
           </p>
         </div>
 
-        <div aria-hidden="true" className="hidden w-px shrink-0 bg-white/15 lg:block" />
+        <div
+          aria-hidden="true"
+          className="hidden w-px shrink-0 bg-white/15 lg:block"
+        />
 
-        <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[300px]">
+        <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[clamp(220px,22vw,380px)]">
           {/* Staff read this from across the room to know the board is still
-              the queue and not a photograph of it. */}
-          <LiveIndicator state={queue.connection} className="lg:justify-end" />
+              the queue and not a photograph of it. The sound control sits
+              with it: both are for whoever set the screen up, not the room.
+              Beside the code when there is a column for it; otherwise at the
+              top of the board, where the eye expects a status. */}
+          <div className="hidden items-center justify-end gap-4 lg:flex">
+            {controls}
+          </div>
 
           <div className="flex flex-col items-center gap-4">
             <JoinCode origin={origin} state={state} />
-            <MonoLabel size={13} tracking="wide" tone="muted" className="text-center">
-              Scan to join the queue
-            </MonoLabel>
+            <div className="text-center">
+              <MonoLabel size={13} tone="muted" className="block">
+                Scan to join the queue
+              </MonoLabel>
+              {/* For a camera that will not lock on. Short, and the same on
+                  the print sheet. */}
+              {origin && (
+                <p className="mt-1.5 font-mono text-[clamp(13px,1.2vw,16px)] text-strong">
+                  {`${origin.replace(/^https?:\/\//, "")}/q/${state.queue.slug}`}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -142,9 +221,9 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
  * that even large text has to clear.
  */
 const upNextClasses = [
-  "numeral text-[clamp(40px,7vw,64px)] text-white",
-  "numeral text-[clamp(34px,5.6vw,52px)] text-white/55",
-  "numeral text-[clamp(28px,4.8vw,44px)] text-white/40",
+  "numeral text-[clamp(44px,7vw,80px)] text-white",
+  "numeral text-[clamp(36px,5.6vw,64px)] text-white/55",
+  "numeral text-[clamp(30px,4.8vw,52px)] text-white/40",
 ] as const;
 
 function statusSuffix(status: QueueStatus): string {
@@ -158,11 +237,17 @@ function statusSuffix(status: QueueStatus): string {
   }
 }
 
-function JoinCode({ origin, state }: { origin: string; state: PublicState }): JSX.Element {
+function JoinCode({
+  origin,
+  state,
+}: {
+  origin: string;
+  state: PublicState;
+}): JSX.Element {
   // Sized as a square before the origin is known, so the board does not reflow
   // around the code the moment it appears.
   return (
-    <div className="aspect-square w-full max-w-[220px] sm:max-w-[300px]">
+    <div className="aspect-square w-full max-w-[220px] rounded-[16px] bg-white p-3 sm:max-w-[clamp(220px,22vw,380px)]">
       {origin && (
         <QrCode
           value={`${origin}/q/${state.queue.slug}`}
@@ -186,7 +271,7 @@ function JoinCode({ origin, state }: { origin: string; state: PublicState }): JS
 function Frame({ children }: { children: ReactNode }): JSX.Element {
   return (
     <div data-surface="display" className="min-h-dvh bg-shell">
-      <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-6 py-8 lg:px-11 lg:py-11">
+      <main className="mx-auto flex min-h-dvh w-full max-w-[1600px] flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] lg:px-11 lg:pb-[max(2.75rem,env(safe-area-inset-bottom))] lg:pt-[max(2.75rem,env(safe-area-inset-top))]">
         {children}
       </main>
     </div>

@@ -42,7 +42,7 @@ const statusClasses: Record<BoardRowKind, string> = {
  */
 export function Board({ rows }: { rows: BoardRow[] }): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-[var(--radius-panel)] bg-shell-line">
+    <div className="overflow-hidden rounded-[var(--radius-panel)] border border-shell-line bg-shell-line">
       {/* Dim rather than muted: the header is the one strip that sits on
           shell-mid, where muted drops under 4.5:1 on the inverted surface. */}
       <div className="flex items-center justify-between bg-shell-mid px-4 py-2.5">

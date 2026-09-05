@@ -24,7 +24,7 @@ export function MyQueuesLink({ className }: { className?: string }): JSX.Element
     <Link
       href="/queues"
       className={cn(
-        "font-mono text-[11px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-strong",
+        "text-[13.5px] text-dim transition-colors hover:text-strong",
         className,
       )}
     >

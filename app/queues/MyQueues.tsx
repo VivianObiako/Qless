@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
 import { MonoLabel } from "@/components/Label";
 import { LinkButton } from "@/components/LinkButton";
@@ -9,8 +10,21 @@ import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
+import { ArrowRight } from "lucide-react";
+import { controlClasses } from "@/components/Button";
+import { Icon } from "@/components/Icon";
+import { CreateQueueDialog } from "@/app/create/CreateQueueDialog";
 import { DashboardChrome } from "@/app/dashboard/[id]/DashboardChrome";
-import { ApiError, getMyQueues } from "@/lib/api";
+import { StatusDot } from "@/app/dashboard/[id]/QueueSwitcher";
+import { cn } from "@/lib/utils";
+import type { QueueStatus } from "@/lib/types";
+
+const statusWord: Record<QueueStatus, string> = {
+  OPEN: "Open",
+  PAUSED: "Paused",
+  CLOSED: "Closed",
+};
+import { ApiError, actOnQueue, getMyQueues } from "@/lib/api";
 import {
   clearSession,
   getSessionRole,
@@ -18,7 +32,7 @@ import {
   type SessionRole,
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import type { MyQueuesResponse, Queue } from "@/lib/types";
+import type { MyQueuesResponse, Queue, QueueCard } from "@/lib/types";
 
 /**
  * The list this browser can open, answered by the server rather than assembled
@@ -36,14 +50,11 @@ export function MyQueues(): JSX.Element {
   const [error, setError] = useState<ApiError | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-
-    const controller = new AbortController();
-
-    void (async () => {
+  const load = useCallback(
+    async (signal?: AbortSignal): Promise<void> => {
+      if (!token) return;
       try {
-        setResult(await getMyQueues(token, controller.signal));
+        setResult(await getMyQueues(token, signal));
         setError(null);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -59,10 +70,28 @@ export function MyQueues(): JSX.Element {
         }
         setError(caught);
       }
-    })();
+    },
+    [token],
+  );
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      await load(controller.signal);
+    })();
     return () => controller.abort();
-  }, [token]);
+  }, [load]);
+
+  async function restore(queue: Queue): Promise<void> {
+    if (!token) return;
+    try {
+      await actOnQueue(queue.id, "unarchive", token);
+      toast.success(`${queue.name} is back in your list`);
+      await load();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Something went wrong.");
+    }
+  }
 
   // The queue is named once, by the chrome, so this screen's own title is an
   // h2 under it rather than a second h1.
@@ -89,31 +118,61 @@ export function MyQueues(): JSX.Element {
       );
     }
 
-    if (result.queues.length === 0) {
+    if (result.queues.length === 0 && result.archived.length === 0) {
       return result.role === "OWNER" ? <NoQueuesYet /> : <NotAssigned />;
     }
 
     return (
       <div>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-            Your queues.
+          <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+            Your queues
           </h2>
 
-          {result.role === "OWNER" && <LinkButton href="/create">New queue</LinkButton>}
+          {result.role === "OWNER" && (
+            <CreateQueueDialog
+              trigger={
+                <button type="button" className={controlClasses("contrast", "md")}>
+                  New queue
+                </button>
+              }
+            />
+          )}
         </div>
 
-        <ul className="mt-9 flex flex-col gap-px overflow-hidden rounded-[var(--radius-panel)] bg-shell-line">
-          {result.queues.map((queue) => (
-            <QueueRow key={queue.id} queue={queue} />
-          ))}
-        </ul>
+        {/* A ledger, not a card: hairlines between rows and text on the
+            same left edge as the heading above it. */}
+        {result.queues.length === 0 ? (
+          <p className="mt-9 border-y border-shell-line py-6 text-[14.5px] text-muted">
+            Every queue is archived. Restore one below, or start a new one.
+          </p>
+        ) : (
+          <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
+            {result.queues.map((queue) => (
+              <QueueRow key={queue.id} queue={queue} />
+            ))}
+          </ul>
+        )}
 
-        <p className="mt-6 font-mono text-[11px] leading-[1.7] text-muted">
+        <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">
           {result.role === "OWNER"
             ? "You're signed in as the owner of these queues on this device."
             : "You're signed in as an operator. Your manager decides which queues appear here."}
         </p>
+
+        {result.archived.length > 0 && (
+          <section className="mt-12">
+            <h3 className="text-[15px] font-medium text-strong">Archived</h3>
+            <p className="mt-1 text-[13px] text-muted">
+              Closed and out of the way. Their history is kept, and restoring one puts it back above.
+            </p>
+            <ul className="mt-4 flex flex-col divide-y divide-shell-line border-y border-shell-line">
+              {result.archived.map((queue) => (
+                <ArchivedRow key={queue.id} queue={queue} onRestore={() => void restore(queue)} />
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     );
   }
@@ -126,7 +185,7 @@ export function MyQueues(): JSX.Element {
   }
 
   return (
-    <DashboardChrome tab="queues" heading="Your queues" width="narrow">
+    <DashboardChrome tab="queues" heading="Your queues">
       {body()}
     </DashboardChrome>
   );
@@ -136,7 +195,7 @@ export function MyQueues(): JSX.Element {
 function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
   return (
     <div className="min-h-dvh bg-shell">
-      <header className="border-b border-shell-mid">
+      <header className="border-b border-shell-line">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-5">
           <Wordmark />
           <ThemeToggle variant="quiet" className="sm:hidden" />
@@ -148,31 +207,62 @@ function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
   );
 }
 
-function QueueRow({ queue }: { queue: Queue }): JSX.Element {
+/** The live figures, said the way a glance at the list wants them. */
+function liveLine(queue: QueueCard): string {
+  const serving = queue.servingNumber === null ? "Nobody at the counter" : `Serving ${queue.servingNumber}`;
+  const waiting =
+    queue.waitingCount === 0 ? "nobody waiting" : queue.waitingCount === 1 ? "1 waiting" : `${queue.waitingCount} waiting`;
+  return `${serving} · ${waiting}`;
+}
+
+function ArchivedRow({ queue, onRestore }: { queue: Queue; onRestore: () => void }): JSX.Element {
+  return (
+    <li className="flex items-center gap-4 py-4 sm:gap-6">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-medium leading-tight text-dim">{queue.name}</span>
+        <span className="mt-1 block truncate font-mono text-[12.5px] text-muted">/q/{queue.slug}</span>
+      </span>
+      <Link href={`/dashboard/${queue.id}/history`} className="text-[13px] text-muted underline-offset-4 hover:underline">
+        History
+      </Link>
+      <button type="button" onClick={onRestore} className={cn(controlClasses("ghost", "sm"), "shrink-0")}>
+        Restore
+      </button>
+    </li>
+  );
+}
+
+function QueueRow({ queue }: { queue: QueueCard }): JSX.Element {
   return (
     <li>
       <Link
         href={`/dashboard/${queue.id}`}
-        className="flex items-center gap-5 bg-shell-soft px-6 py-5 transition-colors hover:bg-shell-mid"
+        className="group -mx-3 flex items-center gap-4 rounded-[8px] px-3 py-4 transition-colors hover:bg-shell-mid sm:gap-6"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-serif text-[22px] leading-tight text-strong">
+          <span className="block truncate text-[17px] font-medium leading-tight tracking-[-0.01em] text-strong">
             {queue.name}
           </span>
-          <span className="mt-1.5 block truncate font-mono text-[11px] text-muted">
+          <span className="mt-1 block truncate font-mono text-[12.5px] text-muted">
             /q/{queue.slug}
           </span>
         </span>
 
-        {/* Only when it is not open. On a row you click, a pill reading "OPEN"
-            is read as the button that opens it — and a queue being open is the
-            unremarkable case anyway. Paused and closed are what a person
-            scanning this list needs to catch. */}
-        {queue.status !== "OPEN" && (
-          <span className="shrink-0 rounded-[var(--radius-badge)] border border-current px-2 py-[5px] font-mono text-[9px] uppercase tracking-[0.18em] text-strong">
-            {queue.status}
-          </span>
-        )}
+        {/* What is happening there right now, so the one that needs
+            attention can be picked without opening each. */}
+        <span className="hidden shrink-0 text-[13px] text-dim md:inline">{liveLine(queue)}</span>
+
+        {/* The queue's state as a dot and a word, and the way in said
+            outright — a row that is only a link gives no sign it goes
+            anywhere. */}
+        <span className="inline-flex shrink-0 items-center gap-2 text-[13px] text-dim">
+          <StatusDot status={queue.status} />
+          {statusWord[queue.status]}
+        </span>
+        <span className={cn(controlClasses("ghost", "sm"), "shrink-0 gap-1.5")}>
+          Open counter
+          <Icon icon={ArrowRight} size={14} />
+        </span>
       </Link>
     </li>
   );
@@ -181,10 +271,10 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
 function SignedOut(): JSX.Element {
   return (
     <div>
-      <h1 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Sign in with your code.
+      <h1 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Sign in with your code
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Qless has no passwords. Your recovery code — or the access code your manager gave you — is
         what brings your queues back on this device.
       </p>
@@ -202,10 +292,10 @@ function SignedOut(): JSX.Element {
 function NoQueuesYet(): JSX.Element {
   return (
     <div>
-      <h1 className="font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        No queues yet.
+      <h1 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        No queues yet
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Create one and share its code. Everything else — the dashboard, the QR sheet, the customer
         view — comes with it.
       </p>
@@ -227,10 +317,10 @@ function NotAssigned(): JSX.Element {
       <MonoLabel size={10} tone="muted">
         Signed in
       </MonoLabel>
-      <h1 className="mt-3 font-serif text-[clamp(34px,8vw,46px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        No queues assigned.
+      <h1 className="mt-2 text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        No queues assigned
       </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
         Your code works — there is just nothing on it yet. Ask your manager to assign you a queue,
         then reload this page.
       </p>

@@ -10,6 +10,7 @@ import type {
   OperatorResponse,
   OperatorsResponse,
   OperatorView,
+  Presence,
   QueueAction,
   RedeemResponse,
   UpdateOperatorInput,
@@ -41,7 +42,7 @@ interface ErrorBody {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   customerToken?: string | null;
   /** Identifies the principal running queues — an owner, later an operator. */
@@ -134,6 +135,15 @@ export function redeemAccessCode(code: string): Promise<RedeemResponse> {
  * Confirms the owner has the replacement code. Until this lands the redeemed
  * code still works, so this is the request that makes recovery single-use.
  */
+/**
+ * Signs out every other device holding this owner's session and keeps this
+ * one. Owner only, and never part of recovery: replacing a phone should not
+ * sign the counter tablet out unless the owner asks for exactly that.
+ */
+export function revokeOtherSessions(sessionToken: string): Promise<void> {
+  return request<void>("/api/sessions/revoke-others", { method: "POST", sessionToken });
+}
+
 export function acknowledgeRecoveryCode(sessionToken: string): Promise<void> {
   return request<void>("/api/access/recovery-code/acknowledge", {
     method: "POST",
@@ -165,6 +175,56 @@ export function joinQueue(
   return request<JoinResponse>(`/api/queues/${encodeURIComponent(slug)}/join`, {
     method: "POST",
     body: { name },
+    customerToken,
+  });
+}
+
+/** Tell the counter where you are: on the way, here, or needing a moment. */
+export function setPresence(
+  slug: string,
+  presence: Presence,
+  customerToken: string,
+): Promise<CustomerView> {
+  return request<CustomerView>(`/api/queues/${encodeURIComponent(slug)}/presence`, {
+    method: "POST",
+    body: { presence },
+    customerToken,
+  });
+}
+
+/** The server's VAPID public key, or null when push is not set up there. */
+export async function getPushKey(): Promise<string | null> {
+  try {
+    const res = await request<{ publicKey: string }>("/api/push/key");
+    return res.publicKey;
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) return null;
+    throw caught;
+  }
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** Binds this browser's push subscription to the customer's active entry. */
+export function subscribePush(
+  slug: string,
+  subscription: PushSubscriptionInput,
+  customerToken: string,
+): Promise<void> {
+  return request<void>(`/api/queues/${encodeURIComponent(slug)}/push`, {
+    method: "POST",
+    body: subscription,
+    customerToken,
+  });
+}
+
+export function unsubscribePush(slug: string, endpoint: string, customerToken: string): Promise<void> {
+  return request<void>(`/api/queues/${encodeURIComponent(slug)}/push`, {
+    method: "DELETE",
+    body: { endpoint },
     customerToken,
   });
 }
@@ -211,7 +271,37 @@ export function actOnEntry(
   );
 }
 
-/** Pause, resume, close or reset the queue. */
+/** Put somebody in the queue from the counter. Answers with the refreshed dashboard. */
+export function addWalkIn(queueId: string, name: string, sessionToken: string): Promise<OperatorView> {
+  return request<OperatorView>(`/api/queues/${encodeURIComponent(queueId)}/entries`, {
+    method: "POST",
+    body: { name },
+    sessionToken,
+  });
+}
+
+/**
+ * Pause with an optional line for the people who scan in meanwhile. Sent as
+ * its own request because the other lifecycle actions carry no body.
+ */
+export function pauseQueue(queueId: string, note: string, sessionToken: string): Promise<OperatorView> {
+  return request<OperatorView>(`/api/queues/${encodeURIComponent(queueId)}/pause`, {
+    method: "POST",
+    body: { note },
+    sessionToken,
+  });
+}
+
+/** What the owner is called. Owner only. */
+export function updateMe(displayName: string, sessionToken: string): Promise<{ displayName: string }> {
+  return request<{ displayName: string }>("/api/me", {
+    method: "PATCH",
+    body: { displayName },
+    sessionToken,
+  });
+}
+
+/** Pause, resume, close, reset, archive or restore the queue. */
 export function actOnQueue(
   queueId: string,
   action: QueueAction,
@@ -235,15 +325,17 @@ export function updateQueue(
   });
 }
 
+/** Finished entries, newest first. The screen pages through them itself, so it asks for the cap. */
 export function getHistory(
   queueId: string,
   sessionToken: string,
   signal?: AbortSignal,
+  limit = 1000,
 ): Promise<HistoryResponse> {
-  return request<HistoryResponse>(`/api/queues/${encodeURIComponent(queueId)}/history`, {
-    sessionToken,
-    signal,
-  });
+  return request<HistoryResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/history?limit=${limit}`,
+    { sessionToken, signal },
+  );
 }
 
 /**

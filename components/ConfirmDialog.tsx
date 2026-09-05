@@ -11,7 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -30,9 +29,11 @@ interface ConfirmDialogProps {
  * alert dialog, which gives us role="alertdialog", focus trapping and restore,
  * and Escape handling without hand-rolling any of it.
  *
- * Destructive is carried by inversion and weight, never by colour. Vermilion
- * means "it's your turn" and appears on exactly two surfaces in the product;
- * spending it on a confirm button would cost it that meaning everywhere else.
+ * Destructive is carried by the dialog itself and the words on its buttons,
+ * never by colour: both buttons are drawn the same whether or not the action
+ * is destructive. Vermilion means a person being called; spending it on a
+ * confirm button would cost it that meaning everywhere else. The flag stays
+ * on the props so a caller states what it is asking for.
  */
 export function ConfirmDialog({
   open,
@@ -47,12 +48,17 @@ export function ConfirmDialog({
 }: ConfirmDialogProps): JSX.Element {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-sm rounded-[var(--radius-panel)] border-shell-line bg-shell-soft">
+      {/* data-destructive: the fact travels with the dialog for tests and
+          tooling even though nothing is drawn from it. */}
+      <AlertDialogContent
+        data-destructive={destructive || undefined}
+        className="max-w-sm rounded-[var(--radius-panel)] border-shell-line bg-shell-soft"
+      >
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-serif text-[22px] leading-tight tracking-[-0.01em] text-strong">
+          <AlertDialogTitle className="text-[20px] font-medium leading-tight tracking-[-0.02em] text-strong">
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="font-mono text-[12px] leading-[1.6] text-dim">
+          <AlertDialogDescription className="text-[13.5px] leading-[1.55] text-dim">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -60,7 +66,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             disabled={loading}
-            className="rounded-[var(--radius-control)] border-faint bg-transparent font-mono text-[11px] uppercase tracking-[0.18em] text-muted hover:border-strong hover:bg-transparent hover:text-strong"
+            className="h-[38px] rounded-full border-faint bg-transparent px-4 text-[13.5px] font-medium text-strong hover:border-strong hover:bg-shell-mid"
           >
             {cancelLabel}
           </AlertDialogCancel>
@@ -68,12 +74,9 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={loading}
             aria-busy={loading || undefined}
-            className={cn(
-              "rounded-[var(--radius-control)] font-mono text-[11px] uppercase tracking-[0.18em]",
-              destructive
-                ? "bg-strong text-shell hover:opacity-90"
-                : "bg-paper text-paper-ink hover:bg-white",
-            )}
+            // Ink either way: escalation in this product is carried by the
+            // confirm step itself, not by a red button.
+            className="h-[38px] rounded-full bg-strong px-4 text-[13.5px] font-medium text-shell hover:opacity-90"
           >
             {confirmLabel}
           </AlertDialogAction>

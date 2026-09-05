@@ -1,24 +1,25 @@
 import type { JSX } from "react";
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { reelInitScript } from "@/lib/reel";
-import { DEFAULT_THEME, themeInitScript } from "@/lib/theme";
+import { DEFAULT_PREFERENCE, resolveTheme, themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
-// Numerals, venue names and headlines. One weight is all the direction uses.
-const instrumentSerif = Instrument_Serif({
+// Everything: numerals, names, headings, body and controls. Two weights, and
+// nothing in the product goes heavier than 500.
+const geist = Geist({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-instrument-serif",
+  weight: ["400", "500"],
+  variable: "--font-geist",
   display: "swap",
 });
 
-// Labels, UI, body and buttons.
-const ibmPlexMono = IBM_Plex_Mono({
+// Codes and slugs only — the things a person transcribes.
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-ibm-plex-mono",
+  weight: ["400", "500"],
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
@@ -37,15 +38,21 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#111111",
+  // Draw under the notch and the home indicator; the screens pad with the
+  // safe-area insets themselves.
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">): JSX.Element {
   return (
     <html
       lang="en"
-      data-theme={DEFAULT_THEME}
-      className={`${instrumentSerif.variable} ${ibmPlexMono.variable}`}
+      data-theme={resolveTheme(DEFAULT_PREFERENCE)}
+      className={`${geist.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <head>

@@ -39,7 +39,7 @@ export function LiveIndicator({ state, className }: LiveIndicatorProps): JSX.Ele
       <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", dotClass)} />
       <MonoLabel
         size={10}
-        tracking="wide"
+       
         weight={state === "called" ? 600 : 400}
         tone="inherit"
         className={state === "live" || state === "called" ? "text-strong" : "text-muted"}

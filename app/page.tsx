@@ -1,7 +1,7 @@
 import type { JSX } from "react";
 import Link from "next/link";
 import { HeroTicketStage } from "@/components/HeroTicketStage";
-import { MonoLabel } from "@/components/Label";
+import { LinkButton } from "@/components/LinkButton";
 import { MyQueuesLink } from "@/components/MyQueuesLink";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { TicketReel } from "@/components/TicketReel";
@@ -25,18 +25,21 @@ const steps: Step[] = [
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="min-h-dvh bg-shell">
+    // A viewport-high composition: the hero takes the room between the bar
+    // and the steps, and the steps sit on the bottom edge. On a short window
+    // it simply scrolls.
+    <div className="flex min-h-dvh flex-col bg-shell">
       <TicketReel />
       <SmoothScroll />
 
-      <header className="border-b border-shell-mid">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-5">
+      <header className="border-b border-shell-line">
+        <nav className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-6 px-6 py-4 lg:px-10 xl:px-14">
           <Wordmark asLink={false} />
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <a
               href="#how-it-works"
-              className="hidden font-mono text-[11px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-strong sm:inline"
+              className="hidden text-[13.5px] text-dim transition-colors hover:text-strong sm:inline"
             >
               How it works
             </a>
@@ -44,31 +47,27 @@ export default function LandingPage(): JSX.Element {
                 and only once the client is running — see MyQueuesLink. */}
             <MyQueuesLink className="hidden sm:inline" />
             {/* The labelled pill does not fit beside the wordmark and the CTA
-                on a phone, so the mark goes alone rather than going missing —
-                a visitor on a phone still gets to choose the theme. */}
+                on a phone, so the mark goes alone rather than going missing. */}
             <ThemeToggle variant="quiet" className="sm:hidden" />
             <ThemeToggle className="hidden sm:inline-flex" />
-            <Link
-              href="/create"
-              className="rounded-(--radius-control) bg-paper px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-colors hover:bg-white active:scale-[0.99]"
-            >
+            <LinkButton href="/create" size="md">
               Create a queue
-            </Link>
+            </LinkButton>
           </div>
         </nav>
       </header>
 
-      <main>
-        <section className="mx-auto grid max-w-6xl gap-14 px-6 py-16 lg:grid-cols-[1fr_360px] lg:items-center lg:gap-16 lg:py-24">
+      <main className="flex flex-1 flex-col">
+        <section className="mx-auto grid w-full max-w-[1400px] flex-1 content-center gap-14 px-6 py-16 lg:grid-cols-[1fr_360px] lg:items-center lg:gap-16 lg:px-10 lg:py-20 xl:grid-cols-[1fr_420px] xl:px-14">
           <div>
-            <h1 className="animate-reveal font-serif text-[clamp(56px,11vw,104px)] leading-[0.92] tracking-[-0.035em] text-strong">
+            <h1 className="animate-reveal text-[clamp(56px,8.5vw,128px)] font-medium leading-[0.92] tracking-[-0.04em] text-strong">
               Stop waiting
               <div className="mt-2" />
               in line.
             </h1>
 
             <p
-              className="animate-reveal mt-7 max-w-115 font-mono text-[15px] leading-[1.7] text-dim"
+              className="animate-reveal mt-7 max-w-[46ch] text-[17px] leading-[1.6] text-dim"
               style={{ animationDelay: "90ms" }}
             >
               Scan the code, take your number, and go and live your life. Your place is held and
@@ -79,49 +78,27 @@ export default function LandingPage(): JSX.Element {
               className="animate-reveal mt-9 flex flex-wrap items-center gap-3"
               style={{ animationDelay: "180ms" }}
             >
-              <Link
-                href="/create"
-                className="rounded-(--radius-control) bg-paper px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-[background-color,transform] hover:bg-white active:scale-[0.99]"
-              >
-                Create a queue
-              </Link>
-              {/* <a
-                href="#how-it-works"
-                className="rounded-(--radius-control) border border-shell-line px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-[color,border-color,transform] hover:border-strong hover:text-strong active:scale-[0.99]"
-              >
-                See how it works
-              </a> */}
-              <a
-                href="/enter"
-                className="rounded-(--radius-control) border border-shell-line px-5 py-3.75 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-[color,border-color,transform] hover:border-strong hover:text-strong active:scale-[0.99]"
-              >
-                I have a code
-              </a>
-            </div>
-
-            <div
-              className="animate-reveal mt-7 flex flex-wrap items-center gap-x-5 gap-y-2"
-              style={{ animationDelay: "260ms" }}
-            >
-              <MonoLabel size={10} tone="muted">
-                No app · No account · Free to try
-              </MonoLabel>
+              <LinkButton href="/create">Create a queue</LinkButton>
               {/* Coming back on a new phone is not an error state, so the way
                   in sits on the front door rather than behind one. */}
-              {/* <Link
-                href="/enter"
-                className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted underline underline-offset-4 transition-colors hover:text-strong"
-              >
+              <LinkButton href="/enter" variant="ghost">
                 I have a code
-              </Link> */}
+              </LinkButton>
             </div>
+
+            <p
+              className="animate-reveal mt-7 text-[13px] text-muted"
+              style={{ animationDelay: "260ms" }}
+            >
+              No app · No account · Free to try
+            </p>
           </div>
 
           {/* The product itself above the fold, built from the same primitives
               the customer sees — not a picture of it. Capped below lg: a ticket
               is a held object, and stretching it to the full column width makes
               it read as a banner instead. */}
-          <div className="max-w-90 lg:w-90 justify-self-center lg:justify-self-end">
+          <div className="w-full max-w-90 justify-self-center lg:w-90 lg:justify-self-end xl:w-[420px] xl:max-w-[420px]">
             <HeroTicketStage id="hero-ticket" />
           </div>
         </section>
@@ -129,7 +106,7 @@ export default function LandingPage(): JSX.Element {
         <section
           id="how-it-works"
           aria-labelledby="how-it-works-heading"
-          className="scroll-mt-8 border-t border-shell-mid"
+          className="mt-auto scroll-mt-8 border-t border-shell-line"
         >
           {/* The five steps are the section's whole content and read as a
               heading to anybody who can see them. A screen reader jumping
@@ -138,17 +115,17 @@ export default function LandingPage(): JSX.Element {
             How it works
           </h2>
 
-          <ol className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="mx-auto grid w-full max-w-[1400px] grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 lg:px-4 xl:px-8">
             {steps.map((step, index) => {
-              // Step 05 is the second and last place vermilion appears in the
-              // entire product. It is the promise the whole thing is selling.
+              // Step 05 is the one place on this page the signal colour
+              // appears. It is the promise the whole thing is selling.
               const isFinal = index === steps.length - 1;
 
               return (
                 <li
                   key={step.number}
                   className={cn(
-                    "group border-shell-mid px-6 py-8 transition-colors duration-300 hover:bg-shell-soft motion-reduce:transition-none",
+                    "group border-shell-line px-6 py-7 transition-colors duration-300 hover:bg-shell-mid motion-reduce:transition-none",
                     index > 0 && "border-t sm:border-t-0 lg:border-l",
                     index === 1 && "sm:border-l",
                     index === 2 && "sm:border-t lg:border-t-0",
@@ -156,24 +133,11 @@ export default function LandingPage(): JSX.Element {
                     index === 4 && "sm:border-t lg:border-t-0",
                   )}
                 >
-                  <p
-                    className={cn(
-                      "numeral text-[28px]",
-                      isFinal ? "text-signal" : "text-strong",
-                    )}
-                  >
+                  <p className={cn("numeral text-[26px]", isFinal ? "text-signal" : "text-strong")}>
                     {step.number}
                   </p>
-                  {/* The numeral carries the vermilion and the label does not:
-                      at 28px the signal clears the 3:1 large text needs, and at
-                      10px it would need 4.5:1, which no vermilion light enough
-                      to still read as vermilion can reach on either shell. */}
-                  <MonoLabel size={10} tone="inherit" className="mt-3 block text-strong">
-                    {step.title}
-                  </MonoLabel>
-                  <p className="mt-2.5 font-mono text-[11px] leading-[1.7] text-muted">
-                    {step.detail}
-                  </p>
+                  <p className="mt-3 text-[14.5px] font-medium text-strong">{step.title}</p>
+                  <p className="mt-1.5 text-[13.5px] leading-[1.55] text-muted">{step.detail}</p>
                 </li>
               );
             })}
@@ -183,4 +147,3 @@ export default function LandingPage(): JSX.Element {
     </div>
   );
 }
-

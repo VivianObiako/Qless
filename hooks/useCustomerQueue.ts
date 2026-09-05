@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, getQueue, joinQueue, leaveQueue, queueSocketUrl } from "@/lib/api";
+import { ApiError, getQueue, joinQueue, leaveQueue, queueSocketUrl, setPresence } from "@/lib/api";
 import {
   clearJoinedAhead,
   customerTokenKey,
@@ -10,7 +10,13 @@ import {
   setCustomerToken,
   setJoinedAhead,
 } from "@/lib/session";
-import { customerViewFrom, entryIsStale, type CustomerView, type PublicEvent } from "@/lib/types";
+import {
+  customerViewFrom,
+  entryIsStale,
+  type CustomerView,
+  type Presence,
+  type PublicEvent,
+} from "@/lib/types";
 import type { ConnectionState } from "@/components/LiveIndicator";
 import { useQueueSocket } from "./useQueueSocket";
 import { useStoredNumber } from "./useStoredValue";
@@ -26,6 +32,8 @@ interface CustomerQueue {
   connection: ConnectionState;
   join: (name: string) => Promise<boolean>;
   leave: () => Promise<boolean>;
+  /** Tell the counter where you are. Resolves false if it did not get through. */
+  say: (presence: Presence) => Promise<boolean>;
   refresh: () => void;
 }
 
@@ -195,6 +203,25 @@ export function useCustomerQueue(slug: string): CustomerQueue {
     }
   }, [slug, apply]);
 
+  const say = useCallback(
+    async (presence: Presence): Promise<boolean> => {
+      const token = tokenRef.current;
+      if (!token) return false;
+
+      setActionError(null);
+      try {
+        const next = await setPresence(slug, presence, token);
+        frameRef.current += 1;
+        apply(next);
+        return true;
+      } catch (caught) {
+        if (caught instanceof ApiError) setActionError(caught);
+        return false;
+      }
+    },
+    [slug, apply],
+  );
+
   const refresh = useCallback((): void => {
     void load();
   }, [load]);
@@ -210,6 +237,7 @@ export function useCustomerQueue(slug: string): CustomerQueue {
     connection,
     join,
     leave,
+    say,
     refresh,
   };
 }

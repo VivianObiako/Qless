@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type FormEvent, type JSX } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/Button";
 import { Field } from "@/components/Field";
+import { LinkButton } from "@/components/LinkButton";
 import { MonoLabel } from "@/components/Label";
 import { Notice } from "@/components/Notice";
 import { QrCode, downloadQrPng } from "@/components/QrCode";
@@ -43,7 +43,40 @@ export function CreateQueueForm(): JSX.Element {
   return <Form onCreated={setCreated} />;
 }
 
+/** The page: a heading, then the form. */
 function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void }): JSX.Element {
+  return (
+    <div>
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Create a queue
+      </h1>
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
+        No account needed. You&rsquo;ll get a link to share and a private dashboard to run it from.
+      </p>
+      <QueueForm onCreated={onCreated} className="mt-8" />
+    </div>
+  );
+}
+
+interface QueueFormProps {
+  onCreated: (created: CreateQueueResponse) => void;
+  submitLabel?: string;
+  /** Tighter spacing for a dialog. */
+  compact?: boolean;
+  className?: string;
+}
+
+/**
+ * The fields that make a queue. Shared by the /create page and the dialog an
+ * owner opens from the dashboard: same validation, same request, one place
+ * to change either.
+ */
+export function QueueForm({
+  onCreated,
+  submitLabel = "Create queue",
+  compact = false,
+  className,
+}: QueueFormProps): JSX.Element {
   // An owner who is already signed in gets this queue added to the business
   // they have, rather than starting a second one they can never merge.
   const session = useStoredValue(sessionTokenKey());
@@ -51,6 +84,7 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
   const [description, setDescription] = useState("");
   const [serviceMinutes, setServiceMinutes] = useState("15");
   const [capacity, setCapacity] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -86,6 +120,7 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
           description: description.trim(),
           averageServiceMinutes: minutes,
           maxCapacity: parsedCapacity,
+          ownerName: session ? undefined : ownerName.trim(),
         },
         session,
       );
@@ -99,15 +134,8 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
   }
 
   return (
-    <div>
-      <h1 className="font-serif text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Create a queue.
-      </h1>
-      <p className="mt-4 max-w-md font-mono text-[13px] leading-[1.7] text-dim">
-        No account needed. You&rsquo;ll get a link to share and a private dashboard to run it from.
-      </p>
-
-      <form onSubmit={onSubmit} noValidate className="mt-10 space-y-6">
+    <div className={className}>
+      <form onSubmit={onSubmit} noValidate className={compact ? "space-y-4" : "space-y-5"}>
         <Field
           label="Business or queue name"
           value={name}
@@ -155,14 +183,28 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
           max={1000}
         />
 
+        {/* Only a new business gets asked. An owner adding a queue already
+            said, or chose not to. */}
+        {!session && !compact && (
+          <Field
+            label="Your name"
+            value={ownerName}
+            onChange={(event) => setOwnerName(event.target.value)}
+            hint="Optional. Only you and your history see it."
+            placeholder="Ade"
+            maxLength={60}
+            autoComplete="name"
+          />
+        )}
+
         {error && (
           <Notice tone="standing" title="Couldn't create the queue" chip="!">
             {error}
           </Notice>
         )}
 
-        <Button type="submit" variant="paper" fullWidth loading={submitting}>
-          Create queue
+        <Button type="submit" variant="paper" size={compact ? "md" : "lg"} fullWidth loading={submitting}>
+          {submitLabel}
         </Button>
       </form>
     </div>
@@ -200,12 +242,12 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
 
   return (
     <div>
-      <h1 className="font-serif text-[clamp(38px,10vw,52px)] leading-[0.95] tracking-[-0.03em] text-strong">
-        Your queue is ready.
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Your queue is ready
       </h1>
 
-      <TicketCard className="mt-10 p-[22px]">
-        <p className="font-serif text-[28px] leading-none text-paper-ink">{queue.name}</p>
+      <TicketCard className="mt-8 p-[22px]">
+        <p className="text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink">{queue.name}</p>
 
         <Perforation className="-mx-[22px] my-5" />
 
@@ -214,7 +256,7 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
             <MonoLabel size={10} tone="paper">
               Customer link
             </MonoLabel>
-            <p className="mt-2 break-all font-mono text-[13px] leading-relaxed text-paper-ink">
+            <p className="mt-1.5 break-all font-mono text-[13px] leading-relaxed text-paper-ink">
               {customerUrl || `/q/${queue.slug}`}
             </p>
             <MonoLabel size={10} tone="paper" className="mt-4 block">
@@ -242,18 +284,12 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
         <Button variant="ghost" onClick={downloadQr} disabled={!origin}>
           Download QR
         </Button>
-        <Link
-          href={`/print/${queue.slug}`}
-          className="rounded-[var(--radius-control)] border border-shell-line px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:border-strong hover:text-strong"
-        >
+        <LinkButton href={`/print/${queue.slug}`} variant="ghost">
           Print sheet
-        </Link>
-        <Link
-          href={`/q/${queue.slug}`}
-          className="rounded-[var(--radius-control)] border border-shell-line px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:border-strong hover:text-strong"
-        >
+        </LinkButton>
+        <LinkButton href={`/q/${queue.slug}`} variant="ghost">
           Open customer view
-        </Link>
+        </LinkButton>
       </div>
 
       <Notice
@@ -262,12 +298,9 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
         chip="!"
         className="mt-8"
         action={
-          <Link
-            href={dashboardUrl}
-            className="inline-flex rounded-[var(--radius-control)] bg-paper px-5 py-[15px] font-mono text-[11px] uppercase tracking-[0.18em] text-paper-ink transition-colors hover:bg-white"
-          >
+          <LinkButton href={dashboardUrl} size="md">
             Open queue dashboard
-          </Link>
+          </LinkButton>
         }
       >
         This browser can run the queue from now on. On any other device, enter the recovery code you

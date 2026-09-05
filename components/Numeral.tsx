@@ -16,25 +16,26 @@ interface NumeralProps {
 }
 
 const scaleClasses = {
-  /** Board rows. */
-  board: "text-[24px]",
+  /** Board rows and list rows. */
+  board: "text-[22px]",
   /** Secondary figures on the ticket — now serving, ahead. */
-  small: "text-[34px]",
+  small: "text-[30px]",
   /** Estimated wait range. */
-  medium: "text-[clamp(30px,9vw,40px)]",
+  medium: "text-[clamp(28px,8vw,36px)]",
   /** The customer's own number, states 01 and 02. */
-  hero: "text-[clamp(96px,32vw,126px)]",
+  hero: "text-[clamp(88px,30vw,116px)]",
   /** State 03 — you're next. */
-  next: "text-[clamp(120px,42vw,168px)]",
+  next: "text-[clamp(110px,40vw,150px)]",
   /** State 04 — it's your turn. */
-  turn: "text-[clamp(150px,58vw,250px)]",
+  turn: "text-[clamp(140px,54vw,230px)]",
   /** Room display. */
-  display: "text-[clamp(140px,26vw,264px)]",
+  display: "text-[clamp(140px,26vw,250px)]",
 } as const;
 
 /**
- * A queue number. Instrument Serif, tabular figures, tight tracking — the
- * single most important element in the product.
+ * A queue number. Geist at 500, tabular figures, tight tracking — the single
+ * most important element in the product. A bold sans reads larger than a
+ * light serif at the same size, so every scale sits a step under the old one.
  */
 export function Numeral({
   value,
