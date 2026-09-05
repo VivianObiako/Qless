@@ -35,6 +35,13 @@ handshake check it.
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
 
+## Tablets
+
+The counter is designed to run on an iPad. Controls grow under a coarse
+pointer, inputs read at 16px there so iOS does not zoom on focus, and the
+layout follows the content width so both orientations work. Add it to the
+home screen from Safari for a full-screen counter that keeps the screen awake.
+
 ## Notifications
 
 The pass asks for notification permission once a customer holds a place.
