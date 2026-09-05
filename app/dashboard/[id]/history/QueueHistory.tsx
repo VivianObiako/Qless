@@ -406,7 +406,7 @@ function HistoryTable({
               }}
               options={[{ value: "all", label: "Anyone" }, ...servers.map((name) => ({ value: name, label: name }))]}
             />
-            <label className="relative ml-auto block w-full sm:w-[240px]">
+            <label className="relative ml-auto block min-w-[200px] flex-1 sm:max-w-[300px]">
               <span className="sr-only">Find by name or number</span>
               <Icon icon={Search} size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
