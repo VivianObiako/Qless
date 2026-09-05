@@ -316,8 +316,10 @@ function QueueStatusLine({ queue }: { queue: Queue }): JSX.Element {
 }
 
 /**
- * The finder. Rendered in the chrome's top row on a desktop and in the list's
- * own header on a phone, from the same text, so ⌘K lands in whichever is on
+ * The finder. Not rendered anywhere for now — a counter of a dozen people
+ * does not need one — and kept, wired, for the day a queue is long enough
+ * to. It belongs in the chrome's top row on a desktop and in the list's own
+ * header on a phone, from the same text, so ⌘K lands in whichever is on
  * screen.
  */
 export function Finder({
@@ -594,7 +596,7 @@ function WaitingList({
         <h3 id="waiting-heading" className="text-[12.5px] text-muted">
           Waiting · {waiting.length}
         </h3>
-        <Finder query={query} onQuery={onQuery} className="max-w-[240px] lg:hidden" />
+        {/* The finder is parked until the counter needs it; see Finder. */}
       </div>
       {/* Said in words as well as on hover: a tablet has no hover. */}
       {busyWith !== null && waiting.length > 0 && (

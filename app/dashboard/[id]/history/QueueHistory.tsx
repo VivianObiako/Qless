@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Download,
+  Search,
+} from "lucide-react";
 import { AccessNotice } from "@/components/AccessNotice";
 import { Button, controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
@@ -33,7 +44,8 @@ const outcomeLabel: Record<EntryStatus, string> = {
   CLEARED: "Cleared",
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZES = [10, 25, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 10;
 
 type SortKey = "number" | "name" | "time";
 type SortDirection = "asc" | "desc";
@@ -223,9 +235,11 @@ function HistoryTable({
   const [day, setDay] = useState<string>("all");
   const [outcome, setOutcome] = useState<string>("all");
   const [by, setBy] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("time");
   const [direction, setDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   const days = useMemo(() => {
     const keys = new Set(entries.map((entry) => dayKey(finishedAt(entry))));
@@ -238,11 +252,17 @@ function HistoryTable({
   }, [entries, viewerIsOwner, ownerName]);
 
   const shown = useMemo(() => {
+    const needle = search.trim().toLowerCase();
     const filtered = entries.filter(
       (entry) =>
         (day === "all" || dayKey(finishedAt(entry)) === day) &&
-        (outcome === "all" || entry.status === outcome) &&
-        (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by),
+        // "Walk-in" is not an outcome, but it is the other thing an owner
+        // wants to pull out of a day, and one menu is easier than two.
+        (outcome === "all" || (outcome === "walkin" ? entry.walkIn : entry.status === outcome)) &&
+        (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by) &&
+        (needle === "" ||
+          nameFor(entry).toLowerCase().includes(needle) ||
+          String(entry.number) === needle),
     );
     const sign = direction === "asc" ? 1 : -1;
     return filtered.sort((a, b) => {
@@ -255,11 +275,11 @@ function HistoryTable({
           return (new Date(finishedAt(a)).getTime() - new Date(finishedAt(b)).getTime()) * sign;
       }
     });
-  }, [entries, day, outcome, by, sortKey, direction, viewerIsOwner, ownerName]);
+  }, [entries, day, outcome, by, search, sortKey, direction, viewerIsOwner, ownerName]);
 
-  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(shown.length / pageSize));
   const current = Math.min(page, pages);
-  const rows = shown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  const rows = shown.slice((current - 1) * pageSize, current * pageSize);
 
   const served = shown.filter((entry) => entry.status === "ATTENDED");
   const summary = {
@@ -374,6 +394,7 @@ function HistoryTable({
                 { value: "SKIPPED", label: "Skipped" },
                 { value: "LEFT", label: "Left" },
                 { value: "CLEARED", label: "Cleared" },
+                { value: "walkin", label: "Walk-ins" },
               ]}
             />
             <Select
@@ -385,6 +406,20 @@ function HistoryTable({
               }}
               options={[{ value: "all", label: "Anyone" }, ...servers.map((name) => ({ value: name, label: name }))]}
             />
+            <label className="relative ml-auto block w-full sm:w-[240px]">
+              <span className="sr-only">Find by name or number</span>
+              <Icon icon={Search} size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Name or number"
+                className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
+              />
+            </label>
           </div>
 
           {/* The summary of what is in view: the numbers an owner asks for. */}
@@ -451,25 +486,33 @@ function HistoryTable({
             </table>
           </div>
 
-          {/* Pagination, over the rows in view. */}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[13px] text-muted">
-            <span>
-              {shown.length === 0
-                ? "0 of 0"
-                : `${(current - 1) * PAGE_SIZE + 1}–${Math.min(current * PAGE_SIZE, shown.length)} of ${shown.length}`}
+          {/* Pagination, over the rows in view: what is showing, how many
+              per page, and first / previous / page / next / last. */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 text-[13px] text-muted">
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="tabular-nums">
+                {shown.length === 0
+                  ? "0 of 0"
+                  : `${(current - 1) * pageSize + 1}–${Math.min(current * pageSize, shown.length)} of ${shown.length}`}
+              </span>
+              <Select
+                label="Per page"
+                value={String(pageSize)}
+                onChange={(value) => {
+                  setPageSize(Number(value));
+                  setPage(1);
+                }}
+                options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+              />
             </span>
             <span className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={current <= 1} onClick={() => setPage(current - 1)}>
-                <Icon icon={ChevronLeft} size={14} />
-                Newer
-              </Button>
-              <span className="px-2 tabular-nums">
-                {current} / {pages}
+              <PageButton label="First page" disabled={current <= 1} onClick={() => setPage(1)} icon={ChevronsLeft} />
+              <PageButton label="Previous page" disabled={current <= 1} onClick={() => setPage(current - 1)} icon={ChevronLeft} />
+              <span className="px-2 tabular-nums text-strong">
+                Page {current} of {pages}
               </span>
-              <Button variant="ghost" size="sm" disabled={current >= pages} onClick={() => setPage(current + 1)}>
-                Older
-                <Icon icon={ChevronRight} size={14} />
-              </Button>
+              <PageButton label="Next page" disabled={current >= pages} onClick={() => setPage(current + 1)} icon={ChevronRight} />
+              <PageButton label="Last page" disabled={current >= pages} onClick={() => setPage(pages)} icon={ChevronsRight} />
             </span>
           </div>
         </>
@@ -549,6 +592,31 @@ function Select({
         />
       </span>
     </label>
+  );
+}
+
+function PageButton({
+  label,
+  icon,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  icon: typeof ChevronLeft;
+  disabled: boolean;
+  onClick: () => void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(controlClasses("ghost", "sm"), "w-9 px-0 disabled:cursor-not-allowed disabled:opacity-40")}
+    >
+      <Icon icon={icon} size={14} />
+    </button>
   );
 }
 

@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
-import { Counter, Finder, skipConsequence, type Confirmation } from "./Counter";
+import { Counter, skipConsequence, type Confirmation } from "./Counter";
 import { NewDayNotice } from "./NewDayNotice";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
@@ -100,7 +100,6 @@ export function OperatorDashboard({
       queueSlug={view.queue.slug}
       status={view.queue.status}
       connection={queue.connection}
-      toolbar={<Finder query={query} onQuery={setQuery} className="w-[320px]" />}
     >
       {queue.actionError && (
         <Notice tone="standing" title="That didn't go through" chip="!" className="mb-6">
