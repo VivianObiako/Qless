@@ -45,14 +45,22 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
     if (servingNumber === undefined) return;
     const previous = lastServing.current;
     lastServing.current = servingNumber;
-    if (previous === undefined || previous === servingNumber || servingNumber === null) return;
+    if (
+      previous === undefined ||
+      previous === servingNumber ||
+      servingNumber === null
+    )
+      return;
     chime.play();
   }, [servingNumber, chime]);
 
   if (queue.loading) {
     return (
       <Frame>
-        <QueueArranging className="m-auto w-full max-w-md" label="Loading the board" />
+        <QueueArranging
+          className="m-auto w-full max-w-md"
+          label="Loading the board"
+        />
       </Frame>
     );
   }
@@ -72,8 +80,31 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   const { state } = queue;
   const upNext = state.waitingNumbers.slice(0, UP_NEXT);
 
+  const controls = (
+    <>
+      <button
+        type="button"
+        onClick={chime.toggle}
+        aria-pressed={chime.armed}
+        className={cn(
+          "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors",
+          chime.armed
+            ? "border-white/70 text-white"
+            : "border-white/25 text-white/60 hover:border-white/50 hover:text-white",
+        )}
+      >
+        <Icon icon={chime.armed ? Volume2 : VolumeX} size={14} />
+        {chime.armed ? "Sound on" : "Sound off"}
+      </button>
+      <LiveIndicator state={queue.connection} />
+    </>
+  );
+
   return (
     <Frame>
+      <div className="mb-7 flex items-center justify-between gap-4 lg:hidden">
+        {controls}
+      </div>
       <div className="flex flex-1 flex-col gap-9 lg:flex-row lg:gap-10">
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-9">
           {/* Unseen: the board's title is the venue, and on a wall that is the
@@ -81,7 +112,11 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
               for anybody reading the page. */}
           <h1 className="sr-only">{state.queue.name} — queue board</h1>
 
-          <MonoLabel size={13} tone="inherit" className="text-display-label lg:text-[17px]">
+          <MonoLabel
+            size={13}
+            tone="inherit"
+            className="text-display-label lg:text-[17px]"
+          >
             Now serving
           </MonoLabel>
 
@@ -144,28 +179,19 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
           </p>
         </div>
 
-        <div aria-hidden="true" className="hidden w-px shrink-0 bg-white/15 lg:block" />
+        <div
+          aria-hidden="true"
+          className="hidden w-px shrink-0 bg-white/15 lg:block"
+        />
 
         <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[clamp(220px,22vw,380px)]">
           {/* Staff read this from across the room to know the board is still
               the queue and not a photograph of it. The sound control sits
-              with it: both are for whoever set the screen up, not the room. */}
-          <div className="flex items-center justify-between gap-4 lg:justify-end">
-            <button
-              type="button"
-              onClick={chime.toggle}
-              aria-pressed={chime.armed}
-              className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors",
-                chime.armed
-                  ? "border-white/70 text-white"
-                  : "border-white/25 text-white/60 hover:border-white/50 hover:text-white",
-              )}
-            >
-              <Icon icon={chime.armed ? Volume2 : VolumeX} size={14} />
-              {chime.armed ? "Sound on" : "Sound off"}
-            </button>
-            <LiveIndicator state={queue.connection} />
+              with it: both are for whoever set the screen up, not the room.
+              Beside the code when there is a column for it; otherwise at the
+              top of the board, where the eye expects a status. */}
+          <div className="hidden items-center justify-end gap-4 lg:flex">
+            {controls}
           </div>
 
           <div className="flex flex-col items-center gap-4">
@@ -211,7 +237,13 @@ function statusSuffix(status: QueueStatus): string {
   }
 }
 
-function JoinCode({ origin, state }: { origin: string; state: PublicState }): JSX.Element {
+function JoinCode({
+  origin,
+  state,
+}: {
+  origin: string;
+  state: PublicState;
+}): JSX.Element {
   // Sized as a square before the origin is known, so the board does not reflow
   // around the code the moment it appears.
   return (
