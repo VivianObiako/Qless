@@ -42,6 +42,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
 
   const [queue, setQueue] = useState<Queue | null>(null);
   const [measured, setMeasured] = useState<ServiceMeasure>({ minutes: 0, sample: 0 });
+  const [arrival, setArrival] = useState<ServiceMeasure>({ minutes: 0, sample: 0 });
   const [loadError, setLoadError] = useState<ApiError | null>(null);
   const [access, setAccess] = useState<AccessOutcome | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
@@ -60,6 +61,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
         const view = await getOperatorView(queueId, token, controller.signal);
         setQueue(view.queue);
         setMeasured(view.measured);
+        setArrival(view.arrival);
         setLoadError(null);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -118,7 +120,9 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
       );
     }
 
-    return <Form queueId={queueId} queue={queue} measured={measured} token={token} onSaved={setQueue} />;
+    return (
+      <Form queueId={queueId} queue={queue} measured={measured} arrival={arrival} token={token} onSaved={setQueue} />
+    );
   }
 
   return (
@@ -138,12 +142,14 @@ function Form({
   queueId,
   queue,
   measured,
+  arrival,
   token,
   onSaved,
 }: {
   queueId: string;
   queue: Queue;
   measured: ServiceMeasure;
+  arrival: ServiceMeasure;
   token: string;
   onSaved: (queue: Queue) => void;
 }): JSX.Element {
@@ -296,6 +302,7 @@ function Form({
             min={0}
             max={120}
           />
+          <p className="text-[13px] leading-[1.6] text-dim">{arrivalHint(arrival, Number.parseInt(holdMinutes, 10))}</p>
         </Section>
 
         <Section title="Privacy" description="Who sees customer names. Customers never see each other's.">
@@ -364,6 +371,21 @@ function Form({
       />
     </div>
   );
+}
+
+/**
+ * How long people have been taking to turn up once called, set against the
+ * hold time being typed, so the owner can see whether the two agree.
+ */
+function arrivalHint(arrival: ServiceMeasure, hold: number): string {
+  if (arrival.sample === 0) {
+    return "Once people have been called and served, this will say how long they take to arrive, which is what the hold time should be longer than.";
+  }
+  const lately = `Lately people have taken about ${arrival.minutes} min to arrive once called, across the last ${arrival.sample} served.`;
+  if (Number.isFinite(hold) && hold > 0 && hold < arrival.minutes) {
+    return `${lately} That is longer than this hold time, so people on their way will be skipped.`;
+  }
+  return lately;
 }
 
 /**

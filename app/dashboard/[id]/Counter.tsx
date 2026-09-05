@@ -369,8 +369,10 @@ function Stats({ view }: { view: OperatorView }): JSX.Element {
   const last = view.waiting.at(-1);
   const backOfLine = view.waiting.length === 0 ? "No wait" : (last?.estimate?.label ?? "—");
 
+  const arrival = view.arrival.sample > 0 ? String(view.arrival.minutes) : "—";
+
   return (
-    <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-4">
+    <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-5">
       <Stat label="Waiting" value={String(view.waitingCount)} />
       <Stat label="Wait at the back" value={backOfLine} />
       {view.measured.sample >= MEASURE_SAMPLE ? (
@@ -378,6 +380,9 @@ function Stats({ view }: { view: OperatorView }): JSX.Element {
       ) : (
         <Stat label="Average service" value={String(view.queue.averageServiceMinutes)} unit="min" />
       )}
+      {/* How long people take to turn up once called, lately. The number a
+          hold time should be longer than. */}
+      <Stat label="Arrive after call" value={arrival} unit={arrival === "—" ? undefined : "min"} />
       <Stat label="At the counter" value={view.serving ? String(view.serving.number) : "—"} />
     </dl>
   );
@@ -385,7 +390,7 @@ function Stats({ view }: { view: OperatorView }): JSX.Element {
 
 function Stat({ label, value, unit }: { label: string; value: string; unit?: string }): JSX.Element {
   return (
-    <div className="border-l border-shell-line px-5 py-4 first:border-l-0 first:pl-0 sm:[&:nth-child(3)]:border-l max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(3)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
+    <div className="border-l border-shell-line px-5 py-4 first:border-l-0 first:pl-0 max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(odd)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
       <dt className="text-[12.5px] text-muted">{label}</dt>
       <dd className="numeral mt-1.5 whitespace-nowrap text-[24px] text-strong sm:text-[28px]">
         {value}
@@ -437,7 +442,7 @@ function AtTheCounter({
   const label = next
     ? `Serve next · ${next.number}`
     : current
-      ? `Finish with ${nameFor(current)}`
+      ? `Done with ${nameFor(current)}`
       : "Serve next";
 
   return (
