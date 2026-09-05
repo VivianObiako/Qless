@@ -15,6 +15,7 @@ import { useCustomerQueue } from "@/hooks/useCustomerQueue";
 import type { CustomerView, QueueEntry } from "@/lib/types";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
+import { getCustomerToken } from "@/lib/session";
 
 export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
   const queue = useCustomerQueue(slug);
@@ -47,6 +48,8 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
         <TicketPass
           view={view}
           entry={activeEntry}
+          slug={slug}
+          customerToken={getCustomerToken(slug)}
           connection={queue.connection}
           onCancel={() => setConfirmingLeave(true)}
           onSay={(presence) => void queue.say(presence)}

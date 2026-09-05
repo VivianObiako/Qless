@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { subscribeToPush } from "@/lib/push";
 import type { Proximity } from "@/lib/types";
 
 /**
@@ -17,12 +18,17 @@ interface TurnNotificationsInput {
   number: number | null;
   peopleAhead: number;
   queueName: string;
+  /** For the push subscription, which is per queue and per entry. */
+  slug: string;
+  customerToken: string | null;
 }
 
 interface TurnNotifications {
   permission: AlertPermission;
   /** Opens the browser's own prompt. Never called on the customer's behalf. */
   request: () => void;
+  /** True once the server, not this tab, is the one that will do the nudging. */
+  pushed: boolean;
 }
 
 /** How far along the ladder each state is. Only a rise is worth announcing. */
@@ -52,6 +58,8 @@ export function useTurnNotifications({
   number,
   peopleAhead,
   queueName,
+  slug,
+  customerToken,
 }: TurnNotificationsInput): TurnNotifications {
   // Read as an external store rather than copied into state on mount, so the
   // opt-in never flashes past a browser that has already answered.
@@ -66,10 +74,31 @@ export function useTurnNotifications({
   const announced = useRef(-1);
   const entry = useRef<number | null>(null);
 
+  // Which number this browser has a server-side subscription for. A new
+  // number is a new subscription, the same way it is a new ladder.
+  const [pushedFor, setPushedFor] = useState<number | null>(null);
+  const pushed = pushedFor !== null && pushedFor === number;
+
   const request = useCallback((): void => {
     if (readPermission() === "unsupported") return;
     void Notification.requestPermission().then(setAnswer, () => setAnswer("denied"));
   }, [setAnswer]);
+
+  // With permission in hand, hand the job to the server. It keeps nudging
+  // after the tab is gone and on the phones that refuse in-page
+  // notifications altogether; this tab stays the fallback when it cannot.
+  useEffect(() => {
+    if (permission !== "granted" || number === null || customerToken === null) return;
+    if (pushedFor === number) return;
+
+    let cancelled = false;
+    void subscribeToPush(slug, customerToken).then((ok) => {
+      if (!cancelled && ok) setPushedFor(number);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [permission, number, customerToken, slug, pushedFor]);
 
   useEffect(() => {
     if (proximity === null || number === null) {
@@ -90,6 +119,10 @@ export function useTurnNotifications({
     announced.current = reached;
 
     if (reached === 0 || permission !== "granted") return;
+
+    // The server is sending this one; a second copy from the tab would
+    // stack on top of it.
+    if (pushed) return;
 
     // Nothing to add while the customer is looking at the screen: the screen is
     // already the loudest thing in the room, and a notification on top of it is
@@ -115,9 +148,9 @@ export function useTurnNotifications({
       // service worker. There is no fallback worth building for a convenience:
       // the page still says everything this would have.
     }
-  }, [proximity, number, peopleAhead, queueName, permission]);
+  }, [proximity, number, peopleAhead, queueName, permission, pushed]);
 
-  return { permission, request };
+  return { permission, request, pushed };
 }
 
 interface AlertMessage {

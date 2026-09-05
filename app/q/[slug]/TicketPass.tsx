@@ -22,7 +22,14 @@ import {
   type QueueEntry,
 } from "@/lib/types";
 
-interface TicketPassProps {
+interface TicketPassProps extends ScreenProps {
+  /** For the push subscription: which queue, and whose place. */
+  slug: string;
+  customerToken: string | null;
+}
+
+/** What the three screens share. The subscription is the pass's own business. */
+interface ScreenProps {
   view: CustomerView;
   entry: QueueEntry;
   connection: ConnectionState;
@@ -62,7 +69,15 @@ function announcementFor(proximity: Proximity, entry: QueueEntry, view: Customer
  * colour. White on the page, then a full flip to ink, then the whole screen in
  * vermilion. Only the last state is allowed the signal colour.
  */
-export function TicketPass({ view, entry, connection, onCancel, onSay }: TicketPassProps): JSX.Element {
+export function TicketPass({
+  view,
+  entry,
+  slug,
+  customerToken,
+  connection,
+  onCancel,
+  onSay,
+}: TicketPassProps): JSX.Element {
   const proximity = proximityOf(entry, view.peopleAhead);
   const announcement = announcementFor(proximity, entry, view);
   // What this entry has said. It lives on the server, so it is the same on
@@ -78,6 +93,8 @@ export function TicketPass({ view, entry, connection, onCancel, onSay }: TicketP
     number: entry.number,
     peopleAhead: view.peopleAhead,
     queueName: view.state.queue.name,
+    slug,
+    customerToken,
   });
 
   const screen =
@@ -222,7 +239,7 @@ function WaitingScreen({
   alerts,
   presence,
   setPresence,
-}: TicketPassProps & {
+}: ScreenProps & {
   close: boolean;
   alerts: { permission: AlertPermission; request: () => void };
   presence: Presence | null;
@@ -345,7 +362,7 @@ function NextScreen({
   onCancel,
   presence,
   setPresence,
-}: TicketPassProps & { presence: Presence | null; setPresence: (next: Presence) => void }): JSX.Element {
+}: ScreenProps & { presence: Presence | null; setPresence: (next: Presence) => void }): JSX.Element {
   const rows = deriveBoardRows({
     servingNumber: view.state.servingNumber,
     waitingNumbers: view.state.waitingNumbers,
@@ -411,7 +428,7 @@ function TurnScreen({
   onCancel,
   presence,
   setPresence,
-}: Omit<TicketPassProps, "connection"> & {
+}: Omit<ScreenProps, "connection"> & {
   presence: Presence | null;
   setPresence: (next: Presence) => void;
 }): JSX.Element {

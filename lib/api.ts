@@ -42,7 +42,7 @@ interface ErrorBody {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   customerToken?: string | null;
   /** Identifies the principal running queues — an owner, later an operator. */
@@ -188,6 +188,43 @@ export function setPresence(
   return request<CustomerView>(`/api/queues/${encodeURIComponent(slug)}/presence`, {
     method: "POST",
     body: { presence },
+    customerToken,
+  });
+}
+
+/** The server's VAPID public key, or null when push is not set up there. */
+export async function getPushKey(): Promise<string | null> {
+  try {
+    const res = await request<{ publicKey: string }>("/api/push/key");
+    return res.publicKey;
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 404) return null;
+    throw caught;
+  }
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** Binds this browser's push subscription to the customer's active entry. */
+export function subscribePush(
+  slug: string,
+  subscription: PushSubscriptionInput,
+  customerToken: string,
+): Promise<void> {
+  return request<void>(`/api/queues/${encodeURIComponent(slug)}/push`, {
+    method: "POST",
+    body: subscription,
+    customerToken,
+  });
+}
+
+export function unsubscribePush(slug: string, endpoint: string, customerToken: string): Promise<void> {
+  return request<void>(`/api/queues/${encodeURIComponent(slug)}/push`, {
+    method: "DELETE",
+    body: { endpoint },
     customerToken,
   });
 }
