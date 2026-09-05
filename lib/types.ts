@@ -68,6 +68,11 @@ export interface QueueEntry {
   joinedAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  /**
+   * When service began, as distinct from `startedAt`, which is the call. Null
+   * until inferred or tapped; the gap is the customer walking back.
+   */
+  servedAt: string | null;
   /** Null until the customer says something. Never on a public surface. */
   presence: Presence | null;
   presenceAt: string | null;
@@ -160,6 +165,8 @@ export interface OperatorView {
   skipped: QueueEntry[];
   /** The average of the last few real service times, and how many there were. */
   measured: ServiceMeasure;
+  /** How long people have been taking to turn up once called. */
+  arrival: ServiceMeasure;
   /** When anything last happened here. Null for a queue nobody has joined. */
   lastActivityAt: string | null;
   /**
@@ -251,7 +258,7 @@ export interface HistoryResponse {
 export type QueueAction = "pause" | "resume" | "close" | "reset" | "archive" | "unarchive";
 
 /** The per-entry actions that share one endpoint shape. */
-export type EntryAction = "serve" | "attend" | "skip";
+export type EntryAction = "serve" | "attend" | "skip" | "start";
 
 /**
  * How close a customer is to being served. The customer page uses this to pick
@@ -280,7 +287,8 @@ export type QueueEventType =
   | "QUEUE_RESUMED"
   | "QUEUE_CLOSED"
   | "QUEUE_RESET"
-  | "CUSTOMER_PRESENCE";
+  | "CUSTOMER_PRESENCE"
+  | "CUSTOMER_STARTED";
 
 export interface PublicEvent {
   type: QueueEventType;

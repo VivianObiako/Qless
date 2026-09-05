@@ -10,6 +10,7 @@ import { useDisclosure } from "@/hooks/useDisclosure";
 import { minutesSince, useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./QueueSwitcher";
+import { MEASURE_SAMPLE } from "@/lib/types";
 import type {
   EntryAction,
   OperatorView,
@@ -127,6 +128,7 @@ export function Counter({
           pendingEntryId={pendingEntryId}
           onServeNext={onServeNext}
           onAttend={(entryId) => onEntry(entryId, "attend")}
+          onStart={(entryId) => onEntry(entryId, "start")}
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
         />
         <WaitingList
@@ -371,7 +373,11 @@ function Stats({ view }: { view: OperatorView }): JSX.Element {
     <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-4">
       <Stat label="Waiting" value={String(view.waitingCount)} />
       <Stat label="Wait at the back" value={backOfLine} />
-      <Stat label="Average service" value={String(view.queue.averageServiceMinutes)} unit="min" />
+      {view.measured.sample >= MEASURE_SAMPLE ? (
+        <Stat label="Service, measured" value={String(view.measured.minutes)} unit="min" />
+      ) : (
+        <Stat label="Average service" value={String(view.queue.averageServiceMinutes)} unit="min" />
+      )}
       <Stat label="At the counter" value={view.serving ? String(view.serving.number) : "—"} />
     </dl>
   );
@@ -395,6 +401,7 @@ function AtTheCounter({
   pendingEntryId,
   onServeNext,
   onAttend,
+  onStart,
   onSkip,
 }: {
   view: OperatorView;
@@ -402,6 +409,7 @@ function AtTheCounter({
   pendingEntryId: string | null;
   onServeNext: () => Promise<void>;
   onAttend: (entryId: string) => void;
+  onStart: (entryId: string) => void;
   onSkip: (entry: QueueEntry) => void;
 }): JSX.Element {
   const now = useNow();
@@ -409,12 +417,18 @@ function AtTheCounter({
   const current = view.serving;
   const hold = view.queue.holdMinutes;
 
+  // Two clocks on the card: called-and-not-here, then being served. The
+  // second starts when the pass says "here", when the person was already
+  // here at the call, or on one tap.
+  const started = current?.servedAt ?? null;
+
   // The hold time doing its first job: once a called person has been silent
-  // for longer than the queue holds a place, the counter says so. "Here"
-  // cancels it, and a two-minute request from the pass adds two minutes.
+  // for longer than the queue holds a place, the counter says so. Service
+  // beginning ends it, and a two-minute request from the pass adds two.
   const sinceCalled = current?.startedAt ? minutesSince(current.startedAt, now) : 0;
   const grace = hold + (current?.presence === "HOLD" ? HOLD_REQUEST_MINUTES : 0);
-  const overdue = hold > 0 && current !== null && current.presence !== "HERE" && sinceCalled >= grace;
+  const overdue =
+    hold > 0 && current !== null && started === null && current.presence !== "HERE" && sinceCalled >= grace;
 
   // The same request does both halves: it attends whoever is at the counter and
   // promotes the next number. With nobody waiting only the first half happens,
@@ -445,9 +459,12 @@ function AtTheCounter({
               <PresenceTag presence={current.presence} />
             </p>
             <p className="mt-1 text-[13px] text-muted" suppressHydrationWarning>
-              {current.startedAt && `Called ${minutesSince(current.startedAt, now)} min ago`}
-              {current.startedAt && " · "}
+              {started
+                ? `Serving for ${minutesSince(started, now)} min`
+                : current.startedAt && `Called ${sinceCalled} min ago`}
+              {(started || current.startedAt) && " · "}
               waited {minutesSince(current.joinedAt, now)} min
+              {started && current.startedAt && ` · arrived in ${minutesSince(current.startedAt, Date.parse(started))} min`}
             </p>
             {overdue ? (
               <p className="mt-2 text-[13px] leading-[1.55] text-strong" suppressHydrationWarning>
@@ -480,6 +497,19 @@ function AtTheCounter({
         >
           <span className="truncate">{label}</span>
         </Button>
+
+        {/* For the person who walked up without touching their phone. Once
+            service has begun this clock is the one that feeds the estimate. */}
+        {current && started === null && (
+          <Button
+            variant="ghost"
+            size="md"
+            loading={pendingEntryId === current.id}
+            onClick={() => onStart(current.id)}
+          >
+            Start serving
+          </Button>
+        )}
 
         {/* Finishing with someone without calling the next customer. Serve
             next does both in one press and is the button for the busy case;

@@ -152,10 +152,35 @@ function finishedAt(entry: HistoryEntry): string {
   return entry.completedAt ?? entry.joinedAt;
 }
 
+function minutesBetween(from: string, to: string): number {
+  return Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60_000));
+}
+
 /** Whole minutes from joining to being called, or to the end if never called. */
 function waitedMinutes(entry: HistoryEntry): number {
-  const end = entry.startedAt ?? entry.completedAt ?? entry.joinedAt;
-  return Math.max(0, Math.round((new Date(end).getTime() - new Date(entry.joinedAt).getTime()) / 60_000));
+  return minutesBetween(entry.joinedAt, entry.startedAt ?? entry.completedAt ?? entry.joinedAt);
+}
+
+/** From the call to service beginning. Null when nobody marked the start. */
+function arrivedMinutes(entry: HistoryEntry): number | null {
+  if (!entry.startedAt || !entry.servedAt) return null;
+  return minutesBetween(entry.startedAt, entry.servedAt);
+}
+
+/**
+ * The service itself, from its beginning (or the call, for an entry nobody
+ * marked) to done. Only a served entry that was called has one.
+ */
+function servedMinutes(entry: HistoryEntry): number | null {
+  if (entry.status !== "ATTENDED" || !entry.completedAt) return null;
+  const from = entry.servedAt ?? entry.startedAt;
+  if (!from) return null;
+  return minutesBetween(from, entry.completedAt);
+}
+
+function average(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
 function dayKey(iso: string): string {
@@ -241,10 +266,8 @@ function HistoryTable({
     served: served.length,
     skipped: shown.filter((entry) => entry.status === "SKIPPED").length,
     left: shown.filter((entry) => entry.status === "LEFT").length,
-    averageWait:
-      served.length === 0
-        ? null
-        : Math.round(served.reduce((sum, entry) => sum + waitedMinutes(entry), 0) / served.length),
+    averageWait: average(served.map(waitedMinutes)),
+    averageService: average(served.map(servedMinutes).filter((value): value is number => value !== null)),
   };
 
   function sortBy(key: SortKey): void {
@@ -258,7 +281,19 @@ function HistoryTable({
   }
 
   function exportCsv(): void {
-    const header = ["Number", "Name", "Outcome", "Served by", "Waited (min)", "Joined", "Finished"];
+    const header = [
+      "Number",
+      "Name",
+      "Outcome",
+      "Served by",
+      "Waited (min)",
+      "Arrived (min)",
+      "Served (min)",
+      "Joined",
+      "Called",
+      "Service began",
+      "Finished",
+    ];
     const lines = shown.map((entry) =>
       [
         entry.number,
@@ -266,7 +301,11 @@ function HistoryTable({
         outcomeLabel[entry.status],
         servedBy(entry, viewerIsOwner, ownerName),
         waitedMinutes(entry),
+        arrivedMinutes(entry) ?? "",
+        servedMinutes(entry) ?? "",
         entry.joinedAt,
+        entry.startedAt ?? "",
+        entry.servedAt ?? "",
         entry.completedAt ?? "",
       ]
         .map((value) => `"${String(value).replace(/"/g, '""')}"`)
@@ -349,11 +388,12 @@ function HistoryTable({
           </div>
 
           {/* The summary of what is in view: the numbers an owner asks for. */}
-          <dl className="mt-5 grid grid-cols-2 border-y border-shell-line sm:grid-cols-4">
+          <dl className="mt-5 grid grid-cols-2 border-y border-shell-line sm:grid-cols-5">
             <Figure label="Served" value={String(summary.served)} />
             <Figure label="Skipped" value={String(summary.skipped)} />
             <Figure label="Left" value={String(summary.left)} />
             <Figure label="Average wait" value={summary.averageWait === null ? "—" : String(summary.averageWait)} unit={summary.averageWait === null ? undefined : "min"} />
+            <Figure label="Average service" value={summary.averageService === null ? "—" : String(summary.averageService)} unit={summary.averageService === null ? undefined : "min"} />
           </dl>
 
           <div className="mt-6 overflow-x-auto">
@@ -365,6 +405,8 @@ function HistoryTable({
                   <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">Outcome</th>
                   <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">Served by</th>
                   <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Waited</th>
+                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Arrived</th>
+                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Served</th>
                   <SortHeader label="Time" active={sortKey === "time"} direction={direction} onClick={() => sortBy("time")} align="right" />
                 </tr>
               </thead>
@@ -386,6 +428,12 @@ function HistoryTable({
                       <td className="py-3 pr-4 text-dim">{outcomeLabel[entry.status]}</td>
                       <td className="py-3 pr-4 text-dim">{servedBy(entry, viewerIsOwner, ownerName) || "—"}</td>
                       <td className="py-3 pr-4 text-right tabular-nums text-dim">{waitedMinutes(entry)} min</td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-dim">
+                        {arrivedMinutes(entry) === null ? "—" : `${arrivedMinutes(entry)} min`}
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-dim">
+                        {servedMinutes(entry) === null ? "—" : `${servedMinutes(entry)} min`}
+                      </td>
                       <td className="py-3 text-right tabular-nums text-muted">
                         <time dateTime={finishedAt(entry)} suppressHydrationWarning>
                           {new Date(finishedAt(entry)).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
@@ -497,7 +545,7 @@ function Select({
 
 function Figure({ label, value, unit }: { label: string; value: string; unit?: string }): JSX.Element {
   return (
-    <div className="border-l border-shell-line px-5 py-3 first:border-l-0 first:pl-0 max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(3)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
+    <div className="border-l border-shell-line px-5 py-3 first:border-l-0 first:pl-0 max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(odd)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
       <dt className="text-[12.5px] text-muted">{label}</dt>
       <dd className="numeral mt-1 text-[24px] text-strong">
         {value}
