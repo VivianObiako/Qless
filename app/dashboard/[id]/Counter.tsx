@@ -42,7 +42,8 @@ interface CounterProps {
   onQuery: (query: string) => void;
   onServeNext: () => Promise<void>;
   onEntry: (entryId: string, action: EntryAction) => void;
-  onQueue: (action: QueueAction) => void;
+  /** Pause carries an optional note for the people who scan in meanwhile. */
+  onQueue: (action: QueueAction, note?: string) => void;
   onConfirm: (confirmation: Confirmation) => void;
   /** Put somebody in the queue from the counter. Resolves false if it did not go through. */
   onAddWalkIn: (name: string) => Promise<boolean>;
@@ -52,6 +53,19 @@ interface CounterProps {
 /** A row's name, or the number said as a name when the queue keeps names to its owner. */
 function nameFor(entry: { customerName: string; number: number }): string {
   return entry.customerName || `Customer ${entry.number}`;
+}
+
+/** The two minutes a customer can ask for on top of the hold, from the pass. */
+const HOLD_REQUEST_MINUTES = 2;
+
+/**
+ * What a skip means on this queue, in one clause, for every place that has
+ * to say it. With no hold time a skip is final.
+ */
+export function skipConsequence(holdMinutes: number): string {
+  return holdMinutes > 0
+    ? `They keep their number for ${holdMinutes} minutes and you can call them back from the list.`
+    : "They leave the queue and can rejoin for a new number.";
 }
 
 /**
@@ -125,6 +139,7 @@ export function Counter({
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
           skipped={view.skipped}
           onRecall={(entryId) => onEntry(entryId, "serve")}
+          holdMinutes={view.queue.holdMinutes}
         />
       </div>
       <QueueStatusLine queue={view.queue} />
@@ -148,7 +163,7 @@ function CounterHeading({
   queue: Queue;
   isOwner: boolean;
   pendingAction: QueueAction | null;
-  onAct: (action: QueueAction) => void;
+  onAct: (action: QueueAction, note?: string) => void;
   onConfirm: (confirmation: Confirmation) => void;
   onAddWalkIn: (name: string) => Promise<boolean>;
   addingWalkIn: boolean;
@@ -287,6 +302,10 @@ function QueueStatusLine({ queue }: { queue: Queue }): JSX.Element {
         {closed ? "Queue is closed" : paused ? "Queue is paused" : "Queue is open"}
       </span>
       {line}
+      {/* The note customers are reading, so the counter knows what was promised. */}
+      {paused && queue.pauseNote && (
+        <span className="text-strong">&ldquo;{queue.pauseNote}&rdquo;</span>
+      )}
     </p>
   );
 }
@@ -388,6 +407,14 @@ function AtTheCounter({
   const now = useNow();
   const next = view.waiting[0];
   const current = view.serving;
+  const hold = view.queue.holdMinutes;
+
+  // The hold time doing its first job: once a called person has been silent
+  // for longer than the queue holds a place, the counter says so. "Here"
+  // cancels it, and a two-minute request from the pass adds two minutes.
+  const sinceCalled = current?.startedAt ? minutesSince(current.startedAt, now) : 0;
+  const grace = hold + (current?.presence === "HOLD" ? HOLD_REQUEST_MINUTES : 0);
+  const overdue = hold > 0 && current !== null && current.presence !== "HERE" && sinceCalled >= grace;
 
   // The same request does both halves: it attends whoever is at the counter and
   // promotes the next number. With nobody waiting only the first half happens,
@@ -422,11 +449,18 @@ function AtTheCounter({
               {current.startedAt && " · "}
               waited {minutesSince(current.joinedAt, now)} min
             </p>
-            {current.presence === "HOLD" && current.presenceAt && (
-              <p className="mt-2 text-[13px] leading-[1.55] text-dim" suppressHydrationWarning>
-                Asked for two minutes {minutesSince(current.presenceAt, now)} min ago. Skip them to free
-                the counter: they keep their number for 30 minutes and you can call them back.
+            {overdue ? (
+              <p className="mt-2 text-[13px] leading-[1.55] text-strong" suppressHydrationWarning>
+                No sign of them for {sinceCalled} min. Skipping frees the counter.{" "}
+                {skipConsequence(hold)}
               </p>
+            ) : (
+              current.presence === "HOLD" &&
+              current.presenceAt && (
+                <p className="mt-2 text-[13px] leading-[1.55] text-dim" suppressHydrationWarning>
+                  Asked for two minutes {minutesSince(current.presenceAt, now)} min ago.
+                </p>
+              )
             )}
           </>
         ) : (
@@ -460,11 +494,16 @@ function AtTheCounter({
             Done, nobody next
           </Button>
         )}
-        {/* Standing down the person at the counter. They keep their number
-            for half an hour and show under the list to be called back. */}
+        {/* Standing down the person at the counter. With a hold time they
+            keep their number and show under the list to be called back. */}
         {current && (
-          <Button variant="ghost" size="md" disabled={pendingEntryId === current.id} onClick={() => onSkip(current)}>
-            Skip and hold
+          <Button
+            variant={overdue ? "contrast" : "ghost"}
+            size="md"
+            disabled={pendingEntryId === current.id}
+            onClick={() => onSkip(current)}
+          >
+            {hold > 0 ? "Skip and hold" : "Skip"}
           </Button>
         )}
       </div>
@@ -486,6 +525,7 @@ function WaitingList({
   onSkip,
   skipped,
   onRecall,
+  holdMinutes,
 }: {
   waiting: WaitingRow[];
   query: string;
@@ -496,6 +536,7 @@ function WaitingList({
   onSkip: (entry: WaitingRow) => void;
   skipped: QueueEntry[];
   onRecall: (entryId: string) => void;
+  holdMinutes: number;
 }): JSX.Element {
   const now = useNow();
 
@@ -575,7 +616,7 @@ function WaitingList({
       )}
 
       {skipped.length > 0 && (
-        <SkippedList skipped={skipped} pendingEntryId={pendingEntryId} onRecall={onRecall} now={now} />
+        <SkippedList skipped={skipped} pendingEntryId={pendingEntryId} onRecall={onRecall} now={now} holdMinutes={holdMinutes} />
       )}
     </section>
   );
@@ -590,16 +631,21 @@ function SkippedList({
   pendingEntryId,
   onRecall,
   now,
+  holdMinutes,
 }: {
   skipped: QueueEntry[];
   pendingEntryId: string | null;
   onRecall: (entryId: string) => void;
   now: number;
-}): JSX.Element {
+  holdMinutes: number;
+}): JSX.Element | null {
+  // With no hold time the server lists nobody, and with nothing listed there
+  // is no section to draw.
+  if (holdMinutes <= 0 || skipped.length === 0) return null;
   return (
     <div className="mt-8">
       <h3 className="text-[12.5px] text-muted">
-        Skipped recently <span className="text-faint">· kept for 30 min</span>
+        Skipped recently <span className="text-faint">· kept for {holdMinutes} min</span>
       </h3>
       <ul className="mt-2 flex flex-col border-t border-shell-line">
         {skipped.map((entry) => (
@@ -707,7 +753,7 @@ function QueueControls({
   queue: Queue;
   isOwner: boolean;
   pendingAction: QueueAction | null;
-  onAct: (action: QueueAction) => void;
+  onAct: (action: QueueAction, note?: string) => void;
   onConfirm: (confirmation: Confirmation) => void;
 }): JSX.Element {
   const closed = queue.status === "CLOSED";
@@ -715,7 +761,7 @@ function QueueControls({
   const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
 
   return (
-    <div ref={containerRef} className="relative flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {closed ? (
         <Button
           variant="contrast"
@@ -725,16 +771,20 @@ function QueueControls({
         >
           Reopen queue
         </Button>
-      ) : (
+      ) : paused ? (
         <Button
           variant="ghost"
           size="md"
-          loading={pendingAction === (paused ? "resume" : "pause")}
-          onClick={() => onAct(paused ? "resume" : "pause")}
+          loading={pendingAction === "resume"}
+          onClick={() => onAct("resume")}
         >
-          {paused ? "Resume queue" : "Pause queue"}
+          Resume queue
         </Button>
+      ) : (
+        <PauseControl pending={pendingAction === "pause"} onPause={(note) => onAct("pause", note)} />
       )}
+
+      <div ref={containerRef} className="relative flex items-center">
 
       {isOwner && (
         <>
@@ -775,6 +825,81 @@ function QueueControls({
           </div>
         </>
       )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Pausing, with room for one line the customers will read: "Back at 2:30".
+ * The line is optional and the button pauses either way, so a lunch break
+ * costs one tap and a proper break costs two.
+ */
+function PauseControl({
+  pending,
+  onPause,
+}: {
+  pending: boolean;
+  onPause: (note: string) => void;
+}): JSX.Element {
+  const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
+  const [note, setNote] = useState("");
+
+  function onSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    onPause(note.trim());
+    setNote("");
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={toggle}
+        className={controlClasses("ghost", "md")}
+      >
+        {pending ? "Pausing…" : "Pause queue"}
+      </button>
+      <form
+        id={panelId}
+        hidden={!open}
+        onSubmit={onSubmit}
+        noValidate
+        className="absolute right-0 top-full z-20 mt-1.5 w-[300px] rounded-[12px] border border-shell-line bg-shell-soft p-4 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[14px] font-medium text-strong">Pause the queue</p>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setOpen(false)}
+            className="grid size-6 place-items-center rounded-full text-muted hover:text-strong"
+          >
+            <Icon icon={X} size={14} />
+          </button>
+        </div>
+        <p className="mt-1 text-[12.5px] leading-[1.5] text-muted">
+          Nobody new can join. Everyone waiting keeps their place.
+        </p>
+        <Field
+          className="mt-3"
+          label="Say when you're back"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          hint="Optional. Shown to customers and on the wall."
+          placeholder="Back at 2:30"
+          maxLength={80}
+          autoComplete="off"
+          autoFocus={open}
+        />
+        <Button type="submit" variant="contrast" size="md" loading={pending} className="mt-3 w-full">
+          Pause
+        </Button>
+      </form>
     </div>
   );
 }

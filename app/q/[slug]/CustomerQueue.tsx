@@ -133,7 +133,15 @@ function JoinScreen({
 
       {summary.status === "PAUSED" && (
         <Notice tone="standing" title="Queue paused">
-          This queue isn&rsquo;t taking new numbers right now. Check back shortly.
+          {summary.pauseNote ? (
+            <>
+              <span className="font-medium text-strong">{summary.pauseNote}</span>
+              <br />
+              Nobody new can join until then. This page updates on its own.
+            </>
+          ) : (
+            "This queue isn't taking new numbers right now. This page updates on its own, so keep it open."
+          )}
         </Notice>
       )}
 
@@ -145,7 +153,8 @@ function JoinScreen({
 
       {summary.status === "OPEN" && isFull && (
         <Notice tone="standing" title="Queue full">
-          {summary.maxCapacity} is the limit for now. Try again once someone has been served.
+          {summary.maxCapacity} is the limit for now. Keep this page open: it updates on its own, and
+          the moment a place frees you can take it.
         </Notice>
       )}
 

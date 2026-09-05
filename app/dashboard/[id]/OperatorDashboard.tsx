@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type JSX } from "react";
-import { toast } from "sonner";
+import { Button } from "@/components/Button";
 import { AccessNotice } from "@/components/AccessNotice";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
-import { Counter, Finder, type Confirmation } from "./Counter";
+import { Counter, Finder, skipConsequence, type Confirmation } from "./Counter";
+import { NewDayNotice } from "./NewDayNotice";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
 import { useWakeLock } from "@/hooks/useWakeLock";
@@ -115,6 +116,14 @@ export function OperatorDashboard({
         </Notice>
       )}
 
+      {queue.isOwner && (
+        <NewDayNotice
+          queueId={queueId}
+          view={view}
+          onStart={() => setConfirming({ kind: "reset" })}
+        />
+      )}
+
       <Counter
         view={view}
         isOwner={queue.isOwner}
@@ -125,7 +134,7 @@ export function OperatorDashboard({
         onQuery={setQuery}
         onServeNext={queue.serveNextCustomer}
         onEntry={(entryId, action) => void queue.actOnCustomer(entryId, action)}
-        onQueue={(action) => void queue.actOnThisQueue(action)}
+        onQueue={(action, note) => void queue.actOnThisQueue(action, note)}
         onConfirm={setConfirming}
         onAddWalkIn={queue.addWalkIn}
         addingWalkIn={queue.addingWalkIn}
@@ -133,6 +142,7 @@ export function OperatorDashboard({
 
       <Confirmations
         confirming={confirming}
+        holdMinutes={view.queue.holdMinutes}
         onClose={() => setConfirming(null)}
         pendingAction={queue.pendingAction}
         pendingEntryId={queue.pendingEntryId}
@@ -145,6 +155,7 @@ export function OperatorDashboard({
 
 function Confirmations({
   confirming,
+  holdMinutes,
   onClose,
   pendingAction,
   pendingEntryId,
@@ -152,6 +163,7 @@ function Confirmations({
   onAct,
 }: {
   confirming: Confirmation;
+  holdMinutes: number;
   onClose: () => void;
   pendingAction: QueueAction | null;
   pendingEntryId: string | null;
@@ -171,7 +183,7 @@ function Confirmations({
         open={open}
         onOpenChange={onOpenChange}
         title={`Skip #${entry.number}?`}
-        description={`${entry.customerName || `Customer ${entry.number}`} keeps their number for 30 minutes and you can call them back from the list. Use this when someone isn't there.`}
+        description={`Use this when ${entry.customerName || `Customer ${entry.number}`} isn't there. ${skipConsequence(holdMinutes)}`}
         confirmLabel="Skip them"
         cancelLabel="Keep waiting"
         destructive

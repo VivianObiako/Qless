@@ -21,15 +21,40 @@ export interface QueueSummary {
   status: QueueStatus;
   averageServiceMinutes: number;
   maxCapacity: number | null;
+  /**
+   * How long a called customer's place is held: the counter suggests a skip
+   * after it, a skipped number can be recalled within it, and the pass
+   * promises it. Zero means no hold at all.
+   */
+  holdMinutes: number;
+  /** Shown while the queue is paused. Empty otherwise. */
+  pauseNote: string;
 }
 
 export interface Queue extends QueueSummary {
   nextNumber: number;
   /** Settable from phase 3; phase 5 is what makes it change a payload. */
   showNamesToOperators: boolean;
+  /** Set once the owner has put the queue away. */
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** A queue with the two live figures an owner reads a list by. */
+export interface QueueCard extends Queue {
+  servingNumber: number | null;
+  waitingCount: number;
+}
+
+/** What service has actually taken lately. */
+export interface ServiceMeasure {
+  minutes: number;
+  sample: number;
+}
+
+/** How many real service times the estimate needs before it uses them. */
+export const MEASURE_SAMPLE = 5;
 
 /** What a customer has told the counter about where they are. */
 export type Presence = "ON_THE_WAY" | "HERE" | "HOLD";
@@ -63,6 +88,8 @@ export interface PublicState {
   waitingNumbers: number[];
   waitingCount: number;
   isFull: boolean;
+  /** The figure the estimates were built from: measured once there is one. */
+  serviceMinutes: number;
   /**
    * Indexed by people ahead, length `waitingCount + 1`. A customer works out
    * their own position from `waitingNumbers` — that is what keeps other
@@ -102,7 +129,7 @@ export interface CreateQueueResponse {
 export interface RedeemResponse {
   role: PrincipalRole;
   token: string;
-  queues: Queue[];
+  queues: QueueCard[];
   /**
    * The replacement code, returned once. It does not become the live one until
    * the client acknowledges it, which is what stops a lost response from
@@ -113,7 +140,11 @@ export interface RedeemResponse {
 
 export interface MyQueuesResponse {
   role: PrincipalRole;
-  queues: Queue[];
+  queues: QueueCard[];
+  /** What the owner has put away. Always empty for an operator. */
+  archived: Queue[];
+  /** What the owner asked to be called. Empty for an operator. */
+  displayName: string;
 }
 
 export interface WaitingRow extends QueueEntry {
@@ -127,6 +158,10 @@ export interface OperatorView {
   waitingCount: number;
   /** Stood down inside the recall window, most recent first. Still callable. */
   skipped: QueueEntry[];
+  /** The average of the last few real service times, and how many there were. */
+  measured: ServiceMeasure;
+  /** When anything last happened here. Null for a queue nobody has joined. */
+  lastActivityAt: string | null;
   /**
    * Whether this payload carries customer names. False for staff on a queue
    * that keeps names to the owner — the entries arrive with `customerName`
@@ -140,6 +175,8 @@ export interface CreateQueueInput {
   description: string;
   averageServiceMinutes: number;
   maxCapacity: number | null;
+  /** Read only when this request creates the business. */
+  ownerName?: string;
 }
 
 /**
@@ -153,6 +190,7 @@ export interface UpdateQueueInput {
   averageServiceMinutes?: number;
   maxCapacity?: number | null;
   showNamesToOperators?: boolean;
+  holdMinutes?: number;
 }
 
 export type OperatorStatus = "ACTIVE" | "REVOKED";
@@ -205,10 +243,12 @@ export interface HistoryResponse {
   queue: Queue;
   entries: HistoryEntry[];
   showsNames: boolean;
+  /** The owner's name, for entries they handled. Empty when they have none. */
+  ownerName: string;
 }
 
 /** The queue lifecycle actions that share one endpoint shape. */
-export type QueueAction = "pause" | "resume" | "close" | "reset";
+export type QueueAction = "pause" | "resume" | "close" | "reset" | "archive" | "unarchive";
 
 /** The per-entry actions that share one endpoint shape. */
 export type EntryAction = "serve" | "attend" | "skip";

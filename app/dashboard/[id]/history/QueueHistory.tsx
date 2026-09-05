@@ -115,6 +115,7 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
         entries={result.entries}
         showsNames={result.showsNames}
         viewerIsOwner={role !== "OPERATOR"}
+        ownerName={result.ownerName}
       />
     );
   }
@@ -131,11 +132,16 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
   );
 }
 
-/** Who moved an entry, in the reader's words. Null when the customer ended it themselves. */
-function servedBy(entry: HistoryEntry, viewerIsOwner: boolean): string {
+/**
+ * Who moved an entry, in the reader's words. Empty when the customer ended it
+ * themselves. The owner is "You" to themselves, and their name — or "The
+ * owner" — to staff.
+ */
+function servedBy(entry: HistoryEntry, viewerIsOwner: boolean, ownerName: string): string {
   if (entry.actedBy === null) return "";
   if (entry.actedBy.type === "OPERATOR") return entry.actedBy.operatorName ?? "Operator";
-  return viewerIsOwner ? "You" : "The owner";
+  if (viewerIsOwner) return "You";
+  return ownerName || "The owner";
 }
 
 function nameFor(entry: HistoryEntry): string {
@@ -181,11 +187,13 @@ function HistoryTable({
   entries,
   showsNames,
   viewerIsOwner,
+  ownerName,
 }: {
   queueName: string;
   entries: HistoryEntry[];
   showsNames: boolean;
   viewerIsOwner: boolean;
+  ownerName: string;
 }): JSX.Element {
   const [day, setDay] = useState<string>("all");
   const [outcome, setOutcome] = useState<string>("all");
@@ -200,16 +208,16 @@ function HistoryTable({
   }, [entries]);
 
   const servers = useMemo(() => {
-    const names = new Set(entries.map((entry) => servedBy(entry, viewerIsOwner)).filter(Boolean));
+    const names = new Set(entries.map((entry) => servedBy(entry, viewerIsOwner, ownerName)).filter(Boolean));
     return [...names].sort();
-  }, [entries, viewerIsOwner]);
+  }, [entries, viewerIsOwner, ownerName]);
 
   const shown = useMemo(() => {
     const filtered = entries.filter(
       (entry) =>
         (day === "all" || dayKey(finishedAt(entry)) === day) &&
         (outcome === "all" || entry.status === outcome) &&
-        (by === "all" || servedBy(entry, viewerIsOwner) === by),
+        (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by),
     );
     const sign = direction === "asc" ? 1 : -1;
     return filtered.sort((a, b) => {
@@ -222,7 +230,7 @@ function HistoryTable({
           return (new Date(finishedAt(a)).getTime() - new Date(finishedAt(b)).getTime()) * sign;
       }
     });
-  }, [entries, day, outcome, by, sortKey, direction, viewerIsOwner]);
+  }, [entries, day, outcome, by, sortKey, direction, viewerIsOwner, ownerName]);
 
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const current = Math.min(page, pages);
@@ -256,7 +264,7 @@ function HistoryTable({
         entry.number,
         showsNames ? entry.customerName : "",
         outcomeLabel[entry.status],
-        servedBy(entry, viewerIsOwner),
+        servedBy(entry, viewerIsOwner, ownerName),
         waitedMinutes(entry),
         entry.joinedAt,
         entry.completedAt ?? "",
@@ -376,7 +384,7 @@ function HistoryTable({
                         {entry.walkIn && <span className="ml-2 text-[12px] font-normal text-muted">Walk-in</span>}
                       </td>
                       <td className="py-3 pr-4 text-dim">{outcomeLabel[entry.status]}</td>
-                      <td className="py-3 pr-4 text-dim">{servedBy(entry, viewerIsOwner) || "—"}</td>
+                      <td className="py-3 pr-4 text-dim">{servedBy(entry, viewerIsOwner, ownerName) || "—"}</td>
                       <td className="py-3 pr-4 text-right tabular-nums text-dim">{waitedMinutes(entry)} min</td>
                       <td className="py-3 text-right tabular-nums text-muted">
                         <time dateTime={finishedAt(entry)} suppressHydrationWarning>

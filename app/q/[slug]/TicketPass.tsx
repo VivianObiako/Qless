@@ -128,6 +128,22 @@ export function TicketPass({ view, entry, connection, onCancel, onSay }: TicketP
 }
 
 /**
+ * The hold time doing its third job: the customer is told the figure the
+ * counter is working to, so a skip never feels arbitrary. With no hold, the
+ * honest thing to say is that there is none.
+ */
+function holdPromise(holdMinutes: number, stage: "next" | "current"): string {
+  if (holdMinutes <= 0) {
+    return stage === "next"
+      ? "Be inside now. If you're not here when you're called, you'll be skipped and can rejoin."
+      : "If you're not here, your place goes to the next person and you can rejoin.";
+  }
+  return stage === "next"
+    ? `Be inside now. Once you're called, your place is held for ${holdMinutes} minutes.`
+    : `Your place is held for ${holdMinutes} minutes.`;
+}
+
+/**
  * The opt-in, said in terms of what is still ahead. At six away the three
  * nudges are all to come; at one away only the last one is, and promising
  * "three away" to someone who is second in line reads as a screen that has
@@ -367,8 +383,7 @@ function NextScreen({
               : `You're up after ${view.state.servingNumber}.`}
           </p>
           <p className="ticket-flip-muted mt-3 text-[13.5px] leading-[1.55]">
-            Be inside now. If you&rsquo;re not here when you&rsquo;re called, you&rsquo;ll be skipped and
-            can rejoin.
+            {holdPromise(view.state.queue.holdMinutes, "next")}
           </p>
         </div>
 
@@ -420,7 +435,9 @@ function TurnScreen({
           </p>
           {/* Plain white. A tinted white on this ground drops back under
               4.5:1, so the step down in hierarchy is size, not opacity. */}
-          <p className="mt-3 text-[13.5px] leading-[1.55] text-white">Show this screen if anyone asks.</p>
+          <p className="mt-3 text-[13.5px] leading-[1.55] text-white">
+            Show this screen if anyone asks. {holdPromise(view.state.queue.holdMinutes, "current")}
+          </p>
 
           <div className="mt-10 flex-1 lg:hidden" />
 

@@ -84,6 +84,7 @@ export function QueueForm({
   const [description, setDescription] = useState("");
   const [serviceMinutes, setServiceMinutes] = useState("15");
   const [capacity, setCapacity] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export function QueueForm({
           description: description.trim(),
           averageServiceMinutes: minutes,
           maxCapacity: parsedCapacity,
+          ownerName: session ? undefined : ownerName.trim(),
         },
         session,
       );
@@ -180,6 +182,20 @@ export function QueueForm({
           min={1}
           max={1000}
         />
+
+        {/* Only a new business gets asked. An owner adding a queue already
+            said, or chose not to. */}
+        {!session && !compact && (
+          <Field
+            label="Your name"
+            value={ownerName}
+            onChange={(event) => setOwnerName(event.target.value)}
+            hint="Optional. Only you and your history see it."
+            placeholder="Ade"
+            maxLength={60}
+            autoComplete="name"
+          />
+        )}
 
         {error && (
           <Notice tone="standing" title="Couldn't create the queue" chip="!">

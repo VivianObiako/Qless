@@ -4,7 +4,7 @@ import { useState, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut, Monitor, Moon, MoreHorizontal, Smartphone, Sun, Users } from "lucide-react";
+import { LogOut, Monitor, Moon, MoreHorizontal, PenLine, Smartphone, Sun, Users } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Icon } from "@/components/Icon";
 import { ApiError, revokeOtherSessions } from "@/lib/api";
@@ -13,7 +13,9 @@ import type { ThemePreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { useStoredValue } from "@/hooks/useStoredValue";
+import { useOwnerName } from "@/hooks/useOwnerName";
 import { useTheme } from "@/hooks/useTheme";
+import { OwnerNameDialog } from "./OwnerNameDialog";
 
 interface PersonalMenuProps {
   /** "row" is the sidebar's bottom row; "avatar" is the compact top-bar form. */
@@ -50,9 +52,12 @@ export function PersonalMenu({
 
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const owner = useOwnerName();
 
-  const who = isOwner ? "Owner" : "Operator";
-  const initial = who.charAt(0);
+  const roleWord = isOwner ? "Owner" : "Operator";
+  const who = isOwner && owner.name ? owner.name : roleWord;
+  const initial = who.charAt(0).toUpperCase();
 
   function signOut(): void {
     clearSession();
@@ -102,8 +107,10 @@ export function PersonalMenu({
         {variant === "row" && (
           <>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-medium text-strong">{who}</span>
-              <span className="block text-[11.5px] text-muted">Signed in on this device</span>
+              <span className="block truncate text-[13px] font-medium text-strong">{who}</span>
+              <span className="block text-[11.5px] text-muted">
+                {who === roleWord ? "Signed in on this device" : `${roleWord} · this device`}
+              </span>
             </span>
             <Icon icon={MoreHorizontal} size={15} className="text-muted" />
           </>
@@ -122,11 +129,27 @@ export function PersonalMenu({
         <div className="flex items-center gap-2.5 px-2.5 pb-2.5 pt-1.5">
           {avatar}
           <span className="min-w-0">
-            <span className="block text-[13.5px] font-medium text-strong">{who}</span>
-            <span className="block text-[12px] text-muted">This device</span>
+            <span className="block truncate text-[13.5px] font-medium text-strong">{who}</span>
+            <span className="block text-[12px] text-muted">
+              {who === roleWord ? "This device" : `${roleWord} · this device`}
+            </span>
           </span>
         </div>
         <div className="mb-1.5 h-px bg-shell-line" />
+
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setEditingName(true);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13.5px] text-strong transition-colors hover:bg-shell-mid"
+          >
+            <Icon icon={PenLine} size={15} className="text-muted" />
+            {owner.name ? "Change your name" : "Add your name"}
+          </button>
+        )}
 
         {isOwner && (
           <Link
@@ -191,6 +214,10 @@ export function PersonalMenu({
           Sign out on this device
         </button>
       </div>
+
+      {isOwner && (
+        <OwnerNameDialog open={editingName} onOpenChange={setEditingName} name={owner.name} onSave={owner.rename} />
+      )}
 
       <ConfirmDialog
         open={confirmingRevoke}

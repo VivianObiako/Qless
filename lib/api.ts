@@ -243,7 +243,28 @@ export function addWalkIn(queueId: string, name: string, sessionToken: string): 
   });
 }
 
-/** Pause, resume, close or reset the queue. */
+/**
+ * Pause with an optional line for the people who scan in meanwhile. Sent as
+ * its own request because the other lifecycle actions carry no body.
+ */
+export function pauseQueue(queueId: string, note: string, sessionToken: string): Promise<OperatorView> {
+  return request<OperatorView>(`/api/queues/${encodeURIComponent(queueId)}/pause`, {
+    method: "POST",
+    body: { note },
+    sessionToken,
+  });
+}
+
+/** What the owner is called. Owner only. */
+export function updateMe(displayName: string, sessionToken: string): Promise<{ displayName: string }> {
+  return request<{ displayName: string }>("/api/me", {
+    method: "PATCH",
+    body: { displayName },
+    sessionToken,
+  });
+}
+
+/** Pause, resume, close, reset, archive or restore the queue. */
 export function actOnQueue(
   queueId: string,
   action: QueueAction,

@@ -7,6 +7,7 @@ import {
   actOnQueue,
   addWalkIn as apiAddWalkIn,
   getOperatorView,
+  pauseQueue,
   queueSocketUrl,
   serveNext,
 } from "@/lib/api";
@@ -61,7 +62,8 @@ interface OperatorQueue {
   /** Put somebody in the queue from the counter. Resolves false if refused. */
   addWalkIn: (name: string) => Promise<boolean>;
   addingWalkIn: boolean;
-  actOnThisQueue: (action: QueueAction) => Promise<void>;
+  /** Pause takes an optional note for the people who scan in meanwhile. */
+  actOnThisQueue: (action: QueueAction, note?: string) => Promise<void>;
   refresh: () => void;
 }
 
@@ -259,13 +261,17 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
   );
 
   const actOnThisQueue = useCallback(
-    async (action: QueueAction): Promise<void> => {
+    async (action: QueueAction, note = ""): Promise<void> => {
       if (!token) return;
 
       setPendingAction(action);
       setActionError(null);
       try {
-        setView(await actOnQueue(queueId, action, token));
+        setView(
+          action === "pause"
+            ? await pauseQueue(queueId, note, token)
+            : await actOnQueue(queueId, action, token),
+        );
       } catch (caught) {
         if (caught instanceof ApiError) setActionError(caught);
         void classify(caught);

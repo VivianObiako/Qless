@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent, type JSX, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
 import { Button } from "@/components/Button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Field } from "@/components/Field";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
 import { DashboardChrome } from "../DashboardChrome";
-import { ApiError, getOperatorView, updateQueue } from "@/lib/api";
+import { ApiError, actOnQueue, getOperatorView, updateQueue } from "@/lib/api";
 import { classifyUnauthorized, type AccessOutcome } from "@/lib/access";
 import {
   clearSession,
@@ -20,7 +22,7 @@ import {
   type SessionRole,
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import type { Queue } from "@/lib/types";
+import { MEASURE_SAMPLE, type Queue, type ServiceMeasure } from "@/lib/types";
 
 /**
  * The queue's own configuration. Owner-only, and the server says so on every
@@ -39,6 +41,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
   const isOwner = useStoredValue(sessionRoleKey()) !== "OPERATOR";
 
   const [queue, setQueue] = useState<Queue | null>(null);
+  const [measured, setMeasured] = useState<ServiceMeasure>({ minutes: 0, sample: 0 });
   const [loadError, setLoadError] = useState<ApiError | null>(null);
   const [access, setAccess] = useState<AccessOutcome | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
@@ -56,6 +59,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
       try {
         const view = await getOperatorView(queueId, token, controller.signal);
         setQueue(view.queue);
+        setMeasured(view.measured);
         setLoadError(null);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -114,7 +118,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
       );
     }
 
-    return <Form queueId={queueId} queue={queue} token={token} onSaved={setQueue} />;
+    return <Form queueId={queueId} queue={queue} measured={measured} token={token} onSaved={setQueue} />;
   }
 
   return (
@@ -133,23 +137,41 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
 function Form({
   queueId,
   queue,
+  measured,
   token,
   onSaved,
 }: {
   queueId: string;
   queue: Queue;
+  measured: ServiceMeasure;
   token: string;
   onSaved: (queue: Queue) => void;
 }): JSX.Element {
+  const router = useRouter();
   const [name, setName] = useState(queue.name);
   const [description, setDescription] = useState(queue.description);
   const [serviceMinutes, setServiceMinutes] = useState(String(queue.averageServiceMinutes));
   const [capacity, setCapacity] = useState(queue.maxCapacity === null ? "" : String(queue.maxCapacity));
+  const [holdMinutes, setHoldMinutes] = useState(String(queue.holdMinutes));
   const [showNames, setShowNames] = useState(queue.showNamesToOperators);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+
+  async function archive(): Promise<void> {
+    setArchiving(true);
+    try {
+      await actOnQueue(queueId, "archive", token);
+      toast.success(`${queue.name} is archived`);
+      router.push("/queues");
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Something went wrong.");
+      setArchiving(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -173,6 +195,12 @@ function Form({
       return;
     }
 
+    const hold = holdMinutes.trim() === "" ? 0 : Number.parseInt(holdMinutes, 10);
+    if (!Number.isFinite(hold) || hold < 0 || hold > 120) {
+      setError("Hold time must be between 0 and 120 minutes.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -185,6 +213,7 @@ function Form({
           description: description.trim(),
           averageServiceMinutes: minutes,
           maxCapacity: parsedCapacity,
+          holdMinutes: hold,
           showNamesToOperators: showNames,
         },
         token,
@@ -232,7 +261,7 @@ function Form({
             inputMode="numeric"
             value={serviceMinutes}
             onChange={(event) => setServiceMinutes(event.target.value)}
-            hint="Used to estimate waits."
+            hint={measuredHint(measured)}
             suffix="minutes"
             min={1}
             max={480}
@@ -249,6 +278,23 @@ function Form({
             suffix="people"
             min={1}
             max={1000}
+          />
+        </Section>
+
+        <Section
+          title="Holding a place"
+          description="What happens when someone is called and isn't there."
+        >
+          <Field
+            label="Hold time"
+            type="number"
+            inputMode="numeric"
+            value={holdMinutes}
+            onChange={(event) => setHoldMinutes(event.target.value)}
+            hint="After this long the counter suggests a skip, a skipped number can still be called back for this long, and customers are told the figure. 0 means no hold: a skip is final."
+            suffix="minutes"
+            min={0}
+            max={120}
           />
         </Section>
 
@@ -289,8 +335,49 @@ function Form({
           </Button>
         </div>
       </form>
+
+      <Section
+        title="Archive"
+        description="Put this queue away. Nothing is deleted."
+      >
+        <div>
+          <p className="text-[13.5px] leading-[1.6] text-dim">
+            An archived queue closes, leaves your list and stops taking joins. Its history stays, and
+            you can restore it from your queues at any time.
+          </p>
+          <Button variant="ghost" size="md" className="mt-4" onClick={() => setConfirmingArchive(true)}>
+            Archive this queue
+          </Button>
+        </div>
+      </Section>
+
+      <ConfirmDialog
+        open={confirmingArchive}
+        onOpenChange={setConfirmingArchive}
+        title={`Archive ${queue.name}?`}
+        description="It closes and leaves your list. Everyone waiting keeps their number but nobody new can join, and the print sheet on the door stops working until you restore it."
+        confirmLabel="Archive"
+        cancelLabel="Keep it"
+        destructive
+        loading={archiving}
+        onConfirm={() => void archive()}
+      />
     </div>
   );
+}
+
+/**
+ * The service-time hint says which figure the estimates are actually using,
+ * so the number in the box is never mistaken for the number on the pass.
+ */
+function measuredHint(measured: ServiceMeasure): string {
+  if (measured.sample >= MEASURE_SAMPLE) {
+    return `Measured lately: ${measured.minutes} min across the last ${measured.sample} served. Estimates are using that figure, not this one.`;
+  }
+  if (measured.sample > 0) {
+    return `Measured so far: ${measured.minutes} min across ${measured.sample} served. Estimates switch to the measured figure after ${MEASURE_SAMPLE}.`;
+  }
+  return "Used to estimate waits until the day has produced real service times.";
 }
 
 /**

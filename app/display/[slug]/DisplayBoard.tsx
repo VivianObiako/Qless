@@ -1,6 +1,8 @@
 "use client";
 
-import type { JSX, ReactNode } from "react";
+import { useEffect, useRef, type JSX, type ReactNode } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import { Icon } from "@/components/Icon";
 import { MonoLabel } from "@/components/Label";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { Notice } from "@/components/Notice";
@@ -9,7 +11,9 @@ import { QrCode } from "@/components/QrCode";
 import { QueueArranging } from "@/components/QueueArranging";
 import { usePublicQueue } from "@/hooks/usePublicQueue";
 import { useOrigin } from "@/hooks/useStoredValue";
+import { useChime } from "@/hooks/useChime";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { cn } from "@/lib/utils";
 import type { PublicState, QueueStatus } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
@@ -30,6 +34,20 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
   // A wall screen that goes to sleep is a blank wall.
   useWakeLock();
+
+  // A tone when the number changes, once the board has been told to. The
+  // first frame and a reconnect are not changes; only a number giving way to
+  // a different number is.
+  const chime = useChime();
+  const lastServing = useRef<number | null | undefined>(undefined);
+  const servingNumber = queue.state?.servingNumber;
+  useEffect(() => {
+    if (servingNumber === undefined) return;
+    const previous = lastServing.current;
+    lastServing.current = servingNumber;
+    if (previous === undefined || previous === servingNumber || servingNumber === null) return;
+    chime.play();
+  }, [servingNumber, chime]);
 
   if (queue.loading) {
     return (
@@ -113,6 +131,12 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
             <span aria-hidden="true"> · </span>
             {state.waitingCount} waiting
             {statusSuffix(state.queue.status)}
+            {state.queue.status === "PAUSED" && state.queue.pauseNote && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="text-strong">{state.queue.pauseNote}</span>
+              </>
+            )}
           </p>
         </div>
 
@@ -120,8 +144,25 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
 
         <div className="flex shrink-0 flex-col justify-between gap-6 lg:w-[clamp(220px,22vw,380px)]">
           {/* Staff read this from across the room to know the board is still
-              the queue and not a photograph of it. */}
-          <LiveIndicator state={queue.connection} className="lg:justify-end" />
+              the queue and not a photograph of it. The sound control sits
+              with it: both are for whoever set the screen up, not the room. */}
+          <div className="flex items-center justify-between gap-4 lg:justify-end">
+            <button
+              type="button"
+              onClick={chime.toggle}
+              aria-pressed={chime.armed}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] transition-colors",
+                chime.armed
+                  ? "border-white/70 text-white"
+                  : "border-white/25 text-white/60 hover:border-white/50 hover:text-white",
+              )}
+            >
+              <Icon icon={chime.armed ? Volume2 : VolumeX} size={14} />
+              {chime.armed ? "Sound on" : "Sound off"}
+            </button>
+            <LiveIndicator state={queue.connection} />
+          </div>
 
           <div className="flex flex-col items-center gap-4">
             <JoinCode origin={origin} state={state} />

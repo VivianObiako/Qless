@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type JSX } from "react";
+import { useCallback, useEffect, useState, type JSX } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
 import { MonoLabel } from "@/components/Label";
 import { LinkButton } from "@/components/LinkButton";
@@ -23,7 +24,7 @@ const statusWord: Record<QueueStatus, string> = {
   PAUSED: "Paused",
   CLOSED: "Closed",
 };
-import { ApiError, getMyQueues } from "@/lib/api";
+import { ApiError, actOnQueue, getMyQueues } from "@/lib/api";
 import {
   clearSession,
   getSessionRole,
@@ -31,7 +32,7 @@ import {
   type SessionRole,
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import type { MyQueuesResponse, Queue } from "@/lib/types";
+import type { MyQueuesResponse, Queue, QueueCard } from "@/lib/types";
 
 /**
  * The list this browser can open, answered by the server rather than assembled
@@ -49,14 +50,11 @@ export function MyQueues(): JSX.Element {
   const [error, setError] = useState<ApiError | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-
-    const controller = new AbortController();
-
-    void (async () => {
+  const load = useCallback(
+    async (signal?: AbortSignal): Promise<void> => {
+      if (!token) return;
       try {
-        setResult(await getMyQueues(token, controller.signal));
+        setResult(await getMyQueues(token, signal));
         setError(null);
       } catch (caught) {
         if (caught instanceof DOMException && caught.name === "AbortError") return;
@@ -72,10 +70,28 @@ export function MyQueues(): JSX.Element {
         }
         setError(caught);
       }
-    })();
+    },
+    [token],
+  );
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      await load(controller.signal);
+    })();
     return () => controller.abort();
-  }, [token]);
+  }, [load]);
+
+  async function restore(queue: Queue): Promise<void> {
+    if (!token) return;
+    try {
+      await actOnQueue(queue.id, "unarchive", token);
+      toast.success(`${queue.name} is back in your list`);
+      await load();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Something went wrong.");
+    }
+  }
 
   // The queue is named once, by the chrome, so this screen's own title is an
   // h2 under it rather than a second h1.
@@ -102,7 +118,7 @@ export function MyQueues(): JSX.Element {
       );
     }
 
-    if (result.queues.length === 0) {
+    if (result.queues.length === 0 && result.archived.length === 0) {
       return result.role === "OWNER" ? <NoQueuesYet /> : <NotAssigned />;
     }
 
@@ -126,17 +142,37 @@ export function MyQueues(): JSX.Element {
 
         {/* A ledger, not a card: hairlines between rows and text on the
             same left edge as the heading above it. */}
-        <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
-          {result.queues.map((queue) => (
-            <QueueRow key={queue.id} queue={queue} />
-          ))}
-        </ul>
+        {result.queues.length === 0 ? (
+          <p className="mt-9 border-y border-shell-line py-6 text-[14.5px] text-muted">
+            Every queue is archived. Restore one below, or start a new one.
+          </p>
+        ) : (
+          <ul className="mt-9 flex flex-col divide-y divide-shell-line border-y border-shell-line">
+            {result.queues.map((queue) => (
+              <QueueRow key={queue.id} queue={queue} />
+            ))}
+          </ul>
+        )}
 
         <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">
           {result.role === "OWNER"
             ? "You're signed in as the owner of these queues on this device."
             : "You're signed in as an operator. Your manager decides which queues appear here."}
         </p>
+
+        {result.archived.length > 0 && (
+          <section className="mt-12">
+            <h3 className="text-[15px] font-medium text-strong">Archived</h3>
+            <p className="mt-1 text-[13px] text-muted">
+              Closed and out of the way. Their history is kept, and restoring one puts it back above.
+            </p>
+            <ul className="mt-4 flex flex-col divide-y divide-shell-line border-y border-shell-line">
+              {result.archived.map((queue) => (
+                <ArchivedRow key={queue.id} queue={queue} onRestore={() => void restore(queue)} />
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     );
   }
@@ -171,7 +207,32 @@ function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
   );
 }
 
-function QueueRow({ queue }: { queue: Queue }): JSX.Element {
+/** The live figures, said the way a glance at the list wants them. */
+function liveLine(queue: QueueCard): string {
+  const serving = queue.servingNumber === null ? "Nobody at the counter" : `Serving ${queue.servingNumber}`;
+  const waiting =
+    queue.waitingCount === 0 ? "nobody waiting" : queue.waitingCount === 1 ? "1 waiting" : `${queue.waitingCount} waiting`;
+  return `${serving} · ${waiting}`;
+}
+
+function ArchivedRow({ queue, onRestore }: { queue: Queue; onRestore: () => void }): JSX.Element {
+  return (
+    <li className="flex items-center gap-4 py-4 sm:gap-6">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-medium leading-tight text-dim">{queue.name}</span>
+        <span className="mt-1 block truncate font-mono text-[12.5px] text-muted">/q/{queue.slug}</span>
+      </span>
+      <Link href={`/dashboard/${queue.id}/history`} className="text-[13px] text-muted underline-offset-4 hover:underline">
+        History
+      </Link>
+      <button type="button" onClick={onRestore} className={cn(controlClasses("ghost", "sm"), "shrink-0")}>
+        Restore
+      </button>
+    </li>
+  );
+}
+
+function QueueRow({ queue }: { queue: QueueCard }): JSX.Element {
   return (
     <li>
       <Link
@@ -186,6 +247,10 @@ function QueueRow({ queue }: { queue: Queue }): JSX.Element {
             /q/{queue.slug}
           </span>
         </span>
+
+        {/* What is happening there right now, so the one that needs
+            attention can be picked without opening each. */}
+        <span className="hidden shrink-0 text-[13px] text-dim md:inline">{liveLine(queue)}</span>
 
         {/* The queue's state as a dot and a word, and the way in said
             outright — a row that is only a link gives no sign it goes
