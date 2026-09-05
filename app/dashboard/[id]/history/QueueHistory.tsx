@@ -415,29 +415,28 @@ function HistoryTable({
         </p>
       ) : (
         <>
-          {/* The search, under the title and above the filters: the filter
-              row is full at tablet width and the search was falling off it. */}
-          <label className="relative mt-6 block w-full sm:max-w-[360px]">
-            <span className="sr-only">Find by name or number</span>
-            <Icon
-              icon={Search}
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
-            />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Name or number"
-              className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
-            />
-          </label>
-
-          {/* Filters. Each one narrows the rows and the summary together. */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* The search and the filters. One row on a desktop, search first;
+              on a tablet the search takes a line of its own under the title
+              and the filters follow, because the row is full at that width. */}
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <label className="relative block w-full lg:mr-4 lg:w-[280px]">
+              <span className="sr-only">Find by name or number</span>
+              <Icon
+                icon={Search}
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Name or number"
+                className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
+              />
+            </label>
             <Select
               label="Day"
               value={day}
