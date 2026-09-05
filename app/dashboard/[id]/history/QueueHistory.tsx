@@ -418,8 +418,8 @@ function HistoryTable({
           {/* The search and the filters. One row on a desktop, search first;
               on a tablet the search takes a line of its own under the title
               and the filters follow, because the row is full at that width. */}
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <label className="relative block w-full lg:mr-4 lg:w-[280px]">
+          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 lg:justify-between">
+            <label className="relative block w-full sm:max-w-[360px] lg:w-[300px]">
               <span className="sr-only">Find by name or number</span>
               <Icon
                 icon={Search}
@@ -437,46 +437,48 @@ function HistoryTable({
                 className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
               />
             </label>
-            <Select
-              label="Day"
-              value={day}
-              onChange={(value) => {
-                setDay(value);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "All days" },
-                ...days.map((key) => ({ value: key, label: dayLabel(key) })),
-              ]}
-            />
-            <Select
-              label="Outcome"
-              value={outcome}
-              onChange={(value) => {
-                setOutcome(value);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "All outcomes" },
-                { value: "ATTENDED", label: "Served" },
-                { value: "SKIPPED", label: "Skipped" },
-                { value: "LEFT", label: "Left" },
-                { value: "CLEARED", label: "Cleared" },
-                { value: "walkin", label: "Walk-ins" },
-              ]}
-            />
-            <Select
-              label="Served by"
-              value={by}
-              onChange={(value) => {
-                setBy(value);
-                setPage(1);
-              }}
-              options={[
-                { value: "all", label: "Anyone" },
-                ...servers.map((name) => ({ value: name, label: name })),
-              ]}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                label="Day"
+                value={day}
+                onChange={(value) => {
+                  setDay(value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "All days" },
+                  ...days.map((key) => ({ value: key, label: dayLabel(key) })),
+                ]}
+              />
+              <Select
+                label="Outcome"
+                value={outcome}
+                onChange={(value) => {
+                  setOutcome(value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "All outcomes" },
+                  { value: "ATTENDED", label: "Served" },
+                  { value: "SKIPPED", label: "Skipped" },
+                  { value: "LEFT", label: "Left" },
+                  { value: "CLEARED", label: "Cleared" },
+                  { value: "walkin", label: "Walk-ins" },
+                ]}
+              />
+              <Select
+                label="Served by"
+                value={by}
+                onChange={(value) => {
+                  setBy(value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "Anyone" },
+                  ...servers.map((name) => ({ value: name, label: name })),
+                ]}
+              />
+            </div>
           </div>
 
           {/* The summary of what is in view: the numbers an owner asks for. */}
