@@ -693,3 +693,28 @@ counter sees it as a tag.
 to black is a blank counter, and a display that sleeps is a blank wall. Both
 can be added to a home screen through a manifest.
 
+**A skip is a pause, not an ending.** The old skip finished the entry, so a
+customer who stepped out for two minutes had to rejoin at the back. Now a
+skipped entry keeps its number for 30 minutes and sits under "Skipped
+recently" on the counter with one tap to call it back. The window exists
+because the number is reissued once the entry is out of it — the
+`one_active_entry_per_number` index is what makes recall safe, and what
+refuses it afterwards as `recall_expired`. Thirty minutes is longer than any
+"I'll be right back" and shorter than a reissued number is likely to matter.
+
+**Walk-ins are entries.** A person at the counter with no phone gets a number
+from "Add a person" and joins the back of the line like everyone else, with a
+`walkIn` flag so the row can say so. They cannot be told when it is their
+turn, which is why the counter shows the tag: staff call them by voice.
+
+**History is a table.** The grouped list hid the two things staff actually
+look for: a name, and who served them. It is now one full-width table with
+served-by as its own column, sortable on number, name and time, filterable by
+day, outcome and server, 25 rows a page, and exportable as CSV. The summary
+figures above it describe what is in view, so a filter is also a report.
+
+**A second queue is a dialog.** The full page at `/create` is for a visitor
+with nothing yet. An owner adding a queue from the switcher or the queues
+list is one form away from running it, so the form comes to them and lands on
+the new queue's counter. No recovery code is shown there: this browser already
+holds a session, and codes are only issued when a business is created.

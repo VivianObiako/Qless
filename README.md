@@ -27,10 +27,20 @@ handshake check it.
 | `/` | Landing |
 | `/create` | Create a queue |
 | `/q/[slug]` | Customer view — join, watch your place, leave |
-| `/dashboard/[id]` | Operator counter, history and settings |
+| `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in |
+| `/dashboard/[id]/history` | Every finished entry as a sortable, filterable table, with CSV export |
+| `/dashboard/[id]/share` | The link, the QR code, the print sheet, the display board and the customer view |
+| `/dashboard/[id]/settings` | Queue configuration (owner) |
 | `/display/[slug]` | Full-screen board for a wall screen |
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
+
+## Design
+
+The current direction is **Paper**: black on white, Geist at two weights,
+hairlines instead of cards, and one colour (vermilion) with one meaning — a
+person being called. Tokens live in `app/globals.css`; the reasoning is in
+`docs/DECISIONS.md` under "Direction — Paper".
 
 ## Configuration
 
