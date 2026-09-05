@@ -12,6 +12,7 @@ import { Wordmark } from "@/components/Wordmark";
 import { ArrowRight } from "lucide-react";
 import { controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
+import { CreateQueueDialog } from "@/app/create/CreateQueueDialog";
 import { DashboardChrome } from "@/app/dashboard/[id]/DashboardChrome";
 import { StatusDot } from "@/app/dashboard/[id]/QueueSwitcher";
 import { cn } from "@/lib/utils";
@@ -113,9 +114,13 @@ export function MyQueues(): JSX.Element {
           </h2>
 
           {result.role === "OWNER" && (
-            <LinkButton href="/create" size="md">
-              New queue
-            </LinkButton>
+            <CreateQueueDialog
+              trigger={
+                <button type="button" className={controlClasses("contrast", "md")}>
+                  New queue
+                </button>
+              }
+            />
           )}
         </div>
 
@@ -144,7 +149,7 @@ export function MyQueues(): JSX.Element {
   }
 
   return (
-    <DashboardChrome tab="queues" heading="Your queues" width="narrow">
+    <DashboardChrome tab="queues" heading="Your queues">
       {body()}
     </DashboardChrome>
   );

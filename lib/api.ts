@@ -234,6 +234,15 @@ export function actOnEntry(
   );
 }
 
+/** Put somebody in the queue from the counter. Answers with the refreshed dashboard. */
+export function addWalkIn(queueId: string, name: string, sessionToken: string): Promise<OperatorView> {
+  return request<OperatorView>(`/api/queues/${encodeURIComponent(queueId)}/entries`, {
+    method: "POST",
+    body: { name },
+    sessionToken,
+  });
+}
+
 /** Pause, resume, close or reset the queue. */
 export function actOnQueue(
   queueId: string,
@@ -258,15 +267,17 @@ export function updateQueue(
   });
 }
 
+/** Finished entries, newest first. The screen pages through them itself, so it asks for the cap. */
 export function getHistory(
   queueId: string,
   sessionToken: string,
   signal?: AbortSignal,
+  limit = 1000,
 ): Promise<HistoryResponse> {
-  return request<HistoryResponse>(`/api/queues/${encodeURIComponent(queueId)}/history`, {
-    sessionToken,
-    signal,
-  });
+  return request<HistoryResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/history?limit=${limit}`,
+    { sessionToken, signal },
+  );
 }
 
 /**

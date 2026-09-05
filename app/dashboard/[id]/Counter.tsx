@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, type JSX } from "react";
-import { MoreHorizontal, Search } from "lucide-react";
+import { useEffect, useId, useRef, useState, type FormEvent, type JSX } from "react";
+import { MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { Field } from "@/components/Field";
 import { Button, controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { Numeral } from "@/components/Numeral";
@@ -9,7 +10,15 @@ import { useDisclosure } from "@/hooks/useDisclosure";
 import { minutesSince, useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./QueueSwitcher";
-import type { EntryAction, OperatorView, Presence, Queue, QueueAction, WaitingRow } from "@/lib/types";
+import type {
+  EntryAction,
+  OperatorView,
+  Presence,
+  Queue,
+  QueueAction,
+  QueueEntry,
+  WaitingRow,
+} from "@/lib/types";
 
 /**
  * What the operator is being asked to confirm, if anything. A dialog on skip,
@@ -17,7 +26,7 @@ import type { EntryAction, OperatorView, Presence, Queue, QueueAction, WaitingRo
  * they take all day.
  */
 export type Confirmation =
-  | { kind: "skip"; entry: WaitingRow }
+  | { kind: "skip"; entry: QueueEntry }
   | { kind: "close" }
   | { kind: "reset" }
   | null;
@@ -35,6 +44,9 @@ interface CounterProps {
   onEntry: (entryId: string, action: EntryAction) => void;
   onQueue: (action: QueueAction) => void;
   onConfirm: (confirmation: Confirmation) => void;
+  /** Put somebody in the queue from the counter. Resolves false if it did not go through. */
+  onAddWalkIn: (name: string) => Promise<boolean>;
+  addingWalkIn: boolean;
 }
 
 /** A row's name, or the number said as a name when the queue keeps names to its owner. */
@@ -79,6 +91,8 @@ export function Counter({
   onEntry,
   onQueue,
   onConfirm,
+  onAddWalkIn,
+  addingWalkIn,
 }: CounterProps): JSX.Element {
   return (
     <div className="flex flex-col gap-8">
@@ -88,6 +102,8 @@ export function Counter({
         pendingAction={pendingAction}
         onAct={onQueue}
         onConfirm={onConfirm}
+        onAddWalkIn={onAddWalkIn}
+        addingWalkIn={addingWalkIn}
       />
       <Stats view={view} />
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] 2xl:gap-24">
@@ -97,6 +113,7 @@ export function Counter({
           pendingEntryId={pendingEntryId}
           onServeNext={onServeNext}
           onAttend={(entryId) => onEntry(entryId, "attend")}
+          onSkip={(entry) => onConfirm({ kind: "skip", entry })}
         />
         <WaitingList
           waiting={view.waiting}
@@ -106,6 +123,8 @@ export function Counter({
           onCall={(entryId) => onEntry(entryId, "serve")}
           onAttend={(entryId) => onEntry(entryId, "attend")}
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
+          skipped={view.skipped}
+          onRecall={(entryId) => onEntry(entryId, "serve")}
         />
       </div>
       <QueueStatusLine queue={view.queue} />
@@ -123,12 +142,16 @@ function CounterHeading({
   pendingAction,
   onAct,
   onConfirm,
+  onAddWalkIn,
+  addingWalkIn,
 }: {
   queue: Queue;
   isOwner: boolean;
   pendingAction: QueueAction | null;
   onAct: (action: QueueAction) => void;
   onConfirm: (confirmation: Confirmation) => void;
+  onAddWalkIn: (name: string) => Promise<boolean>;
+  addingWalkIn: boolean;
 }): JSX.Element {
   const now = useNow(60_000);
   const today = new Date(now).toLocaleDateString(undefined, {
@@ -147,13 +170,102 @@ function CounterHeading({
           {today}
         </p>
       </div>
-      <QueueControls
-        queue={queue}
-        isOwner={isOwner}
-        pendingAction={pendingAction}
-        onAct={onAct}
-        onConfirm={onConfirm}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <AddWalkIn onAdd={onAddWalkIn} adding={addingWalkIn} disabled={queue.status === "CLOSED"} />
+        <QueueControls
+          queue={queue}
+          isOwner={isOwner}
+          pendingAction={pendingAction}
+          onAct={onAct}
+          onConfirm={onConfirm}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Somebody at the counter without a phone, or with a phone that will not
+ * scan. Staff type a name and they get the next number; the number is said
+ * aloud or written on a slip, since nothing can recover it on a device.
+ */
+function AddWalkIn({
+  onAdd,
+  adding,
+  disabled,
+}: {
+  onAdd: (name: string) => Promise<boolean>;
+  adding: boolean;
+  disabled: boolean;
+}): JSX.Element {
+  const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Enter their name");
+      return;
+    }
+    setError(null);
+    if (await onAdd(trimmed)) {
+      setName("");
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={toggle}
+        className={cn(controlClasses("ghost", "md"), "disabled:opacity-50")}
+      >
+        <Icon icon={Plus} size={15} />
+        Add a person
+      </button>
+      <form
+        id={panelId}
+        hidden={!open}
+        onSubmit={onSubmit}
+        noValidate
+        className="absolute right-0 top-full z-20 mt-1.5 w-[300px] rounded-[12px] border border-shell-line bg-shell-soft p-4 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[14px] font-medium text-strong">Add a person to the queue</p>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setOpen(false)}
+            className="grid size-6 place-items-center rounded-full text-muted hover:text-strong"
+          >
+            <Icon icon={X} size={14} />
+          </button>
+        </div>
+        <p className="mt-1 text-[12.5px] leading-[1.5] text-muted">
+          They take the next number. Tell them what it is, since there is no phone to show it on.
+        </p>
+        <Field
+          className="mt-3"
+          label="Their name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          error={error}
+          placeholder="First name is enough"
+          maxLength={60}
+          autoComplete="off"
+          autoFocus={open}
+        />
+        <Button type="submit" variant="contrast" size="md" loading={adding} className="mt-3 w-full">
+          Give them a number
+        </Button>
+      </form>
     </div>
   );
 }
@@ -264,12 +376,14 @@ function AtTheCounter({
   pendingEntryId,
   onServeNext,
   onAttend,
+  onSkip,
 }: {
   view: OperatorView;
   serving: boolean;
   pendingEntryId: string | null;
   onServeNext: () => Promise<void>;
   onAttend: (entryId: string) => void;
+  onSkip: (entry: QueueEntry) => void;
 }): JSX.Element {
   const now = useNow();
   const next = view.waiting[0];
@@ -310,8 +424,8 @@ function AtTheCounter({
             </p>
             {current.presence === "HOLD" && current.presenceAt && (
               <p className="mt-2 text-[13px] leading-[1.55] text-dim" suppressHydrationWarning>
-                Asked for two minutes {minutesSince(current.presenceAt, now)} min ago. Skip keeps their
-                record if you need the counter; they can rejoin when they arrive.
+                Asked for two minutes {minutesSince(current.presenceAt, now)} min ago. Skip them to free
+                the counter: they keep their number for 30 minutes and you can call them back.
               </p>
             )}
           </>
@@ -346,6 +460,13 @@ function AtTheCounter({
             Done, nobody next
           </Button>
         )}
+        {/* Standing down the person at the counter. They keep their number
+            for half an hour and show under the list to be called back. */}
+        {current && (
+          <Button variant="ghost" size="md" disabled={pendingEntryId === current.id} onClick={() => onSkip(current)}>
+            Skip and hold
+          </Button>
+        )}
       </div>
 
       {!next && current && (
@@ -363,6 +484,8 @@ function WaitingList({
   onCall,
   onAttend,
   onSkip,
+  skipped,
+  onRecall,
 }: {
   waiting: WaitingRow[];
   query: string;
@@ -371,6 +494,8 @@ function WaitingList({
   onCall: (entryId: string) => void;
   onAttend: (entryId: string) => void;
   onSkip: (entry: WaitingRow) => void;
+  skipped: QueueEntry[];
+  onRecall: (entryId: string) => void;
 }): JSX.Element {
   const now = useNow();
 
@@ -417,6 +542,11 @@ function WaitingList({
                     Next
                   </span>
                 )}
+                {entry.walkIn && (
+                  <span className="shrink-0 rounded-full border border-shell-line px-2 py-px text-[11.5px] text-muted">
+                    Walk-in
+                  </span>
+                )}
                 <PresenceTag presence={entry.presence} />
               </span>
               <span className="hidden text-[12.5px] tabular-nums text-muted sm:block" suppressHydrationWarning>
@@ -443,7 +573,61 @@ function WaitingList({
           ))}
         </ul>
       )}
+
+      {skipped.length > 0 && (
+        <SkippedList skipped={skipped} pendingEntryId={pendingEntryId} onRecall={onRecall} now={now} />
+      )}
     </section>
+  );
+}
+
+/**
+ * The people stood down in the last half hour. The most common thing after
+ * a skip is the person appearing, and calling them back keeps their number.
+ */
+function SkippedList({
+  skipped,
+  pendingEntryId,
+  onRecall,
+  now,
+}: {
+  skipped: QueueEntry[];
+  pendingEntryId: string | null;
+  onRecall: (entryId: string) => void;
+  now: number;
+}): JSX.Element {
+  return (
+    <div className="mt-8">
+      <h3 className="text-[12.5px] text-muted">
+        Skipped recently <span className="text-faint">· kept for 30 min</span>
+      </h3>
+      <ul className="mt-2 flex flex-col border-t border-shell-line">
+        {skipped.map((entry) => (
+          <li
+            key={entry.id}
+            className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-b border-shell-line py-2.5 sm:gap-4"
+          >
+            <Numeral value={entry.number} scale="board" animateOnChange={false} className="text-muted" />
+            <span className="min-w-0 truncate text-[14px] text-dim">
+              {nameFor(entry)}
+              {entry.completedAt && (
+                <span className="text-muted" suppressHydrationWarning>
+                  {" "}· skipped {minutesSince(entry.completedAt, now)} min ago
+                </span>
+              )}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={pendingEntryId === entry.id}
+              onClick={() => onRecall(entry.id)}
+            >
+              Call now
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

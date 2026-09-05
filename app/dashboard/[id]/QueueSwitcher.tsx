@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Check, ChevronsUpDown, Layers, Plus } from "lucide-react";
 import { Icon } from "@/components/Icon";
 import { Mark } from "@/components/Mark";
+import { CreateQueueDialog } from "@/app/create/CreateQueueDialog";
 import { ApiError, getMyQueues } from "@/lib/api";
 import { sessionRoleKey, sessionTokenKey } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -171,13 +172,18 @@ export function QueueSwitcher({
           All queues
         </Link>
         {isOwner && (
-          <Link
-            href="/create"
-            className="flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-[13.5px] text-strong transition-colors hover:bg-shell-mid"
-          >
-            <Icon icon={Plus} size={15} className="text-muted" />
-            New queue
-          </Link>
+          <CreateQueueDialog
+            trigger={
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13.5px] text-strong transition-colors hover:bg-shell-mid"
+              >
+                <Icon icon={Plus} size={15} className="text-muted" />
+                New queue
+              </button>
+            }
+          />
         )}
       </div>
     </div>

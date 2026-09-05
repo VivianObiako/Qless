@@ -63,12 +63,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
               for anybody reading the page. */}
           <h1 className="sr-only">{state.queue.name} — queue board</h1>
 
-          <MonoLabel
-            size={13}
-           
-            tone="inherit"
-            className="text-display-label lg:text-[15px]"
-          >
+          <MonoLabel size={13} tone="inherit" className="text-display-label lg:text-[17px]">
             Now serving
           </MonoLabel>
 
@@ -84,12 +79,12 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
                 : `Now serving number ${state.servingNumber}.`}
             </span>
             <span aria-hidden="true">
-              <Numeral value={state.servingNumber} scale="display" className="text-strong" />
+              <Numeral value={state.servingNumber} scale="display" className="text-strong lg:text-[clamp(180px,24vw,340px)]" />
             </span>
           </p>
 
-          <div className="border-t border-white/15 pt-5">
-            <MonoLabel size={12} tone="muted">
+          <div className="border-t border-white/15 pt-6">
+            <MonoLabel size={13} tone="muted" className="lg:text-[15px]">
               Up next
             </MonoLabel>
 
@@ -155,9 +150,9 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
  * that even large text has to clear.
  */
 const upNextClasses = [
-  "numeral text-[clamp(40px,7vw,64px)] text-white",
-  "numeral text-[clamp(34px,5.6vw,52px)] text-white/55",
-  "numeral text-[clamp(28px,4.8vw,44px)] text-white/40",
+  "numeral text-[clamp(44px,7vw,80px)] text-white",
+  "numeral text-[clamp(36px,5.6vw,64px)] text-white/55",
+  "numeral text-[clamp(30px,4.8vw,52px)] text-white/40",
 ] as const;
 
 function statusSuffix(status: QueueStatus): string {
@@ -175,7 +170,7 @@ function JoinCode({ origin, state }: { origin: string; state: PublicState }): JS
   // Sized as a square before the origin is known, so the board does not reflow
   // around the code the moment it appears.
   return (
-    <div className="aspect-square w-full max-w-[220px] sm:max-w-[clamp(220px,22vw,380px)]">
+    <div className="aspect-square w-full max-w-[220px] rounded-[16px] bg-white p-3 sm:max-w-[clamp(220px,22vw,380px)]">
       {origin && (
         <QrCode
           value={`${origin}/q/${state.queue.slug}`}

@@ -96,6 +96,7 @@ export function OperatorDashboard({
       queueId={queueId}
       tab="counter"
       queueName={view.queue.name}
+      queueSlug={view.queue.slug}
       status={view.queue.status}
       connection={queue.connection}
       toolbar={<Finder query={query} onQuery={setQuery} className="w-[320px]" />}
@@ -126,6 +127,8 @@ export function OperatorDashboard({
         onEntry={(entryId, action) => void queue.actOnCustomer(entryId, action)}
         onQueue={(action) => void queue.actOnThisQueue(action)}
         onConfirm={setConfirming}
+        onAddWalkIn={queue.addWalkIn}
+        addingWalkIn={queue.addingWalkIn}
       />
 
       <Confirmations
@@ -168,7 +171,7 @@ function Confirmations({
         open={open}
         onOpenChange={onOpenChange}
         title={`Skip #${entry.number}?`}
-        description={`${entry.customerName} keeps their record and can rejoin for a new number. Use this when someone isn't there.`}
+        description={`${entry.customerName || `Customer ${entry.number}`} keeps their number for 30 minutes and you can call them back from the list. Use this when someone isn't there.`}
         confirmLabel="Skip them"
         cancelLabel="Keep waiting"
         destructive

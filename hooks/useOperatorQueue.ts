@@ -5,6 +5,7 @@ import {
   ApiError,
   actOnEntry,
   actOnQueue,
+  addWalkIn as apiAddWalkIn,
   getOperatorView,
   queueSocketUrl,
   serveNext,
@@ -57,6 +58,9 @@ interface OperatorQueue {
   connection: ConnectionState;
   serveNextCustomer: () => Promise<void>;
   actOnCustomer: (entryId: string, action: EntryAction) => Promise<void>;
+  /** Put somebody in the queue from the counter. Resolves false if refused. */
+  addWalkIn: (name: string) => Promise<boolean>;
+  addingWalkIn: boolean;
   actOnThisQueue: (action: QueueAction) => Promise<void>;
   refresh: () => void;
 }
@@ -232,6 +236,28 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
     [queueId, token, load, classify],
   );
 
+  const [addingWalkIn, setAddingWalkIn] = useState(false);
+
+  const addWalkIn = useCallback(
+    async (name: string): Promise<boolean> => {
+      if (!token) return false;
+
+      setAddingWalkIn(true);
+      setActionError(null);
+      try {
+        setView(await apiAddWalkIn(queueId, name, token));
+        return true;
+      } catch (caught) {
+        if (caught instanceof ApiError) setActionError(caught);
+        void classify(caught);
+        return false;
+      } finally {
+        setAddingWalkIn(false);
+      }
+    },
+    [queueId, token, classify],
+  );
+
   const actOnThisQueue = useCallback(
     async (action: QueueAction): Promise<void> => {
       if (!token) return;
@@ -270,6 +296,8 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
     connection,
     serveNextCustomer,
     actOnCustomer,
+    addWalkIn,
+    addingWalkIn,
     actOnThisQueue,
     refresh,
   };

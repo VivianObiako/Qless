@@ -122,6 +122,7 @@ export function QueueSettingsForm({ queueId }: { queueId: string }): JSX.Element
       queueId={queueId}
       tab="settings"
       queueName={queue?.name}
+      queueSlug={queue?.slug}
       width="narrow"
     >
       {body()}

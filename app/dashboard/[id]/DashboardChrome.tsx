@@ -2,7 +2,7 @@
 
 import type { JSX, ReactNode } from "react";
 import Link from "next/link";
-import { History, Share2, SlidersHorizontal, Ticket, type LucideIcon } from "lucide-react";
+import { ExternalLink, History, Monitor, Share2, SlidersHorizontal, Smartphone, Ticket, type LucideIcon } from "lucide-react";
 import { Icon } from "@/components/Icon";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
 import { Wordmark } from "@/components/Wordmark";
@@ -26,6 +26,8 @@ interface DashboardChromeProps {
   queueId?: string;
   /** Absent while a screen is still loading, and on every error state. */
   queueName?: string;
+  /** The queue's slug, for the two links that leave the dashboard: the customer view and the display board. */
+  queueSlug?: string;
   /**
    * What the page is called when there is no queue name to show — a loading
    * counter, or a screen that belongs to the business rather than a queue.
@@ -89,6 +91,7 @@ export function DashboardChrome({
   children,
   queueId,
   queueName,
+  queueSlug,
   heading = "Queue dashboard",
   status,
   connection,
@@ -127,6 +130,18 @@ export function DashboardChrome({
               {destinations.map((destination) => (
                 <SideItem key={destination.id} destination={destination} current={destination.id === tab} />
               ))}
+            </ul>
+          </nav>
+        )}
+
+        {/* The two screens that leave the shop. New tabs: the counter is the
+            working screen, and checking what a customer sees should never
+            cost the operator their place on it. */}
+        {queueSlug && (
+          <nav aria-label="Other screens" className="border-t border-shell-line pt-3">
+            <ul className="flex flex-col gap-px">
+              <OutItem href={`/q/${queueSlug}`} icon={Smartphone} label="Customer view" />
+              <OutItem href={`/display/${queueSlug}`} icon={Monitor} label="Display board" />
             </ul>
           </nav>
         )}
@@ -209,6 +224,23 @@ function SideItem({ destination, current }: { destination: Destination; current:
         <Icon icon={destination.icon} size={16} className={current ? "text-strong" : "text-muted"} />
         {destination.label}
       </Link>
+    </li>
+  );
+}
+
+function OutItem({ href, icon, label }: { href: string; icon: LucideIcon; label: string }): JSX.Element {
+  return (
+    <li>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] text-dim transition-colors hover:bg-shell-mid hover:text-strong"
+      >
+        <Icon icon={icon} size={16} className="text-muted" />
+        <span className="flex-1">{label}</span>
+        <Icon icon={ExternalLink} size={14} className="text-faint" />
+      </a>
     </li>
   );
 }

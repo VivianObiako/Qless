@@ -46,6 +46,8 @@ export interface QueueEntry {
   /** Null until the customer says something. Never on a public surface. */
   presence: Presence | null;
   presenceAt: string | null;
+  /** Added at the counter by staff; no phone can recover this entry. */
+  walkIn: boolean;
 }
 
 export interface Estimate {
@@ -123,6 +125,8 @@ export interface OperatorView {
   serving: QueueEntry | null;
   waiting: WaitingRow[];
   waitingCount: number;
+  /** Stood down inside the recall window, most recent first. Still callable. */
+  skipped: QueueEntry[];
   /**
    * Whether this payload carries customer names. False for staff on a queue
    * that keeps names to the owner — the entries arrive with `customerName`

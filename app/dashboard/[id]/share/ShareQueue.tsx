@@ -109,7 +109,13 @@ export function ShareQueue({ queueId }: { queueId: string }): JSX.Element {
   }
 
   return (
-    <DashboardChrome queueId={queueId} tab="share" queueName={queue?.name} width="narrow">
+    <DashboardChrome
+      queueId={queueId}
+      tab="share"
+      queueName={queue?.name}
+      queueSlug={queue?.slug}
+      width="narrow"
+    >
       {body()}
     </DashboardChrome>
   );

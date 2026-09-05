@@ -43,7 +43,40 @@ export function CreateQueueForm(): JSX.Element {
   return <Form onCreated={setCreated} />;
 }
 
+/** The page: a heading, then the form. */
 function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void }): JSX.Element {
+  return (
+    <div>
+      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
+        Create a queue
+      </h1>
+      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
+        No account needed. You&rsquo;ll get a link to share and a private dashboard to run it from.
+      </p>
+      <QueueForm onCreated={onCreated} className="mt-8" />
+    </div>
+  );
+}
+
+interface QueueFormProps {
+  onCreated: (created: CreateQueueResponse) => void;
+  submitLabel?: string;
+  /** Tighter spacing for a dialog. */
+  compact?: boolean;
+  className?: string;
+}
+
+/**
+ * The fields that make a queue. Shared by the /create page and the dialog an
+ * owner opens from the dashboard: same validation, same request, one place
+ * to change either.
+ */
+export function QueueForm({
+  onCreated,
+  submitLabel = "Create queue",
+  compact = false,
+  className,
+}: QueueFormProps): JSX.Element {
   // An owner who is already signed in gets this queue added to the business
   // they have, rather than starting a second one they can never merge.
   const session = useStoredValue(sessionTokenKey());
@@ -99,15 +132,8 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
   }
 
   return (
-    <div>
-      <h1 className="text-[clamp(30px,7vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
-        Create a queue
-      </h1>
-      <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
-        No account needed. You&rsquo;ll get a link to share and a private dashboard to run it from.
-      </p>
-
-      <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
+    <div className={className}>
+      <form onSubmit={onSubmit} noValidate className={compact ? "space-y-4" : "space-y-5"}>
         <Field
           label="Business or queue name"
           value={name}
@@ -161,8 +187,8 @@ function Form({ onCreated }: { onCreated: (created: CreateQueueResponse) => void
           </Notice>
         )}
 
-        <Button type="submit" variant="paper" fullWidth loading={submitting}>
-          Create queue
+        <Button type="submit" variant="paper" size={compact ? "md" : "lg"} fullWidth loading={submitting}>
+          {submitLabel}
         </Button>
       </form>
     </div>
