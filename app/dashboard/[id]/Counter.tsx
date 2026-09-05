@@ -133,6 +133,7 @@ export function Counter({
         />
         <WaitingList
           waiting={view.waiting}
+          busyWith={view.serving?.servedAt ? nameFor(view.serving) : null}
           query={query}
           onQuery={onQuery}
           pendingEntryId={pendingEntryId}
@@ -435,15 +436,11 @@ function AtTheCounter({
   const overdue =
     hold > 0 && current !== null && started === null && current.presence !== "HERE" && sinceCalled >= grace;
 
-  // The same request does both halves: it attends whoever is at the counter and
-  // promotes the next number. With nobody waiting only the first half happens,
-  // so the button stays live and says what it will actually do — otherwise the
-  // last customer of the day could never be closed out from here.
-  const label = next
-    ? `Serve next · ${next.number}`
-    : current
-      ? `Done with ${nameFor(current)}`
-      : "Serve next";
+  // One thing at a time. Nobody at the counter: call the next number. Called:
+  // start serving, or hold them. Serving: done. Serve next never has anyone
+  // to finish implicitly, because it is only offered when the counter is
+  // empty.
+  const stage = current === null ? "empty" : started === null ? "called" : "serving";
 
   return (
     <section aria-labelledby="counter-heading" className="flex min-w-0 flex-col">
@@ -492,55 +489,57 @@ function AtTheCounter({
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Button
-          variant="contrast"
-          size="md"
-          loading={serving}
-          disabled={!next && !current}
-          onClick={() => void onServeNext()}
-        >
-          <span className="truncate">{label}</span>
-        </Button>
-
-        {/* For the person who walked up without touching their phone. Once
-            service has begun this clock is the one that feeds the estimate. */}
-        {current && started === null && (
-          <Button
-            variant="ghost"
-            size="md"
-            loading={pendingEntryId === current.id}
-            onClick={() => onStart(current.id)}
-          >
-            Start serving
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {stage === "empty" && (
+          <Button variant="contrast" size="md" loading={serving} disabled={!next} onClick={() => void onServeNext()}>
+            <span className="truncate">{next ? `Serve next · ${next.number}` : "Serve next"}</span>
           </Button>
         )}
 
-        {/* Finishing with someone without calling the next customer. Serve
-            next does both in one press and is the button for the busy case;
-            this is for the end of a run, when nobody should be called up.
-            With nobody waiting the primary button already says this. */}
-        {current && next && (
-          <Button
-            variant="ghost"
-            size="md"
-            loading={pendingEntryId === current.id}
-            onClick={() => onAttend(current.id)}
-          >
-            Done with {nameFor(current)}
-          </Button>
+        {/* Called and not here yet. Start serving when they walk up; hold
+            them when they do not. Overdue swaps which of the two leads. */}
+        {stage === "called" && current && (
+          <>
+            <Button
+              variant={overdue ? "ghost" : "contrast"}
+              size="md"
+              loading={pendingEntryId === current.id}
+              onClick={() => onStart(current.id)}
+            >
+              Start serving
+            </Button>
+            <Button
+              variant={overdue ? "contrast" : "ghost"}
+              size="md"
+              disabled={pendingEntryId === current.id}
+              onClick={() => onSkip(current)}
+            >
+              {hold > 0 ? "Skip and hold" : "Skip"}
+            </Button>
+          </>
         )}
-        {/* Standing down the person at the counter. With a hold time they
-            keep their number and show under the list to be called back. */}
-        {current && (
-          <Button
-            variant={overdue ? "contrast" : "ghost"}
-            size="md"
-            disabled={pendingEntryId === current.id}
-            onClick={() => onSkip(current)}
-          >
-            {hold > 0 ? "Skip and hold" : "Skip"}
-          </Button>
+
+        {/* Being served. Done is the only real action; the hold is kept as
+            a quiet way back from a mistaken start. */}
+        {stage === "serving" && current && (
+          <>
+            <Button
+              variant="contrast"
+              size="md"
+              loading={pendingEntryId === current.id}
+              onClick={() => onAttend(current.id)}
+            >
+              Done with {nameFor(current)}
+            </Button>
+            <button
+              type="button"
+              disabled={pendingEntryId === current.id}
+              onClick={() => onSkip(current)}
+              className="px-2 text-[13px] text-muted underline-offset-4 hover:text-strong hover:underline"
+            >
+              {hold > 0 ? "Skip and hold instead" : "Skip instead"}
+            </button>
+          </>
         )}
       </div>
 
@@ -562,8 +561,11 @@ function WaitingList({
   skipped,
   onRecall,
   holdMinutes,
+  busyWith,
 }: {
   waiting: WaitingRow[];
+  /** Who is being served right now, if anyone. Calling is off while they are. */
+  busyWith: string | null;
   query: string;
   onQuery: (query: string) => void;
   pendingEntryId: string | null;
@@ -634,12 +636,15 @@ function WaitingList({
                   variant="ghost"
                   size="sm"
                   loading={pendingEntryId === entry.id}
+                  disabled={busyWith !== null}
+                  title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
                   onClick={() => onCall(entry.id)}
                 >
                   Call now
                 </Button>
                 <RowMenu
                   entry={entry}
+                  busyWith={busyWith}
                   disabled={pendingEntryId === entry.id}
                   onCall={() => onCall(entry.id)}
                   onAttend={() => onAttend(entry.id)}
@@ -652,7 +657,14 @@ function WaitingList({
       )}
 
       {skipped.length > 0 && (
-        <SkippedList skipped={skipped} pendingEntryId={pendingEntryId} onRecall={onRecall} now={now} holdMinutes={holdMinutes} />
+        <SkippedList
+          skipped={skipped}
+          pendingEntryId={pendingEntryId}
+          onRecall={onRecall}
+          now={now}
+          holdMinutes={holdMinutes}
+          busyWith={busyWith}
+        />
       )}
     </section>
   );
@@ -668,9 +680,11 @@ function SkippedList({
   onRecall,
   now,
   holdMinutes,
+  busyWith,
 }: {
   skipped: QueueEntry[];
   pendingEntryId: string | null;
+  busyWith: string | null;
   onRecall: (entryId: string) => void;
   now: number;
   holdMinutes: number;
@@ -702,6 +716,8 @@ function SkippedList({
               variant="ghost"
               size="sm"
               loading={pendingEntryId === entry.id}
+              disabled={busyWith !== null}
+              title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
               onClick={() => onRecall(entry.id)}
             >
               Call now
@@ -721,12 +737,14 @@ function SkippedList({
 function RowMenu({
   entry,
   disabled,
+  busyWith,
   onCall,
   onAttend,
   onSkip,
 }: {
   entry: WaitingRow;
   disabled: boolean;
+  busyWith: string | null;
   onCall: () => void;
   onAttend: () => void;
   onSkip: () => void;
@@ -759,7 +777,13 @@ function RowMenu({
         hidden={!open}
         className="absolute right-0 top-full z-20 mt-1 block w-[184px] rounded-[10px] border border-shell-line bg-shell-soft p-1 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
       >
-        <button type="button" className={item} onClick={() => { setOpen(false); onCall(); }}>
+        <button
+          type="button"
+          className={cn(item, "disabled:cursor-not-allowed disabled:opacity-50")}
+          disabled={busyWith !== null}
+          title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
+          onClick={() => { setOpen(false); onCall(); }}
+        >
           Call now
         </button>
         <button type="button" className={item} onClick={() => { setOpen(false); onAttend(); }}>
