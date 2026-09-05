@@ -26,14 +26,22 @@ handshake check it.
 |---|---|
 | `/` | Landing |
 | `/create` | Create a queue |
-| `/q/[slug]` | Customer view — join, watch your place, leave |
+| `/q/[slug]` | Customer view — join, watch your place, say you're here, leave |
 | `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in |
 | `/dashboard/[id]/history` | Every finished entry as a sortable, filterable table, with CSV export |
 | `/dashboard/[id]/share` | The link, the QR code, the print sheet, the display board and the customer view |
 | `/dashboard/[id]/settings` | Queue configuration (owner) |
-| `/display/[slug]` | Full-screen board for a wall screen |
+| `/display/[slug]` | Full-screen board for a wall screen, with an optional chime |
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
+
+## Notifications
+
+The pass asks for notification permission once a customer holds a place.
+With permission it registers `public/sw.js` and subscribes through the API,
+which sends the nudges (close, next, your turn) itself. If the API has no
+VAPID keys the pass falls back to notifying from the page while the tab is
+alive. There is nothing to configure on the web side.
 
 ## Design
 
