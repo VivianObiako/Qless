@@ -72,7 +72,8 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
         setResult(await getHistory(queueId, token, controller.signal));
         setError(null);
       } catch (caught) {
-        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        if (caught instanceof DOMException && caught.name === "AbortError")
+          return;
         if (!(caught instanceof ApiError)) return;
         setError(caught);
 
@@ -93,7 +94,9 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
 
   function body(): JSX.Element {
     if (!isClient || (token && !result && !error)) {
-      return <QueueArranging className="mx-auto max-w-md" label="Loading history" />;
+      return (
+        <QueueArranging className="mx-auto max-w-md" label="Loading history" />
+      );
     }
 
     if (access !== null) {
@@ -108,7 +111,8 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
           chip="!"
           action={<LinkButton href="/enter">Enter a code</LinkButton>}
         >
-          History carries customer names, so it only opens for the people who run this queue.
+          History carries customer names, so it only opens for the people who
+          run this queue.
         </Notice>
       );
     }
@@ -149,9 +153,14 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
  * themselves. The owner is "You" to themselves, and their name — or "The
  * owner" — to staff.
  */
-function servedBy(entry: HistoryEntry, viewerIsOwner: boolean, ownerName: string): string {
+function servedBy(
+  entry: HistoryEntry,
+  viewerIsOwner: boolean,
+  ownerName: string,
+): string {
   if (entry.actedBy === null) return "";
-  if (entry.actedBy.type === "OPERATOR") return entry.actedBy.operatorName ?? "Operator";
+  if (entry.actedBy.type === "OPERATOR")
+    return entry.actedBy.operatorName ?? "Operator";
   if (viewerIsOwner) return "You";
   return ownerName || "The owner";
 }
@@ -165,12 +174,18 @@ function finishedAt(entry: HistoryEntry): string {
 }
 
 function minutesBetween(from: string, to: string): number {
-  return Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60_000));
+  return Math.max(
+    0,
+    Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60_000),
+  );
 }
 
 /** Whole minutes from joining to being called, or to the end if never called. */
 function waitedMinutes(entry: HistoryEntry): number {
-  return minutesBetween(entry.joinedAt, entry.startedAt ?? entry.completedAt ?? entry.joinedAt);
+  return minutesBetween(
+    entry.joinedAt,
+    entry.startedAt ?? entry.completedAt ?? entry.joinedAt,
+  );
 }
 
 /** From the call to service beginning. Null when nobody marked the start. */
@@ -192,7 +207,9 @@ function servedMinutes(entry: HistoryEntry): number | null {
 
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  return Math.round(
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
 }
 
 function dayKey(iso: string): string {
@@ -247,7 +264,11 @@ function HistoryTable({
   }, [entries]);
 
   const servers = useMemo(() => {
-    const names = new Set(entries.map((entry) => servedBy(entry, viewerIsOwner, ownerName)).filter(Boolean));
+    const names = new Set(
+      entries
+        .map((entry) => servedBy(entry, viewerIsOwner, ownerName))
+        .filter(Boolean),
+    );
     return [...names].sort();
   }, [entries, viewerIsOwner, ownerName]);
 
@@ -258,7 +279,8 @@ function HistoryTable({
         (day === "all" || dayKey(finishedAt(entry)) === day) &&
         // "Walk-in" is not an outcome, but it is the other thing an owner
         // wants to pull out of a day, and one menu is easier than two.
-        (outcome === "all" || (outcome === "walkin" ? entry.walkIn : entry.status === outcome)) &&
+        (outcome === "all" ||
+          (outcome === "walkin" ? entry.walkIn : entry.status === outcome)) &&
         (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by) &&
         (needle === "" ||
           nameFor(entry).toLowerCase().includes(needle) ||
@@ -272,10 +294,24 @@ function HistoryTable({
         case "name":
           return nameFor(a).localeCompare(nameFor(b)) * sign;
         default:
-          return (new Date(finishedAt(a)).getTime() - new Date(finishedAt(b)).getTime()) * sign;
+          return (
+            (new Date(finishedAt(a)).getTime() -
+              new Date(finishedAt(b)).getTime()) *
+            sign
+          );
       }
     });
-  }, [entries, day, outcome, by, search, sortKey, direction, viewerIsOwner, ownerName]);
+  }, [
+    entries,
+    day,
+    outcome,
+    by,
+    search,
+    sortKey,
+    direction,
+    viewerIsOwner,
+    ownerName,
+  ]);
 
   const pages = Math.max(1, Math.ceil(shown.length / pageSize));
   const current = Math.min(page, pages);
@@ -287,7 +323,11 @@ function HistoryTable({
     skipped: shown.filter((entry) => entry.status === "SKIPPED").length,
     left: shown.filter((entry) => entry.status === "LEFT").length,
     averageWait: average(served.map(waitedMinutes)),
-    averageService: average(served.map(servedMinutes).filter((value): value is number => value !== null)),
+    averageService: average(
+      served
+        .map(servedMinutes)
+        .filter((value): value is number => value !== null),
+    ),
   };
 
   function sortBy(key: SortKey): void {
@@ -331,7 +371,9 @@ function HistoryTable({
         .map((value) => `"${String(value).replace(/"/g, '""')}"`)
         .join(","),
     );
-    const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv" });
+    const blob = new Blob([[header.join(","), ...lines].join("\n")], {
+      type: "text/csv",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -346,27 +388,50 @@ function HistoryTable({
         <h2 className="text-[clamp(30px,6vw,40px)] font-medium leading-none tracking-[-0.03em] text-strong">
           History
         </h2>
-        <button
-          type="button"
-          onClick={exportCsv}
-          disabled={shown.length === 0}
-          className={cn(controlClasses("ghost", "md"), "disabled:opacity-50")}
-        >
-          <Icon icon={Download} size={15} />
-          Export CSV
-        </button>
+        {/* The search lives with the heading, not the filters: the filter
+            row is full at tablet width and the search was falling off it. */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <label className="relative block w-full sm:w-[260px]">
+            <span className="sr-only">Find by name or number</span>
+            <Icon
+              icon={Search}
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+            />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Name or number"
+              className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={shown.length === 0}
+            className={cn(controlClasses("ghost", "md"), "disabled:opacity-50")}
+          >
+            <Icon icon={Download} size={15} />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {!showsNames && (
         <p className="mt-3 max-w-md text-[14px] leading-[1.6] text-muted">
-          This queue keeps customer names to its owner, so this history shows numbers only.
+          This queue keeps customer names to its owner, so this history shows
+          numbers only.
         </p>
       )}
 
       {entries.length === 0 ? (
         <p className="mt-6 max-w-md text-[14.5px] leading-[1.6] text-dim">
-          Nothing finished yet. Customers appear here once they have been served, skipped, or have
-          left the queue.
+          Nothing finished yet. Customers appear here once they have been
+          served, skipped, or have left the queue.
         </p>
       ) : (
         <>
@@ -379,7 +444,10 @@ function HistoryTable({
                 setDay(value);
                 setPage(1);
               }}
-              options={[{ value: "all", label: "All days" }, ...days.map((key) => ({ value: key, label: dayLabel(key) }))]}
+              options={[
+                { value: "all", label: "All days" },
+                ...days.map((key) => ({ value: key, label: dayLabel(key) })),
+              ]}
             />
             <Select
               label="Outcome"
@@ -404,22 +472,11 @@ function HistoryTable({
                 setBy(value);
                 setPage(1);
               }}
-              options={[{ value: "all", label: "Anyone" }, ...servers.map((name) => ({ value: name, label: name }))]}
+              options={[
+                { value: "all", label: "Anyone" },
+                ...servers.map((name) => ({ value: name, label: name })),
+              ]}
             />
-            <label className="relative ml-auto block min-w-[200px] flex-1 sm:max-w-[300px]">
-              <span className="sr-only">Find by name or number</span>
-              <Icon icon={Search} size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Name or number"
-                className="h-9 w-full rounded-full border border-shell-line bg-shell-soft pl-9 pr-4 text-[13px] text-strong placeholder:text-muted focus:border-strong focus:outline-none pointer-coarse:h-10 pointer-coarse:text-[16px]"
-              />
-            </label>
           </div>
 
           {/* The summary of what is in view: the numbers an owner asks for. */}
@@ -427,54 +484,123 @@ function HistoryTable({
             <Figure label="Served" value={String(summary.served)} />
             <Figure label="Skipped" value={String(summary.skipped)} />
             <Figure label="Left" value={String(summary.left)} />
-            <Figure label="Average wait" value={summary.averageWait === null ? "—" : String(summary.averageWait)} unit={summary.averageWait === null ? undefined : "min"} />
-            <Figure label="Average service" value={summary.averageService === null ? "—" : String(summary.averageService)} unit={summary.averageService === null ? undefined : "min"} />
+            <Figure
+              label="Average wait"
+              value={
+                summary.averageWait === null ? "—" : String(summary.averageWait)
+              }
+              unit={summary.averageWait === null ? undefined : "min"}
+            />
+            <Figure
+              label="Average service"
+              value={
+                summary.averageService === null
+                  ? "—"
+                  : String(summary.averageService)
+              }
+              unit={summary.averageService === null ? undefined : "min"}
+            />
           </dl>
 
           <div className="mt-6 overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-[14px]">
               <thead>
                 <tr className="border-b border-shell-line text-left">
-                  <SortHeader label="No." active={sortKey === "number"} direction={direction} onClick={() => sortBy("number")} className="w-[80px]" />
-                  <SortHeader label="Name" active={sortKey === "name"} direction={direction} onClick={() => sortBy("name")} />
-                  <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">Outcome</th>
-                  <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">Served by</th>
-                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Waited</th>
-                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Arrived</th>
-                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">Served</th>
-                  <SortHeader label="Time" active={sortKey === "time"} direction={direction} onClick={() => sortBy("time")} align="right" />
+                  <SortHeader
+                    label="No."
+                    active={sortKey === "number"}
+                    direction={direction}
+                    onClick={() => sortBy("number")}
+                    className="w-[80px]"
+                  />
+                  <SortHeader
+                    label="Name"
+                    active={sortKey === "name"}
+                    direction={direction}
+                    onClick={() => sortBy("name")}
+                  />
+                  <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
+                    Outcome
+                  </th>
+                  <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
+                    Served by
+                  </th>
+                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">
+                    Waited
+                  </th>
+                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">
+                    Arrived
+                  </th>
+                  <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">
+                    Served
+                  </th>
+                  <SortHeader
+                    label="Time"
+                    active={sortKey === "time"}
+                    direction={direction}
+                    onClick={() => sortBy("time")}
+                    align="right"
+                  />
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-[14px] text-muted">
+                    <td
+                      colSpan={6}
+                      className="py-8 text-center text-[14px] text-muted"
+                    >
                       Nothing matches these filters.
                     </td>
                   </tr>
                 ) : (
                   rows.map((entry) => (
                     <tr key={entry.id} className="border-b border-shell-line">
-                      <td className="numeral py-3 pr-4 text-[20px] text-strong">{entry.number}</td>
+                      <td className="numeral py-3 pr-4 text-[20px] text-strong">
+                        {entry.number}
+                      </td>
                       <td className="max-w-[260px] truncate py-3 pr-4 font-medium text-strong">
                         {nameFor(entry)}
-                        {entry.walkIn && <span className="ml-2 text-[12px] font-normal text-muted">Walk-in</span>}
+                        {entry.walkIn && (
+                          <span className="ml-2 text-[12px] font-normal text-muted">
+                            Walk-in
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 pr-4 text-dim">{outcomeLabel[entry.status]}</td>
-                      <td className="py-3 pr-4 text-dim">{servedBy(entry, viewerIsOwner, ownerName) || "—"}</td>
-                      <td className="py-3 pr-4 text-right tabular-nums text-dim">{waitedMinutes(entry)} min</td>
-                      <td className="py-3 pr-4 text-right tabular-nums text-dim">
-                        {arrivedMinutes(entry) === null ? "—" : `${arrivedMinutes(entry)} min`}
+                      <td className="py-3 pr-4 text-dim">
+                        {outcomeLabel[entry.status]}
+                      </td>
+                      <td className="py-3 pr-4 text-dim">
+                        {servedBy(entry, viewerIsOwner, ownerName) || "—"}
                       </td>
                       <td className="py-3 pr-4 text-right tabular-nums text-dim">
-                        {servedMinutes(entry) === null ? "—" : `${servedMinutes(entry)} min`}
+                        {waitedMinutes(entry)} min
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-dim">
+                        {arrivedMinutes(entry) === null
+                          ? "—"
+                          : `${arrivedMinutes(entry)} min`}
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-dim">
+                        {servedMinutes(entry) === null
+                          ? "—"
+                          : `${servedMinutes(entry)} min`}
                       </td>
                       <td className="py-3 text-right tabular-nums text-muted">
-                        <time dateTime={finishedAt(entry)} suppressHydrationWarning>
-                          {new Date(finishedAt(entry)).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                        <time
+                          dateTime={finishedAt(entry)}
+                          suppressHydrationWarning
+                        >
+                          {new Date(finishedAt(entry)).toLocaleTimeString(
+                            undefined,
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
                         </time>
                         {day === "all" && (
-                          <span className="ml-2 text-[12px]" suppressHydrationWarning>
+                          <span
+                            className="ml-2 text-[12px]"
+                            suppressHydrationWarning
+                          >
                             {dayLabel(dayKey(finishedAt(entry)))}
                           </span>
                         )}
@@ -502,17 +628,40 @@ function HistoryTable({
                   setPageSize(Number(value));
                   setPage(1);
                 }}
-                options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+                options={PAGE_SIZES.map((size) => ({
+                  value: String(size),
+                  label: String(size),
+                }))}
               />
             </span>
             <span className="flex items-center gap-1">
-              <PageButton label="First page" disabled={current <= 1} onClick={() => setPage(1)} icon={ChevronsLeft} />
-              <PageButton label="Previous page" disabled={current <= 1} onClick={() => setPage(current - 1)} icon={ChevronLeft} />
+              <PageButton
+                label="First page"
+                disabled={current <= 1}
+                onClick={() => setPage(1)}
+                icon={ChevronsLeft}
+              />
+              <PageButton
+                label="Previous page"
+                disabled={current <= 1}
+                onClick={() => setPage(current - 1)}
+                icon={ChevronLeft}
+              />
               <span className="px-2 tabular-nums text-strong">
                 Page {current} of {pages}
               </span>
-              <PageButton label="Next page" disabled={current >= pages} onClick={() => setPage(current + 1)} icon={ChevronRight} />
-              <PageButton label="Last page" disabled={current >= pages} onClick={() => setPage(pages)} icon={ChevronsRight} />
+              <PageButton
+                label="Next page"
+                disabled={current >= pages}
+                onClick={() => setPage(current + 1)}
+                icon={ChevronRight}
+              />
+              <PageButton
+                label="Last page"
+                disabled={current >= pages}
+                onClick={() => setPage(pages)}
+                icon={ChevronsRight}
+              />
             </span>
           </div>
         </>
@@ -536,11 +685,21 @@ function SortHeader({
   align?: "left" | "right";
   className?: string;
 }): JSX.Element {
-  const glyph = !active ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown;
+  const glyph = !active
+    ? ArrowUpDown
+    : direction === "asc"
+      ? ArrowUp
+      : ArrowDown;
   return (
     <th
-      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : undefined}
-      className={cn("py-2.5 pr-4 font-normal", align === "right" && "text-right", className)}
+      aria-sort={
+        active ? (direction === "asc" ? "ascending" : "descending") : undefined
+      }
+      className={cn(
+        "py-2.5 pr-4 font-normal",
+        align === "right" && "text-right",
+        className,
+      )}
     >
       <button
         type="button"
@@ -551,7 +710,11 @@ function SortHeader({
         )}
       >
         {label}
-        <Icon icon={glyph} size={14} className={active ? "text-strong" : "text-faint"} />
+        <Icon
+          icon={glyph}
+          size={14}
+          className={active ? "text-strong" : "text-faint"}
+        />
       </button>
     </th>
   );
@@ -613,20 +776,35 @@ function PageButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className={cn(controlClasses("ghost", "sm"), "w-9 px-0 disabled:cursor-not-allowed disabled:opacity-40")}
+      className={cn(
+        controlClasses("ghost", "sm"),
+        "w-9 px-0 disabled:cursor-not-allowed disabled:opacity-40",
+      )}
     >
       <Icon icon={icon} size={14} />
     </button>
   );
 }
 
-function Figure({ label, value, unit }: { label: string; value: string; unit?: string }): JSX.Element {
+function Figure({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}): JSX.Element {
   return (
     <div className="border-l border-shell-line px-5 py-3 first:border-l-0 first:pl-0 max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(odd)]:pl-0 max-sm:[&:nth-child(n+3)]:border-t">
       <dt className="text-[12.5px] text-muted">{label}</dt>
       <dd className="numeral mt-1 text-[24px] text-strong">
         {value}
-        {unit && <span className="ml-1 font-sans text-[12.5px] tracking-normal text-muted">{unit}</span>}
+        {unit && (
+          <span className="ml-1 font-sans text-[12.5px] tracking-normal text-muted">
+            {unit}
+          </span>
+        )}
       </dd>
     </div>
   );
