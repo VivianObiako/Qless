@@ -28,7 +28,7 @@ handshake check it.
 | `/create` | Create a queue |
 | `/q/[slug]` | Customer view — join, watch your place, say you're here, leave |
 | `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in |
-| `/dashboard/[id]/history` | Every finished entry as a sortable, filterable table, with CSV export |
+| `/dashboard/[id]/history` | Every finished entry as a searchable, sortable, filterable, paginated table, with CSV export |
 | `/dashboard/[id]/share` | The link, the QR code, the print sheet, the display board and the customer view |
 | `/dashboard/[id]/settings` | Queue configuration (owner) |
 | `/display/[slug]` | Full-screen board for a wall screen, with an optional chime |
