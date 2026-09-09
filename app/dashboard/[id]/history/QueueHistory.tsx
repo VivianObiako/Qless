@@ -129,6 +129,7 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
       <HistoryTable
         queueName={result.queue.name}
         entries={result.entries}
+        seatNames={result.seats.map((seat) => seat.name)}
         showsNames={result.showsNames}
         viewerIsOwner={role !== "OPERATOR"}
         ownerName={result.ownerName}
@@ -233,18 +234,25 @@ function dayLabel(key: string): string {
 
 /**
  * The record of a queue's day: every finished entry as a row, sortable,
- * filterable by day, outcome and who served, with a summary of whatever is
- * in view and a way to take it away as a file.
+ * filterable by day, outcome, chair and who served, with a summary of
+ * whatever is in view and a way to take it away as a file.
+ *
+ * Staff get the rows they handled and nothing else — the server has already
+ * left the rest out — so for them there is no served-by column and no filter
+ * on it: every row is theirs.
  */
 function HistoryTable({
   queueName,
   entries,
+  seatNames,
   showsNames,
   viewerIsOwner,
   ownerName,
 }: {
   queueName: string;
   entries: HistoryEntry[];
+  /** The queue's chairs today. A chair column appears only with more than one. */
+  seatNames: string[];
   showsNames: boolean;
   viewerIsOwner: boolean;
   ownerName: string;
@@ -252,6 +260,7 @@ function HistoryTable({
   const [day, setDay] = useState<string>("all");
   const [outcome, setOutcome] = useState<string>("all");
   const [by, setBy] = useState<string>("all");
+  const [chair, setChair] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("time");
   const [direction, setDirection] = useState<SortDirection>("desc");
@@ -262,6 +271,15 @@ function HistoryTable({
     const keys = new Set(entries.map((entry) => dayKey(finishedAt(entry))));
     return [...keys].sort().reverse();
   }, [entries]);
+
+  // Chairs worth a column: more than one today, or history from more than
+  // one — a removed chair keeps its name on the rows it served.
+  const chairs = useMemo(() => {
+    const names = new Set(seatNames);
+    for (const entry of entries) if (entry.seatName) names.add(entry.seatName);
+    return [...names];
+  }, [entries, seatNames]);
+  const showChair = chairs.length > 1;
 
   const servers = useMemo(() => {
     const names = new Set(
@@ -282,6 +300,7 @@ function HistoryTable({
         (outcome === "all" ||
           (outcome === "walkin" ? entry.walkIn : entry.status === outcome)) &&
         (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by) &&
+        (chair === "all" || entry.seatName === chair) &&
         (needle === "" ||
           nameFor(entry).toLowerCase().includes(needle) ||
           String(entry.number) === needle),
@@ -306,6 +325,7 @@ function HistoryTable({
     day,
     outcome,
     by,
+    chair,
     search,
     sortKey,
     direction,
@@ -345,6 +365,7 @@ function HistoryTable({
       "Number",
       "Name",
       "Outcome",
+      "Chair",
       "Served by",
       "Waited (min)",
       "Arrived (min)",
@@ -359,6 +380,7 @@ function HistoryTable({
         entry.number,
         showsNames ? entry.customerName : "",
         outcomeLabel[entry.status],
+        entry.seatName,
         servedBy(entry, viewerIsOwner, ownerName),
         waitedMinutes(entry),
         arrivedMinutes(entry) ?? "",
@@ -466,18 +488,34 @@ function HistoryTable({
                   { value: "walkin", label: "Walk-ins" },
                 ]}
               />
-              <Select
-                label="Served by"
-                value={by}
-                onChange={(value) => {
-                  setBy(value);
-                  setPage(1);
-                }}
-                options={[
-                  { value: "all", label: "Anyone" },
-                  ...servers.map((name) => ({ value: name, label: name })),
-                ]}
-              />
+              {showChair && (
+                <Select
+                  label="Chair"
+                  value={chair}
+                  onChange={(value) => {
+                    setChair(value);
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: "all", label: "Any chair" },
+                    ...chairs.map((name) => ({ value: name, label: name })),
+                  ]}
+                />
+              )}
+              {viewerIsOwner && (
+                <Select
+                  label="Served by"
+                  value={by}
+                  onChange={(value) => {
+                    setBy(value);
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: "all", label: "Anyone" },
+                    ...servers.map((name) => ({ value: name, label: name })),
+                  ]}
+                />
+              )}
             </div>
           </div>
 
@@ -524,9 +562,16 @@ function HistoryTable({
                   <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
                     Outcome
                   </th>
-                  <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
-                    Served by
-                  </th>
+                  {showChair && (
+                    <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
+                      Chair
+                    </th>
+                  )}
+                  {viewerIsOwner && (
+                    <th className="py-2.5 pr-4 text-[12.5px] font-normal text-muted">
+                      Served by
+                    </th>
+                  )}
                   <th className="py-2.5 pr-4 text-right text-[12.5px] font-normal text-muted">
                     Waited
                   </th>
@@ -549,7 +594,7 @@ function HistoryTable({
                 {rows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={6 + (showChair ? 1 : 0) + (viewerIsOwner ? 1 : 0)}
                       className="py-8 text-center text-[14px] text-muted"
                     >
                       Nothing matches these filters.
@@ -572,9 +617,14 @@ function HistoryTable({
                       <td className="py-3 pr-4 text-dim">
                         {outcomeLabel[entry.status]}
                       </td>
-                      <td className="py-3 pr-4 text-dim">
-                        {servedBy(entry, viewerIsOwner, ownerName) || "—"}
-                      </td>
+                      {showChair && (
+                        <td className="py-3 pr-4 text-dim">{entry.seatName || "—"}</td>
+                      )}
+                      {viewerIsOwner && (
+                        <td className="py-3 pr-4 text-dim">
+                          {servedBy(entry, viewerIsOwner, ownerName) || "—"}
+                        </td>
+                      )}
                       <td className="py-3 pr-4 text-right tabular-nums text-dim">
                         {waitedMinutes(entry)} min
                       </td>

@@ -238,7 +238,7 @@ export function Counter({
           )
         }
       />
-      <Stats view={view} chairs={chairs} single={single} />
+      <Stats view={view} chairs={chairs} single={single} isOwner={isOwner} mine={mine} />
 
       {!single && (
         <ChairRail
@@ -530,18 +530,39 @@ export function Finder({
   );
 }
 
-function Stats({ view, chairs, single }: { view: OperatorView; chairs: Chair[]; single: boolean }): JSX.Element {
+function Stats({
+  view,
+  chairs,
+  single,
+  isOwner,
+  mine,
+}: {
+  view: OperatorView;
+  chairs: Chair[];
+  single: boolean;
+  isOwner: boolean;
+  mine: Chair | null;
+}): JSX.Element {
   const last = view.waiting.at(-1);
   const backOfLine = view.waiting.length === 0 ? "No wait" : (last?.estimate?.label ?? "—");
 
   const arrival = view.arrival.sample > 0 ? String(view.arrival.minutes) : "—";
   const open = chairs.filter((chair) => chair.seat.active).length;
 
+  // Service is measured queue-wide for the estimate and per chair for
+  // comparing them: the owner reads the chairs under the row, staff read
+  // their own chair's figure in place of the queue's.
+  const ownChair = !single && !isOwner && mine ? view.measuredBySeat.find((m) => m.seatId === mine.seat.id) : undefined;
+  const byChair = !single && isOwner ? view.measuredBySeat.filter((m) => m.sample > 0) : [];
+
   return (
+    <div>
     <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-5">
       <Stat label="Waiting" value={String(view.waitingCount)} />
       <Stat label="Wait at the back" value={backOfLine} />
-      {view.measured.sample >= MEASURE_SAMPLE ? (
+      {ownChair && ownChair.sample > 0 ? (
+        <Stat label={`Your service at ${ownChair.seatName}`} value={String(ownChair.minutes)} unit="min" />
+      ) : view.measured.sample >= MEASURE_SAMPLE ? (
         <Stat label="Service, measured" value={String(view.measured.minutes)} unit="min" />
       ) : (
         <Stat label="Average service" value={String(view.queue.averageServiceMinutes)} unit="min" />
@@ -555,6 +576,18 @@ function Stats({ view, chairs, single }: { view: OperatorView; chairs: Chair[]; 
         <Stat label="Chairs open" value={String(open)} unit={`of ${chairs.length}`} />
       )}
     </dl>
+    {byChair.length > 0 && (
+      <p className="mt-2 text-[12.5px] text-muted">
+        Service by chair:{" "}
+        {byChair.map((m, index) => (
+          <span key={m.seatId}>
+            {index > 0 && " · "}
+            <span className="text-dim">{m.seatName}</span> {m.minutes} min
+          </span>
+        ))}
+      </p>
+    )}
+    </div>
   );
 }
 

@@ -103,6 +103,14 @@ export interface ServiceMeasure {
   sample: number;
 }
 
+/** One chair's measured service, for an owner comparing chairs. */
+export interface SeatMeasure {
+  seatId: string;
+  seatName: string;
+  minutes: number;
+  sample: number;
+}
+
 /** How many real service times the estimate needs before it uses them. */
 export const MEASURE_SAMPLE = 5;
 
@@ -231,6 +239,8 @@ export interface OperatorView {
   skipped: QueueEntry[];
   /** The average of the last few real service times, and how many there were. */
   measured: ServiceMeasure;
+  /** The same figure per chair, in seat order. */
+  measuredBySeat: SeatMeasure[];
   /** How long people have been taking to turn up once called. */
   arrival: ServiceMeasure;
   /** When anything last happened here. Null for a queue nobody has joined. */
@@ -331,12 +341,16 @@ export interface ActedBy {
 
 export interface HistoryEntry extends QueueEntry {
   actedBy: ActedBy | null;
+  /** The chair they were called to, by name. Empty if never called. Resolves for a removed chair too. */
+  seatName: string;
 }
 
 /** What a queue has finished with. Can carry names, so it is operator-only. */
 export interface HistoryResponse {
   queue: Queue;
   entries: HistoryEntry[];
+  /** The queue's chairs, so a one-chair history never shows a chair column. */
+  seats: Seat[];
   showsNames: boolean;
   /** The owner's name, for entries they handled. Empty when they have none. */
   ownerName: string;
