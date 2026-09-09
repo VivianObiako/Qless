@@ -13,8 +13,11 @@ import type {
   Presence,
   QueueAction,
   RedeemResponse,
+  SeatsResponse,
+  Seat,
   UpdateOperatorInput,
   UpdateQueueInput,
+  UpdateSeatInput,
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -392,3 +395,51 @@ export function revokeOperator(
   });
 }
 
+
+/** The queue's seats in order. Shared with staff, who need them to pick a chair. */
+export function getSeats(queueId: string, sessionToken: string, signal?: AbortSignal): Promise<SeatsResponse> {
+  return request<SeatsResponse>(`/api/queues/${encodeURIComponent(queueId)}/seats`, { sessionToken, signal });
+}
+
+export function createSeat(queueId: string, name: string, sessionToken: string): Promise<{ seat: Seat }> {
+  return request<{ seat: Seat }>(`/api/queues/${encodeURIComponent(queueId)}/seats`, {
+    method: "POST",
+    body: { name },
+    sessionToken,
+  });
+}
+
+/** Every seat change answers with the whole list, so the screen replaces its copy. */
+export function updateSeat(
+  queueId: string,
+  seatId: string,
+  input: UpdateSeatInput,
+  sessionToken: string,
+): Promise<SeatsResponse> {
+  return request<SeatsResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/seats/${encodeURIComponent(seatId)}`,
+    { method: "PATCH", body: input, sessionToken },
+  );
+}
+
+export function removeSeat(queueId: string, seatId: string, sessionToken: string): Promise<SeatsResponse> {
+  return request<SeatsResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/seats/${encodeURIComponent(seatId)}`,
+    { method: "DELETE", sessionToken },
+  );
+}
+
+/** Sitting down at a chair, or getting up from it. The rules are the server's. */
+export function takeSeat(queueId: string, seatId: string, sessionToken: string): Promise<SeatsResponse> {
+  return request<SeatsResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/seats/${encodeURIComponent(seatId)}/take`,
+    { method: "POST", sessionToken },
+  );
+}
+
+export function leaveSeat(queueId: string, seatId: string, sessionToken: string): Promise<SeatsResponse> {
+  return request<SeatsResponse>(
+    `/api/queues/${encodeURIComponent(queueId)}/seats/${encodeURIComponent(seatId)}/leave`,
+    { method: "POST", sessionToken },
+  );
+}

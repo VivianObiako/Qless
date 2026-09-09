@@ -35,16 +35,64 @@ export interface Queue extends QueueSummary {
   nextNumber: number;
   /** Settable from phase 3; phase 5 is what makes it change a payload. */
   showNamesToOperators: boolean;
+  /**
+   * Staff work the chair the owner assigned and cannot pick another. Off,
+   * they may take any free chair and leave it.
+   */
+  seatsFixed: boolean;
   /** Set once the owner has put the queue away. */
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-/** A queue with the two live figures an owner reads a list by. */
+/** A queue with the live figures an owner reads a list by. */
 export interface QueueCard extends Queue {
+  /** The most recent call. Kept for the one-seat card. */
   servingNumber: number | null;
+  servingCount: number;
+  openSeats: number;
   waitingCount: number;
+}
+
+/** Who works a chair: an operator, the owner, or nobody. */
+export interface SeatWorker {
+  type: PrincipalRole;
+  /** Empty for the owner. */
+  operatorId?: string;
+  /** The operator's display name, or the owner's. */
+  name: string;
+}
+
+/**
+ * One place a customer is sent to be served. A queue always has at least
+ * one; a queue with one is a queue with a counter and never shows the word.
+ */
+export interface Seat {
+  id: string;
+  queueId: string;
+  name: string;
+  position: number;
+  /** In service now. A closed chair drops out of the estimate. */
+  active: boolean;
+  removedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  worker: SeatWorker | null;
+}
+
+/** What a customer surface knows about a seat. */
+export interface PublicSeat {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+/** One number being served and where. */
+export interface ServingSlot {
+  number: number;
+  seatId: string;
+  seatName: string;
 }
 
 /** What service has actually taken lately. */
@@ -78,6 +126,8 @@ export interface QueueEntry {
   presenceAt: string | null;
   /** Added at the counter by staff; no phone can recover this entry. */
   walkIn: boolean;
+  /** Where they were called to. Null while they wait; kept afterwards. */
+  seatId: string | null;
 }
 
 export interface Estimate {
@@ -89,7 +139,14 @@ export interface Estimate {
 /** The public payload. Carries numbers only — never customer names. */
 export interface PublicState {
   queue: QueueSummary;
+  /** The most recent call. Kept for boards from before seats; `serving` is the whole picture. */
   servingNumber: number | null;
+  /** Every number being served and its seat, in seat order. */
+  serving: ServingSlot[];
+  /** The queue's seats in order, closed ones included. */
+  seats: PublicSeat[];
+  /** How many seats are in service: what the estimate and the ladder divide by. */
+  openSeats: number;
   waitingNumbers: number[];
   waitingCount: number;
   isFull: boolean;
@@ -158,7 +215,12 @@ export interface WaitingRow extends QueueEntry {
 
 export interface OperatorView {
   queue: Queue;
+  /** The most recent call. Kept for the one-seat screens; every seat's occupant is in `servingList`. */
   serving: QueueEntry | null;
+  /** Everyone being served, one per seat, in seat order. */
+  servingList: QueueEntry[];
+  /** The queue's seats in order, removed ones left out. */
+  seats: Seat[];
   waiting: WaitingRow[];
   waitingCount: number;
   /** Stood down inside the recall window, most recent first. Still callable. */
@@ -198,6 +260,20 @@ export interface UpdateQueueInput {
   maxCapacity?: number | null;
   showNamesToOperators?: boolean;
   holdMinutes?: number;
+  seatsFixed?: boolean;
+}
+
+export interface SeatsResponse {
+  seats: Seat[];
+}
+
+/** A partial update: an omitted field is left alone. `worker: null` makes the chair nobody's. */
+export interface UpdateSeatInput {
+  name?: string;
+  active?: boolean;
+  /** 1-based. Moves the seat; the rest shift. */
+  position?: number;
+  worker?: { type: "OWNER" } | { type: "OPERATOR"; operatorId: string } | null;
 }
 
 export type OperatorStatus = "ACTIVE" | "REVOKED";
@@ -211,8 +287,16 @@ export interface Operator {
   displayName: string;
   status: OperatorStatus;
   queueIds: string[];
+  /** The chairs this person holds, at most one per queue. */
+  seats: OperatorSeat[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OperatorSeat {
+  queueId: string;
+  seatId: string;
+  seatName: string;
 }
 
 export interface OperatorsResponse {
