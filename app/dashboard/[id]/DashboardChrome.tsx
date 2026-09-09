@@ -25,7 +25,7 @@ import { PersonalMenu } from "./PersonalMenu";
 import { QueueSwitcher, StatusDot } from "./QueueSwitcher";
 import type { QueueStatus } from "@/lib/types";
 
-export type DashboardTab = "counter" | "history" | "share" | "settings" | "queues" | "team";
+export type DashboardTab = "counter" | "history" | "share" | "settings" | "queues" | "team" | "profile";
 
 interface DashboardChromeProps {
   tab: DashboardTab;
