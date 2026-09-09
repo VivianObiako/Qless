@@ -250,9 +250,14 @@ export function getOperatorView(
   });
 }
 
-export function serveNext(queueId: string, sessionToken: string): Promise<OperatorView> {
+/**
+ * Calls the next person to a seat. With one seat the id is optional and the
+ * server uses it; with several the counter always says which.
+ */
+export function serveNext(queueId: string, sessionToken: string, seatId?: string): Promise<OperatorView> {
   return request<OperatorView>(`/api/queues/${encodeURIComponent(queueId)}/next`, {
     method: "POST",
+    body: seatId ? { seatId } : undefined,
     sessionToken,
   });
 }
@@ -267,10 +272,12 @@ export function actOnEntry(
   entryId: string,
   action: EntryAction,
   sessionToken: string,
+  /** Where a call lands. Read only by "serve", the one action that goes somewhere. */
+  seatId?: string,
 ): Promise<OperatorView> {
   return request<OperatorView>(
     `/api/queues/${encodeURIComponent(queueId)}/entries/${encodeURIComponent(entryId)}/${action}`,
-    { method: "POST", sessionToken },
+    { method: "POST", body: action === "serve" && seatId ? { seatId } : undefined, sessionToken },
   );
 }
 

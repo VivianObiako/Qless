@@ -2,12 +2,24 @@
 
 import type { JSX, ReactNode } from "react";
 import Link from "next/link";
-import { ExternalLink, History, Monitor, Share2, SlidersHorizontal, Smartphone, Ticket, type LucideIcon } from "lucide-react";
+import {
+  ExternalLink,
+  History,
+  Monitor,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Share2,
+  SlidersHorizontal,
+  Smartphone,
+  Ticket,
+  type LucideIcon,
+} from "lucide-react";
 import { Icon } from "@/components/Icon";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
 import { Wordmark } from "@/components/Wordmark";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import { sessionRoleKey, sessionTokenKey } from "@/lib/session";
+import { SIDEBAR_KEY } from "@/lib/seats";
+import { sessionRoleKey, sessionTokenKey, writeSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { PersonalMenu } from "./PersonalMenu";
 import { QueueSwitcher, StatusDot } from "./QueueSwitcher";
@@ -102,6 +114,10 @@ export function DashboardChrome({
   const token = useStoredValue(sessionTokenKey());
   const isOwner = useStoredValue(sessionRoleKey()) !== "OPERATOR";
 
+  // The sidebar shrunk to an icon rail, remembered on this device. On a
+  // wide counter that is two more chair tiles in view.
+  const collapsed = useStoredValue(SIDEBAR_KEY) === "collapsed";
+
   const title = queueName ?? heading;
 
   if (isClient && !token) {
@@ -121,14 +137,24 @@ export function DashboardChrome({
     <div className="flex min-h-dvh flex-col bg-shell lg:flex-row">
       {/* The sidebar, from lg. Pinned to the viewport and exactly its height,
           so a long counter scrolls past it rather than dragging it along. */}
-      <aside className="hidden w-[236px] shrink-0 flex-col gap-4 self-start border-r border-shell-line px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] lg:sticky lg:top-0 lg:flex lg:h-dvh">
-        <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col gap-4 self-start border-r border-shell-line pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] transition-[width] lg:sticky lg:top-0 lg:flex lg:h-dvh",
+          collapsed ? "w-16 px-2" : "w-[236px] px-3",
+        )}
+      >
+        <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} compact={collapsed} />
 
         {destinations.length > 0 && (
           <nav aria-label="This queue">
             <ul className="flex flex-col gap-px">
               {destinations.map((destination) => (
-                <SideItem key={destination.id} destination={destination} current={destination.id === tab} />
+                <SideItem
+                  key={destination.id}
+                  destination={destination}
+                  current={destination.id === tab}
+                  compact={collapsed}
+                />
               ))}
             </ul>
           </nav>
@@ -140,13 +166,17 @@ export function DashboardChrome({
         {queueSlug && (
           <nav aria-label="Other screens" className="border-t border-shell-line pt-3">
             <ul className="flex flex-col gap-px">
-              <OutItem href={`/q/${queueSlug}`} icon={Smartphone} label="Customer view" />
-              <OutItem href={`/display/${queueSlug}`} icon={Monitor} label="Display board" />
+              <OutItem href={`/q/${queueSlug}`} icon={Smartphone} label="Customer view" compact={collapsed} />
+              <OutItem href={`/display/${queueSlug}`} icon={Monitor} label="Display board" compact={collapsed} />
             </ul>
           </nav>
         )}
 
-        <PersonalMenu className="mt-auto" />
+        {collapsed ? (
+          <PersonalMenu variant="avatar" opens="up" className="mt-auto self-center" />
+        ) : (
+          <PersonalMenu className="mt-auto" />
+        )}
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -166,7 +196,20 @@ export function DashboardChrome({
             <div className="min-w-0 lg:hidden">
               <QueueSwitcher currentQueueId={queueId} currentQueueName={queueName} />
             </div>
-            <span className="hidden lg:block" />
+            {/* The panel toggle, top-left of the content on a desktop. Its
+                name says what it will do, for hover and for a screen reader. */}
+            <span className="hidden lg:block">
+              <button
+                type="button"
+                aria-pressed={collapsed}
+                aria-label={collapsed ? "Show the menu" : "Shrink the menu to icons"}
+                title={collapsed ? "Show the menu" : "Shrink the menu to icons"}
+                onClick={() => writeSession(SIDEBAR_KEY, collapsed ? "open" : "collapsed")}
+                className="-ml-2 grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-shell-mid hover:text-strong"
+              >
+                <Icon icon={collapsed ? PanelLeftOpen : PanelLeftClose} size={16} />
+              </button>
+            </span>
             <h1 className="sr-only">{title}</h1>
 
             {/* Centred, like the reference's search. Only on a desktop: on a
@@ -210,36 +253,60 @@ export function DashboardChrome({
   );
 }
 
-function SideItem({ destination, current }: { destination: Destination; current: boolean }): JSX.Element {
+function SideItem({
+  destination,
+  current,
+  compact,
+}: {
+  destination: Destination;
+  current: boolean;
+  compact: boolean;
+}): JSX.Element {
   return (
     <li>
       <Link
         href={destination.href}
         aria-current={current ? "page" : undefined}
+        title={compact ? destination.label : undefined}
         className={cn(
-          "flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] transition-colors pointer-coarse:min-h-11",
+          "flex items-center gap-2.5 rounded-[9px] py-2 text-[13.5px] transition-colors pointer-coarse:min-h-11",
+          compact ? "justify-center px-0" : "px-2.5",
           current ? "bg-shell-mid font-medium text-strong" : "text-dim hover:bg-shell-mid hover:text-strong",
         )}
       >
         <Icon icon={destination.icon} size={16} className={current ? "text-strong" : "text-muted"} />
-        {destination.label}
+        <span className={cn(compact && "sr-only")}>{destination.label}</span>
       </Link>
     </li>
   );
 }
 
-function OutItem({ href, icon, label }: { href: string; icon: LucideIcon; label: string }): JSX.Element {
+function OutItem({
+  href,
+  icon,
+  label,
+  compact,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  compact: boolean;
+}): JSX.Element {
   return (
     <li>
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-[13.5px] text-dim transition-colors hover:bg-shell-mid hover:text-strong"
+        title={compact ? label : undefined}
+        className={cn(
+          "flex items-center gap-2.5 rounded-[9px] py-2 text-[13.5px] text-dim transition-colors hover:bg-shell-mid hover:text-strong",
+          compact ? "justify-center px-0" : "px-2.5",
+        )}
       >
         <Icon icon={icon} size={16} className="text-muted" />
-        <span className="flex-1">{label}</span>
-        <Icon icon={ExternalLink} size={14} className="text-faint" />
+        <span className={cn("flex-1", compact && "sr-only")}>{label}</span>
+        {!compact && <Icon icon={ExternalLink} size={14} className="text-faint" />}
       </a>
     </li>
   );

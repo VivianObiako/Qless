@@ -21,6 +21,8 @@ interface QueueSwitcherProps {
   currentQueueName?: string;
   /** What to show while the list is loading or when no queue is chosen. */
   fallbackLabel?: string;
+  /** The icon alone, for the sidebar shrunk to a rail. The name is on hover and for a screen reader. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -50,6 +52,7 @@ export function QueueSwitcher({
   currentQueueId,
   currentQueueName,
   fallbackLabel = "Your queues",
+  compact = false,
   className,
 }: QueueSwitcherProps): JSX.Element {
   const token = useStoredValue(sessionTokenKey());
@@ -105,19 +108,26 @@ export function QueueSwitcher({
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={compact ? `Switch queue (${label})` : undefined}
+        title={compact ? label : undefined}
         onClick={toggle}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-[10px] border border-transparent px-2 py-1.5 text-left",
+          "flex w-full items-center gap-2.5 rounded-[10px] border border-transparent py-1.5 text-left",
           "transition-colors hover:border-shell-line",
+          compact ? "justify-center px-0" : "px-2",
           open && "border-shell-line bg-shell-mid",
         )}
       >
         <Mark size={24} className="text-strong" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-medium text-strong">{label}</span>
-          <span className="block text-[11.5px] text-muted">{sub}</span>
-        </span>
-        <Icon icon={ChevronsUpDown} size={14} className="text-muted" />
+        {!compact && (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13.5px] font-medium text-strong">{label}</span>
+              <span className="block text-[11.5px] text-muted">{sub}</span>
+            </span>
+            <Icon icon={ChevronsUpDown} size={14} className="text-muted" />
+          </>
+        )}
       </button>
 
       <div

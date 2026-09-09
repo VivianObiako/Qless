@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent, type JSX } from "react";
-import { MoreHorizontal, Plus, Search, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Plus, Search, X } from "lucide-react";
 import { Field } from "@/components/Field";
 import { Button, controlClasses } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { Numeral } from "@/components/Numeral";
 import { useDisclosure } from "@/hooks/useDisclosure";
 import { minutesSince, useNow } from "@/hooks/useNow";
+import { readyChairs, type Chair } from "@/lib/seats";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "./QueueSwitcher";
+import { ChairCard } from "./ChairCard";
+import { ChairRail } from "./ChairRail";
+import { SeatPicker } from "./SeatPicker";
 import { MEASURE_SAMPLE } from "@/lib/types";
 import type {
   EntryAction,
@@ -18,6 +22,7 @@ import type {
   Queue,
   QueueAction,
   QueueEntry,
+  UpdateSeatInput,
   WaitingRow,
 } from "@/lib/types";
 
@@ -35,29 +40,43 @@ export type Confirmation =
 interface CounterProps {
   view: OperatorView;
   isOwner: boolean;
+  /** The signed-in person's id, for telling their chair from the others. */
+  principalId: string | null;
   serving: boolean;
   pendingEntryId: string | null;
   pendingAction: QueueAction | null;
+  pendingSeatId: string | null;
   /** The finder's text. Owned above so the chrome's top row can hold the input. */
   query: string;
   onQuery: (query: string) => void;
-  onServeNext: () => Promise<void>;
-  onEntry: (entryId: string, action: EntryAction) => void;
+  /** Every chair with whoever is on it, in order. */
+  chairs: Chair[];
+  /** The chair open as the counter card. Null only on a queue with no seats. */
+  openChair: Chair | null;
+  canOpenChair: (chair: Chair) => boolean;
+  onOpenChair: (seatId: string) => void;
+  /** The All chairs page, for whoever may see every chair. */
+  allChairsHref?: string;
+  onServeNext: (seatId: string) => Promise<void>;
+  /** The seat rides along with "serve" only: it is where the call lands. */
+  onEntry: (entryId: string, action: EntryAction, seatId?: string) => void;
   /** Pause carries an optional note for the people who scan in meanwhile. */
   onQueue: (action: QueueAction, note?: string) => void;
   onConfirm: (confirmation: Confirmation) => void;
   /** Put somebody in the queue from the counter. Resolves false if it did not go through. */
   onAddWalkIn: (name: string) => Promise<boolean>;
   addingWalkIn: boolean;
+  onTake: (seatId: string) => void;
+  onLeave: (seatId: string) => void;
+  onSetOpen: (seatId: string, active: boolean) => void;
+  onAssign: (seatId: string, worker: UpdateSeatInput["worker"]) => void;
+  token: string | null;
 }
 
 /** A row's name, or the number said as a name when the queue keeps names to its owner. */
-function nameFor(entry: { customerName: string; number: number }): string {
+export function nameFor(entry: { customerName: string; number: number }): string {
   return entry.customerName || `Customer ${entry.number}`;
 }
-
-/** The two minutes a customer can ask for on top of the hold, from the pass. */
-const HOLD_REQUEST_MINUTES = 2;
 
 /**
  * What a skip means on this queue, in one clause, for every place that has
@@ -73,7 +92,7 @@ export function skipConsequence(holdMinutes: number): string {
  * What the customer said about where they are, as a tag. "Here" is filled
  * because it is the one the operator acts on; the others are quieter.
  */
-function PresenceTag({ presence }: { presence: Presence | null }): JSX.Element | null {
+export function PresenceTag({ presence }: { presence: Presence | null }): JSX.Element | null {
   if (!presence) return null;
   const word = presence === "HERE" ? "Here" : presence === "ON_THE_WAY" ? "On my way" : "Asked for 2 min";
   return (
@@ -91,24 +110,110 @@ function PresenceTag({ presence }: { presence: Presence | null }): JSX.Element |
 }
 
 /**
- * The working screen. The person at the counter, one button for the next
- * one, and the waiting list as a ledger with one visible action per row.
+ * Where a call can land right now, and why not when it cannot.
+ *
+ * On a one-seat queue the counter is the target, and calling is off only
+ * while somebody is being served there — a person merely called is stood
+ * down by the call, as it always was. With several chairs a call lands
+ * only on a ready chair: open, worked, nobody on it. Staff aim at their own
+ * chair alone; the owner at any ready one.
+ */
+interface CallTargets {
+  chairs: Chair[];
+  /** Said in words when there is nowhere to call to. */
+  reason: string | null;
+  /** The line over the list saying where Call now goes. */
+  hint: string | null;
+}
+
+function callTargets(
+  view: OperatorView,
+  chairs: Chair[],
+  single: boolean,
+  isOwner: boolean,
+  mine: Chair | null,
+  seatsFixed: boolean,
+): CallTargets {
+  if (single) {
+    const only = chairs[0];
+    if (!only) return { chairs: [], reason: "This queue has no chair to call people to.", hint: null };
+    if (only.state === "closed") return { chairs: [], reason: "Open the counter before calling anyone.", hint: null };
+    const busyWith = view.serving?.servedAt ? nameFor(view.serving) : null;
+    if (busyWith) return { chairs: [], reason: `Finish with ${busyWith} before calling anyone else.`, hint: null };
+    return { chairs: [only], reason: null, hint: null };
+  }
+
+  if (!isOwner) {
+    if (!mine) {
+      return {
+        chairs: [],
+        reason: seatsFixed ? "Ask the owner for a chair before calling anyone." : "Pick a chair to call people to.",
+        hint: null,
+      };
+    }
+    if (mine.state !== "ready") {
+      const name = mine.entry ? nameFor(mine.entry) : "them";
+      return { chairs: [], reason: `Finish with ${name} before calling anyone to ${mine.seat.name}.`, hint: null };
+    }
+    return { chairs: [mine], reason: null, hint: `Call now sends people to ${mine.seat.name}.` };
+  }
+
+  const ready = readyChairs(chairs);
+  if (ready.length === 0) {
+    const idle = chairs.some((chair) => chair.state === "unstaffed");
+    return {
+      chairs: [],
+      reason: idle
+        ? "No chair is ready. Take a chair, or give one to somebody, to call people to it."
+        : "Every chair is busy. Finish with somebody first.",
+      hint: null,
+    };
+  }
+  if (ready.length === 1) {
+    return { chairs: ready, reason: null, hint: `${ready[0].seat.name} is free, so Call now sends people there.` };
+  }
+  const names = ready.map((chair) => chair.seat.name);
+  const list = `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return { chairs: ready, reason: null, hint: `${list} are ready, so Call now asks which.` };
+}
+
+/**
+ * The working screen. With one seat: the person at the counter, one button
+ * for the next one, and the waiting list as a ledger with one visible
+ * action per row. With several: the same, with a rail of chairs above and
+ * whichever chair is open as the card.
  */
 export function Counter({
   view,
   isOwner,
+  principalId,
   serving,
   pendingEntryId,
   pendingAction,
+  pendingSeatId,
   query,
   onQuery,
+  chairs,
+  openChair,
+  canOpenChair,
+  onOpenChair,
+  allChairsHref,
   onServeNext,
   onEntry,
   onQueue,
   onConfirm,
   onAddWalkIn,
   addingWalkIn,
+  onTake,
+  onLeave,
+  onSetOpen,
+  onAssign,
+  token,
 }: CounterProps): JSX.Element {
+  const single = chairs.length <= 1;
+  const mine = chairs.find((chair) => chair.seat.worker && isOwnChair(chair, isOwner, principalId)) ?? null;
+  const targets = callTargets(view, chairs, single, isOwner, mine, view.queue.seatsFixed);
+
   return (
     <div className="@container flex flex-col gap-8">
       <CounterHeading
@@ -119,37 +224,88 @@ export function Counter({
         onConfirm={onConfirm}
         onAddWalkIn={onAddWalkIn}
         addingWalkIn={addingWalkIn}
+        picker={
+          single ? null : (
+            <SeatPicker
+              chairs={chairs}
+              isOwner={isOwner}
+              principalId={principalId}
+              seatsFixed={view.queue.seatsFixed}
+              pending={pendingSeatId !== null}
+              onTake={onTake}
+              onLeave={onLeave}
+            />
+          )
+        }
       />
-      <Stats view={view} />
+      <Stats view={view} chairs={chairs} single={single} />
+
+      {!single && (
+        <ChairRail
+          chairs={chairs}
+          openSeatId={openChair?.seat.id ?? null}
+          canOpen={canOpenChair}
+          onOpen={onOpenChair}
+          allChairsHref={allChairsHref}
+        />
+      )}
+
       {/* Split on the content's own width rather than the window's: a 12.9"
           iPad held upright has the sidebar and not the room for two columns. */}
       <div className="grid gap-10 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] @3xl:gap-14 @6xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] @6xl:gap-24">
-        <AtTheCounter
-          view={view}
-          serving={serving}
-          pendingEntryId={pendingEntryId}
-          onServeNext={onServeNext}
-          onAttend={(entryId) => onEntry(entryId, "attend")}
-          onStart={(entryId) => onEntry(entryId, "start")}
-          onSkip={(entry) => onConfirm({ kind: "skip", entry })}
-        />
+        {openChair ? (
+          <ChairCard
+            chair={openChair}
+            next={view.waiting[0]}
+            single={single}
+            isOwner={isOwner}
+            principalId={principalId}
+            seatsFixed={view.queue.seatsFixed}
+            holdMinutes={view.queue.holdMinutes}
+            serving={serving}
+            pendingEntryId={pendingEntryId}
+            pendingSeatId={pendingSeatId}
+            onServeNext={(seatId) => void onServeNext(seatId)}
+            onAttend={(entryId) => onEntry(entryId, "attend")}
+            onStart={(entryId) => onEntry(entryId, "start")}
+            onSkip={(entry) => onConfirm({ kind: "skip", entry })}
+            onTake={onTake}
+            onLeave={onLeave}
+            onSetOpen={onSetOpen}
+            onAssign={onAssign}
+            token={token}
+          />
+        ) : (
+          <section className="min-w-0">
+            <h3 className="text-[12.5px] text-muted">At the counter</h3>
+            <p className="mt-3 text-[24px] font-medium leading-tight tracking-[-0.02em] text-muted">
+              This queue has no chair yet.
+            </p>
+          </section>
+        )}
         <WaitingList
           waiting={view.waiting}
-          busyWith={view.serving?.servedAt ? nameFor(view.serving) : null}
+          targets={targets}
           query={query}
           onQuery={onQuery}
           pendingEntryId={pendingEntryId}
-          onCall={(entryId) => onEntry(entryId, "serve")}
+          onCall={(entryId, seatId) => onEntry(entryId, "serve", seatId)}
           onAttend={(entryId) => onEntry(entryId, "attend")}
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
           skipped={view.skipped}
-          onRecall={(entryId) => onEntry(entryId, "serve")}
           holdMinutes={view.queue.holdMinutes}
+          single={single}
         />
       </div>
       <QueueStatusLine queue={view.queue} />
     </div>
   );
+}
+
+function isOwnChair(chair: Chair, isOwner: boolean, principalId: string | null): boolean {
+  const worker = chair.seat.worker;
+  if (!worker) return false;
+  return isOwner ? worker.type === "OWNER" : worker.type === "OPERATOR" && worker.operatorId === principalId;
 }
 
 /**
@@ -164,6 +320,7 @@ function CounterHeading({
   onConfirm,
   onAddWalkIn,
   addingWalkIn,
+  picker,
 }: {
   queue: Queue;
   isOwner: boolean;
@@ -172,6 +329,8 @@ function CounterHeading({
   onConfirm: (confirmation: Confirmation) => void;
   onAddWalkIn: (name: string) => Promise<boolean>;
   addingWalkIn: boolean;
+  /** Which chair you are at, on a queue with more than one. */
+  picker: JSX.Element | null;
 }): JSX.Element {
   const now = useNow(60_000);
   const today = new Date(now).toLocaleDateString(undefined, {
@@ -191,6 +350,7 @@ function CounterHeading({
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {picker}
         <AddWalkIn onAdd={onAddWalkIn} adding={addingWalkIn} disabled={queue.status === "CLOSED"} />
         <QueueControls
           queue={queue}
@@ -370,11 +530,12 @@ export function Finder({
   );
 }
 
-function Stats({ view }: { view: OperatorView }): JSX.Element {
+function Stats({ view, chairs, single }: { view: OperatorView; chairs: Chair[]; single: boolean }): JSX.Element {
   const last = view.waiting.at(-1);
   const backOfLine = view.waiting.length === 0 ? "No wait" : (last?.estimate?.label ?? "—");
 
   const arrival = view.arrival.sample > 0 ? String(view.arrival.minutes) : "—";
+  const open = chairs.filter((chair) => chair.seat.active).length;
 
   return (
     <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-5">
@@ -388,7 +549,11 @@ function Stats({ view }: { view: OperatorView }): JSX.Element {
       {/* How long people take to turn up once called, lately. The number a
           hold time should be longer than. */}
       <Stat label="Arrive after call" value={arrival} unit={arrival === "—" ? undefined : "min"} />
-      <Stat label="At the counter" value={view.serving ? String(view.serving.number) : "—"} />
+      {single ? (
+        <Stat label="At the counter" value={view.serving ? String(view.serving.number) : "—"} />
+      ) : (
+        <Stat label="Chairs open" value={String(open)} unit={`of ${chairs.length}`} />
+      )}
     </dl>
   );
 }
@@ -405,157 +570,9 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
   );
 }
 
-function AtTheCounter({
-  view,
-  serving,
-  pendingEntryId,
-  onServeNext,
-  onAttend,
-  onStart,
-  onSkip,
-}: {
-  view: OperatorView;
-  serving: boolean;
-  pendingEntryId: string | null;
-  onServeNext: () => Promise<void>;
-  onAttend: (entryId: string) => void;
-  onStart: (entryId: string) => void;
-  onSkip: (entry: QueueEntry) => void;
-}): JSX.Element {
-  const now = useNow();
-  const next = view.waiting[0];
-  const current = view.serving;
-  const hold = view.queue.holdMinutes;
-
-  // Two clocks on the card: called-and-not-here, then being served. The
-  // second starts when the pass says "here", when the person was already
-  // here at the call, or on one tap.
-  const started = current?.servedAt ?? null;
-
-  // The hold time doing its first job: once a called person has been silent
-  // for longer than the queue holds a place, the counter says so. Service
-  // beginning ends it, and a two-minute request from the pass adds two.
-  const sinceCalled = current?.startedAt ? minutesSince(current.startedAt, now) : 0;
-  const grace = hold + (current?.presence === "HOLD" ? HOLD_REQUEST_MINUTES : 0);
-  const overdue =
-    hold > 0 && current !== null && started === null && current.presence !== "HERE" && sinceCalled >= grace;
-
-  // One thing at a time. Nobody at the counter: call the next number. Called:
-  // start serving, or hold them. Serving: done. Serve next never has anyone
-  // to finish implicitly, because it is only offered when the counter is
-  // empty.
-  const stage = current === null ? "empty" : started === null ? "called" : "serving";
-
-  return (
-    <section aria-labelledby="counter-heading" className="flex min-w-0 flex-col">
-      <h3 id="counter-heading" className="text-[12.5px] text-muted">
-        At the counter
-      </h3>
-
-      {/* Height reserved in both states so promoting a customer never shifts
-          the Serve Next button under the operator's cursor. */}
-      <div role="status" aria-live="polite" className="mt-3 flex min-h-[170px] flex-col justify-end 2xl:min-h-[220px]">
-        {current ? (
-          <>
-            {/* The one colour on the screen: this number is being called, the
-                same vermilion the customer's phone has turned. */}
-            <Numeral value={current.number} scale="next" className="text-signal 2xl:text-[200px]" />
-            <p className="mt-4 flex items-center gap-2.5 text-[22px] font-medium leading-tight tracking-[-0.02em] text-strong">
-              {nameFor(current)}
-              <PresenceTag presence={current.presence} />
-            </p>
-            <p className="mt-1 text-[13px] text-muted" suppressHydrationWarning>
-              {started
-                ? `Serving for ${minutesSince(started, now)} min`
-                : current.startedAt && `Called ${sinceCalled} min ago`}
-              {(started || current.startedAt) && " · "}
-              waited {minutesSince(current.joinedAt, now)} min
-              {started && current.startedAt && ` · arrived in ${minutesSince(current.startedAt, Date.parse(started))} min`}
-            </p>
-            {overdue ? (
-              <p className="mt-2 text-[13px] leading-[1.55] text-strong" suppressHydrationWarning>
-                No sign of them for {sinceCalled} min. Skipping frees the counter.{" "}
-                {skipConsequence(hold)}
-              </p>
-            ) : (
-              current.presence === "HOLD" &&
-              current.presenceAt && (
-                <p className="mt-2 text-[13px] leading-[1.55] text-dim" suppressHydrationWarning>
-                  Asked for two minutes {minutesSince(current.presenceAt, now)} min ago.
-                </p>
-              )
-            )}
-          </>
-        ) : (
-          <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] text-muted">
-            {next ? "Ready when you are." : "Nobody in the queue."}
-          </p>
-        )}
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        {stage === "empty" && (
-          <Button variant="contrast" size="md" loading={serving} disabled={!next} onClick={() => void onServeNext()}>
-            <span className="truncate">{next ? `Serve next · ${next.number}` : "Serve next"}</span>
-          </Button>
-        )}
-
-        {/* Called and not here yet. Start serving when they walk up; hold
-            them when they do not. Overdue swaps which of the two leads. */}
-        {stage === "called" && current && (
-          <>
-            <Button
-              variant={overdue ? "ghost" : "contrast"}
-              size="md"
-              loading={pendingEntryId === current.id}
-              onClick={() => onStart(current.id)}
-            >
-              Start serving
-            </Button>
-            <Button
-              variant={overdue ? "contrast" : "ghost"}
-              size="md"
-              disabled={pendingEntryId === current.id}
-              onClick={() => onSkip(current)}
-            >
-              {hold > 0 ? "Skip and hold" : "Skip"}
-            </Button>
-          </>
-        )}
-
-        {/* Being served. Done is the only real action; the hold is kept as
-            a quiet way back from a mistaken start. */}
-        {stage === "serving" && current && (
-          <>
-            <Button
-              variant="contrast"
-              size="md"
-              loading={pendingEntryId === current.id}
-              onClick={() => onAttend(current.id)}
-            >
-              Done with {nameFor(current)}
-            </Button>
-            <button
-              type="button"
-              disabled={pendingEntryId === current.id}
-              onClick={() => onSkip(current)}
-              className="px-2 py-1 text-[13px] text-muted underline-offset-4 hover:text-strong hover:underline pointer-coarse:py-3"
-            >
-              {hold > 0 ? "Skip and hold instead" : "Skip instead"}
-            </button>
-          </>
-        )}
-      </div>
-
-      {!next && current && (
-        <p className="mt-3 text-[13px] text-muted">Nobody else is waiting.</p>
-      )}
-    </section>
-  );
-}
-
 function WaitingList({
   waiting,
+  targets,
   query,
   onQuery,
   pendingEntryId,
@@ -563,22 +580,20 @@ function WaitingList({
   onAttend,
   onSkip,
   skipped,
-  onRecall,
   holdMinutes,
-  busyWith,
+  single,
 }: {
   waiting: WaitingRow[];
-  /** Who is being served right now, if anyone. Calling is off while they are. */
-  busyWith: string | null;
+  targets: CallTargets;
   query: string;
   onQuery: (query: string) => void;
   pendingEntryId: string | null;
-  onCall: (entryId: string) => void;
+  onCall: (entryId: string, seatId: string) => void;
   onAttend: (entryId: string) => void;
   onSkip: (entry: WaitingRow) => void;
   skipped: QueueEntry[];
-  onRecall: (entryId: string) => void;
   holdMinutes: number;
+  single: boolean;
 }): JSX.Element {
   const now = useNow();
 
@@ -590,6 +605,8 @@ function WaitingList({
       )
     : waiting;
 
+  const anyone = waiting.length > 0 || skipped.length > 0;
+
   return (
     <section aria-labelledby="waiting-heading" className="min-w-0">
       <div className="flex items-center justify-between gap-4">
@@ -599,8 +616,11 @@ function WaitingList({
         {/* The finder is parked until the counter needs it; see Finder. */}
       </div>
       {/* Said in words as well as on hover: a tablet has no hover. */}
-      {busyWith !== null && waiting.length > 0 && (
-        <p className="mt-2 text-[12.5px] text-muted">Finish with {busyWith} before calling anyone else.</p>
+      {anyone && targets.reason !== null && (
+        <p className="mt-2 text-[12.5px] text-muted">{targets.reason}</p>
+      )}
+      {anyone && targets.hint !== null && (
+        <p className="mt-2 text-[12.5px] text-muted">{targets.hint}</p>
       )}
 
       {waiting.length === 0 ? (
@@ -640,21 +660,18 @@ function WaitingList({
                 {minutesSince(entry.joinedAt, now)} min
               </span>
               <span className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <CallButton
+                  targets={targets}
+                  single={single}
                   loading={pendingEntryId === entry.id}
-                  disabled={busyWith !== null}
-                  title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
-                  onClick={() => onCall(entry.id)}
-                >
-                  Call now
-                </Button>
+                  onCall={(seatId) => onCall(entry.id, seatId)}
+                />
                 <RowMenu
                   entry={entry}
-                  busyWith={busyWith}
+                  targets={targets}
+                  single={single}
                   disabled={pendingEntryId === entry.id}
-                  onCall={() => onCall(entry.id)}
+                  onCall={(seatId) => onCall(entry.id, seatId)}
                   onAttend={() => onAttend(entry.id)}
                   onSkip={() => onSkip(entry)}
                 />
@@ -668,13 +685,86 @@ function WaitingList({
         <SkippedList
           skipped={skipped}
           pendingEntryId={pendingEntryId}
-          onRecall={onRecall}
+          onRecall={onCall}
           now={now}
           holdMinutes={holdMinutes}
-          busyWith={busyWith}
+          targets={targets}
+          single={single}
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Call now, aimed. One target: the button says where. Several: it asks. None:
+ * it is off, and the list above has said why.
+ */
+function CallButton({
+  targets,
+  single,
+  loading,
+  onCall,
+}: {
+  targets: CallTargets;
+  single: boolean;
+  loading: boolean;
+  onCall: (seatId: string) => void;
+}): JSX.Element {
+  const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
+
+  if (targets.chairs.length <= 1) {
+    const only = targets.chairs[0];
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        loading={loading}
+        disabled={!only}
+        title={targets.reason ?? undefined}
+        onClick={() => {
+          if (only) onCall(only.seat.id);
+        }}
+      >
+        {only && !single ? `Call to ${only.seat.name}` : "Call now"}
+      </Button>
+    );
+  }
+
+  return (
+    <span ref={containerRef} className="relative inline-block">
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={loading}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={toggle}
+        className={cn(controlClasses("ghost", "sm"), "disabled:opacity-50", open && "border-strong bg-shell-mid")}
+      >
+        Call now
+        <Icon icon={ChevronDown} size={14} className="text-muted" />
+      </button>
+      <span
+        id={panelId}
+        hidden={!open}
+        className="absolute right-0 top-full z-20 mt-1 block w-[184px] rounded-[10px] border border-shell-line bg-shell-soft p-1 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
+      >
+        {targets.chairs.map((chair) => (
+          <button
+            key={chair.seat.id}
+            type="button"
+            className="flex w-full items-center rounded-[7px] px-2.5 py-2 text-left text-[13.5px] text-strong transition-colors hover:bg-shell-mid pointer-coarse:min-h-11"
+            onClick={() => {
+              setOpen(false);
+              onCall(chair.seat.id);
+            }}
+          >
+            Call to {chair.seat.name}
+          </button>
+        ))}
+      </span>
+    </span>
   );
 }
 
@@ -688,12 +778,14 @@ function SkippedList({
   onRecall,
   now,
   holdMinutes,
-  busyWith,
+  targets,
+  single,
 }: {
   skipped: QueueEntry[];
   pendingEntryId: string | null;
-  busyWith: string | null;
-  onRecall: (entryId: string) => void;
+  targets: CallTargets;
+  single: boolean;
+  onRecall: (entryId: string, seatId: string) => void;
   now: number;
   holdMinutes: number;
 }): JSX.Element | null {
@@ -720,16 +812,12 @@ function SkippedList({
                 </span>
               )}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
+            <CallButton
+              targets={targets}
+              single={single}
               loading={pendingEntryId === entry.id}
-              disabled={busyWith !== null}
-              title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
-              onClick={() => onRecall(entry.id)}
-            >
-              Call now
-            </Button>
+              onCall={(seatId) => onRecall(entry.id, seatId)}
+            />
           </li>
         ))}
       </ul>
@@ -745,15 +833,17 @@ function SkippedList({
 function RowMenu({
   entry,
   disabled,
-  busyWith,
+  targets,
+  single,
   onCall,
   onAttend,
   onSkip,
 }: {
   entry: WaitingRow;
   disabled: boolean;
-  busyWith: string | null;
-  onCall: () => void;
+  targets: CallTargets;
+  single: boolean;
+  onCall: (seatId: string) => void;
   onAttend: () => void;
   onSkip: () => void;
 }): JSX.Element {
@@ -783,17 +873,29 @@ function RowMenu({
       <span
         id={panelId}
         hidden={!open}
-        className="absolute right-0 top-full z-20 mt-1 block w-[184px] rounded-[10px] border border-shell-line bg-shell-soft p-1 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
+        className="absolute right-0 top-full z-20 mt-1 block w-[200px] rounded-[10px] border border-shell-line bg-shell-soft p-1 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
       >
-        <button
-          type="button"
-          className={cn(item, "disabled:cursor-not-allowed disabled:opacity-50")}
-          disabled={busyWith !== null}
-          title={busyWith === null ? undefined : `Finish with ${busyWith} first`}
-          onClick={() => { setOpen(false); onCall(); }}
-        >
-          Call now
-        </button>
+        {targets.chairs.length === 0 ? (
+          <button
+            type="button"
+            className={cn(item, "disabled:cursor-not-allowed disabled:opacity-50")}
+            disabled
+            title={targets.reason ?? undefined}
+          >
+            Call now
+          </button>
+        ) : (
+          targets.chairs.map((chair) => (
+            <button
+              key={chair.seat.id}
+              type="button"
+              className={item}
+              onClick={() => { setOpen(false); onCall(chair.seat.id); }}
+            >
+              {single ? "Call now" : `Call to ${chair.seat.name}`}
+            </button>
+          ))
+        )}
         <button type="button" className={item} onClick={() => { setOpen(false); onAttend(); }}>
           Mark as served
         </button>

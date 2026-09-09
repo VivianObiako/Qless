@@ -209,7 +209,13 @@ function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
 
 /** The live figures, said the way a glance at the list wants them. */
 function liveLine(queue: QueueCard): string {
-  const serving = queue.servingNumber === null ? "Nobody at the counter" : `Serving ${queue.servingNumber}`;
+  // One chair says who is at it; several say how many are busy.
+  const serving =
+    queue.openSeats > 1 || queue.servingCount > 1
+      ? `${queue.servingCount} of ${queue.openSeats} chairs busy`
+      : queue.servingNumber === null
+        ? "Nobody at the counter"
+        : `Serving ${queue.servingNumber}`;
   const waiting =
     queue.waitingCount === 0 ? "nobody waiting" : queue.waitingCount === 1 ? "1 waiting" : `${queue.waitingCount} waiting`;
   return `${serving} · ${waiting}`;

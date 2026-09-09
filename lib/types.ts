@@ -203,9 +203,11 @@ export interface RedeemResponse {
 export interface MyQueuesResponse {
   role: PrincipalRole;
   queues: QueueCard[];
+  /** The caller's own id: the owner's, or the operator's, which is how a counter finds their chair. */
+  principalId: string;
   /** What the owner has put away. Always empty for an operator. */
   archived: Queue[];
-  /** What the owner asked to be called. Empty for an operator. */
+  /** What the owner asked to be called, or the name the owner gave an operator. */
   displayName: string;
 }
 
