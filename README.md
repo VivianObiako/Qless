@@ -35,6 +35,12 @@ handshake check it.
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
 
+## What's next
+
+Multi-seat queues — several chairs drawing from one line — is planned and
+designed but not built. The plan, rules and user stories are in
+`docs/PLAN.md` under "Plan — multi-seat queues".
+
 ## Tablets
 
 The counter is designed to run on an iPad. Controls grow under a coarse
