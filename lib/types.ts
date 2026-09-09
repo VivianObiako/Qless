@@ -86,6 +86,8 @@ export interface PublicSeat {
   id: string;
   name: string;
   active: boolean;
+  /** Who is at the chair, for "Kofi is ready for you". Empty when nobody is. */
+  workerName: string;
 }
 
 /** One number being served and where. */
@@ -353,11 +355,28 @@ export type EntryAction = "serve" | "attend" | "skip" | "start";
  */
 export type Proximity = "waiting" | "close" | "next" | "current";
 
-export function proximityOf(entry: QueueEntry, peopleAhead: number): Proximity {
+/**
+ * How many calls have to happen before this customer's own, with several
+ * chairs calling at once: three chairs and three people ahead is one turn.
+ * The server's push ladder ranks on the same figure, so a phone never hears
+ * "you're next" from one and "it's your turn" from the other a second apart.
+ */
+export function turnsAhead(peopleAhead: number, openSeats: number): number {
+  return Math.floor(peopleAhead / Math.max(1, openSeats));
+}
+
+export function proximityOf(entry: QueueEntry, peopleAhead: number, openSeats = 1): Proximity {
   if (entry.status === "SERVING") return "current";
-  if (peopleAhead === 0) return "next";
-  if (peopleAhead <= 3) return "close";
+  const turns = turnsAhead(peopleAhead, openSeats);
+  if (turns === 0) return "next";
+  if (turns <= 3) return "close";
   return "waiting";
+}
+
+/** The chair a called customer was sent to, by name, or null on a one-chair queue or while waiting. */
+export function seatFor(state: PublicState, entry: QueueEntry | null): PublicSeat | null {
+  if (!entry || !entry.seatId || state.seats.length <= 1) return null;
+  return state.seats.find((seat) => seat.id === entry.seatId) ?? null;
 }
 
 /** Realtime. Every event carries a full snapshot, so the type is what changed,
@@ -421,7 +440,7 @@ export function entryIsStale(state: PublicState, entry: QueueEntry | null): bool
     case "WAITING":
       return !state.waitingNumbers.includes(entry.number);
     case "SERVING":
-      return state.servingNumber !== entry.number;
+      return !state.serving.some((slot) => slot.number === entry.number);
     default:
       // An ended entry stays ended; a customer rejoining goes through join.
       return false;

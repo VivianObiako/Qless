@@ -1,7 +1,11 @@
 import type { BoardRow } from "@/components/Board";
+import type { ServingSlot } from "@/lib/types";
 
 interface BoardInput {
-  servingNumber: number | null;
+  /** Everyone being served and where, in seat order. */
+  serving: ServingSlot[];
+  /** How many seats the queue has: with one, the chair is "the counter" and is not named. */
+  seatCount: number;
   waitingNumbers: number[];
   myNumber: number;
   /** State 03 collapses the board to the counter plus "you — next". */
@@ -13,21 +17,27 @@ const MAX_TRAILING_ROWS = 1;
 /**
  * Turns the public queue state into the rows the customer sees.
  *
- * The board is a summary, not a full list: whoever is at the counter, whoever
- * is called next, any run of people in between compressed into a single span,
- * the customer themselves, and a hint that others follow. Numbers only — the
- * public payload carries no names, and neither does this.
+ * The board is a summary, not a full list: whoever is being served — one row
+ * per chair, named when there is more than one — whoever is called next, any
+ * run of people in between compressed into a single span, the customer
+ * themselves, and a hint that others follow. Numbers only — the public
+ * payload carries no names, and neither does this.
  */
 export function deriveBoardRows({
-  servingNumber,
+  serving,
+  seatCount,
   waitingNumbers,
   myNumber,
   collapsed = false,
 }: BoardInput): BoardRow[] {
   const rows: BoardRow[] = [];
 
-  if (servingNumber !== null) {
-    rows.push({ label: String(servingNumber), status: "At the counter", kind: "serving" });
+  for (const slot of serving) {
+    rows.push({
+      label: String(slot.number),
+      status: seatCount > 1 ? slot.seatName : "At the counter",
+      kind: "serving",
+    });
   }
 
   if (collapsed) {
@@ -62,4 +72,3 @@ export function deriveBoardRows({
 
   return rows;
 }
-
