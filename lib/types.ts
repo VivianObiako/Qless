@@ -29,7 +29,26 @@ export interface QueueSummary {
   holdMinutes: number;
   /** Shown while the queue is paused. Empty otherwise. */
   pauseNote: string;
+  /**
+   * How the counter picks who is next. Public because a draw changes the
+   * wording on every surface: nobody is ahead of anybody.
+   */
+  servingOrder: ServingOrder;
+  /** What the people in this queue are called: customer, guest, participant. */
+  personNoun: string;
+  peopleNoun: string;
 }
+
+/**
+ * In order is the queue as it has always been: the lowest number next. At
+ * random is a draw: everyone holds a number, one is called at random, and one
+ * more is drawn ahead as up next. A draw always has a fixed number of places.
+ */
+export type ServingOrder = "IN_ORDER" | "RANDOM";
+
+export const DEFAULT_PERSON_NOUN = "customer";
+export const DEFAULT_PEOPLE_NOUN = "customers";
+export const NOUN_LIMIT = 30;
 
 export interface Queue extends QueueSummary {
   nextNumber: number;
@@ -40,6 +59,8 @@ export interface Queue extends QueueSummary {
    * they may take any free chair and leave it.
    */
   seatsFixed: boolean;
+  /** When the numbering last started again. A draw counts its places from here. */
+  resetAt: string | null;
   /** Set once the owner has put the queue away. */
   archivedAt: string | null;
   createdAt: string;
@@ -138,6 +159,11 @@ export interface QueueEntry {
   walkIn: boolean;
   /** Where they were called to. Null while they wait; kept afterwards. */
   seatId: string | null;
+  /**
+   * When a draw picked this number as up next. The one waiting entry with this
+   * set is the one the counter calls next. Kept after the call.
+   */
+  drawnAt: string | null;
 }
 
 export interface Estimate {
@@ -160,13 +186,24 @@ export interface PublicState {
   waitingNumbers: number[];
   waitingCount: number;
   isFull: boolean;
+  /**
+   * What the capacity is measured against: the people in line when served in
+   * order, every number handed out since the last reset in a draw.
+   */
+  placesTaken: number;
+  /**
+   * The number a draw has picked to be called next. Null when served in
+   * order, before a draw's first call, and once nobody is left to draw.
+   */
+  upNextNumber: number | null;
   /** The figure the estimates were built from: measured once there is one. */
   serviceMinutes: number;
   /**
    * Indexed by people ahead, length `waitingCount + 1`. A customer works out
    * their own position from `waitingNumbers` — that is what keeps other
    * customers off the wire — then reads their wait from here rather than
-   * recomputing a formula that only the server should own.
+   * recomputing a formula that only the server should own. Empty in a draw,
+   * which quotes no wait.
    */
   estimates: (Estimate | null)[];
 }
@@ -235,6 +272,8 @@ export interface OperatorView {
   seats: Seat[];
   waiting: WaitingRow[];
   waitingCount: number;
+  /** What the capacity is measured against; see PublicState.placesTaken. */
+  placesTaken: number;
   /** Stood down inside the recall window, most recent first. Still callable. */
   skipped: QueueEntry[];
   /** The average of the last few real service times, and how many there were. */
@@ -258,6 +297,9 @@ export interface CreateQueueInput {
   description: string;
   averageServiceMinutes: number;
   maxCapacity: number | null;
+  servingOrder?: ServingOrder;
+  personNoun?: string;
+  peopleNoun?: string;
   /** Read only when this request creates the business. */
   ownerName?: string;
 }
@@ -265,7 +307,7 @@ export interface CreateQueueInput {
 /**
  * A partial update: an omitted field is left alone. `maxCapacity: null` is the
  * one value that means something on its own — "no limit" — which is why it is
- * nullable rather than merely optional.
+ * nullable rather than merely optional. The server refuses it on a draw.
  */
 export interface UpdateQueueInput {
   name?: string;
@@ -275,6 +317,10 @@ export interface UpdateQueueInput {
   showNamesToOperators?: boolean;
   holdMinutes?: number;
   seatsFixed?: boolean;
+  servingOrder?: ServingOrder;
+  /** Blank puts the default back. */
+  personNoun?: string;
+  peopleNoun?: string;
 }
 
 export interface SeatsResponse {
@@ -379,12 +425,72 @@ export function turnsAhead(peopleAhead: number, openSeats: number): number {
   return Math.floor(peopleAhead / Math.max(1, openSeats));
 }
 
-export function proximityOf(entry: QueueEntry, peopleAhead: number, openSeats = 1): Proximity {
+/**
+ * In a draw there is no "close": a number waits until it is drawn, then it is
+ * next, then it is called. Being the lowest number counts for nothing.
+ */
+export function proximityOf(entry: QueueEntry, state: PublicState, peopleAhead: number): Proximity {
   if (entry.status === "SERVING") return "current";
-  const turns = turnsAhead(peopleAhead, openSeats);
+  if (isDraw(state.queue)) {
+    return state.upNextNumber === entry.number ? "next" : "waiting";
+  }
+  const turns = turnsAhead(peopleAhead, state.openSeats);
   if (turns === 0) return "next";
   if (turns <= 3) return "close";
   return "waiting";
+}
+
+/**
+ * Whether this queue calls people at random. Read through here rather than
+ * compared inline: a server from before draws sends no servingOrder at all,
+ * and that is a queue served in order.
+ */
+export function isDraw(summary: Pick<QueueSummary, "servingOrder">): boolean {
+  return summary.servingOrder === "RANDOM";
+}
+
+/**
+ * What one or several people in this queue are called, in lower case. An
+ * empty or missing noun, from a server from before nouns, is the default.
+ */
+export function nounFor(summary: Pick<QueueSummary, "personNoun" | "peopleNoun">, count: number): string {
+  return count === 1
+    ? summary.personNoun || DEFAULT_PERSON_NOUN
+    : summary.peopleNoun || DEFAULT_PEOPLE_NOUN;
+}
+
+/** "3 guests", "One guest": the count and the noun, ready to start a sentence. */
+export function countOf(summary: Pick<QueueSummary, "personNoun" | "peopleNoun">, count: number): string {
+  return count === 1 ? `One ${nounFor(summary, 1)}` : `${count} ${nounFor(summary, count)}`;
+}
+
+/** "Guest 7" for somebody with no name, or whose name is kept from this screen. */
+export function labelFor(
+  summary: Pick<QueueSummary, "personNoun" | "peopleNoun">,
+  entry: Pick<QueueEntry, "customerName" | "number">,
+): string {
+  if (entry.customerName) return entry.customerName;
+  const noun = nounFor(summary, 1);
+  return `${noun.charAt(0).toUpperCase()}${noun.slice(1)} ${entry.number}`;
+}
+
+/**
+ * The waiting row the counter calls next: the drawn one in a draw, where it is
+ * undefined until the first call draws somebody, and the head of the list
+ * otherwise.
+ */
+export function nextInLine<T extends QueueEntry>(summary: Pick<QueueSummary, "servingOrder">, waiting: T[]): T | undefined {
+  if (isDraw(summary)) return waiting.find((entry) => Boolean(entry.drawnAt));
+  return waiting[0];
+}
+
+/**
+ * The number that will be called next, whichever way the queue is served:
+ * the drawn number in a draw, the lowest waiting number otherwise.
+ */
+export function nextNumberOf(state: Pick<PublicState, "queue" | "upNextNumber" | "waitingNumbers">): number | null {
+  if (isDraw(state.queue)) return state.upNextNumber ?? null;
+  return state.waitingNumbers[0] ?? null;
 }
 
 /** The chair a called customer was sent to, by name, or null on a one-chair queue or while waiting. */
@@ -428,6 +534,12 @@ export interface OperatorEvent {
  * goes to everyone.
  */
 export function customerViewFrom(state: PublicState, entry: QueueEntry | null): CustomerView {
+  // A draw has no position and quotes no wait, which is what the server says
+  // too; a number below yours is not ahead of you.
+  if (isDraw(state.queue)) {
+    return { state, entry, peopleAhead: 0, estimate: null, joinEstimate: null };
+  }
+
   const peopleAhead =
     entry && entry.status === "WAITING"
       ? state.waitingNumbers.filter((number) => number < entry.number).length

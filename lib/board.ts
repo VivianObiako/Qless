@@ -10,6 +10,11 @@ interface BoardInput {
   myNumber: number;
   /** State 03 collapses the board to the counter plus "you — next". */
   collapsed?: boolean;
+  /**
+   * A draw: nobody is ahead of anybody, so the board shows the drawn number
+   * and how many others are still in it, and never a run of numbers.
+   */
+  draw?: { upNextNumber: number | null };
 }
 
 const MAX_TRAILING_ROWS = 1;
@@ -29,6 +34,7 @@ export function deriveBoardRows({
   waitingNumbers,
   myNumber,
   collapsed = false,
+  draw,
 }: BoardInput): BoardRow[] {
   const rows: BoardRow[] = [];
 
@@ -42,6 +48,20 @@ export function deriveBoardRows({
 
   if (collapsed) {
     rows.push({ label: String(myNumber), status: "You — next", kind: "you" });
+    return rows;
+  }
+
+  if (draw) {
+    const drawn = draw.upNextNumber;
+    if (drawn !== null && drawn !== myNumber) {
+      rows.push({ label: String(drawn), status: "Up next", kind: "next" });
+    }
+    rows.push({ label: String(myNumber), status: "You", kind: "you" });
+
+    const others = waitingNumbers.filter((number) => number !== myNumber && number !== drawn).length;
+    if (others > 0) {
+      rows.push({ label: `+${others}`, status: "Still in the draw", kind: "waiting" });
+    }
     return rows;
   }
 

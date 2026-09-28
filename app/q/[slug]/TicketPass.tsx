@@ -15,6 +15,9 @@ import { Wordmark } from "@/components/Wordmark";
 import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotifications";
 import { deriveBoardRows } from "@/lib/board";
 import {
+  countOf,
+  isDraw,
+  nounFor,
   proximityOf,
   seatFor,
   turnsAhead,
@@ -47,20 +50,21 @@ interface ScreenProps {
  */
 function announcementFor(proximity: Proximity, entry: QueueEntry, view: CustomerView, seat: PublicSeat | null): string {
   const mine = `Your number is ${entry.number}.`;
+  const draw = isDraw(view.state.queue);
 
   switch (proximity) {
     case "current":
       return `It's your turn. ${mine} ${seat ? `Go to ${seat.name}.` : "Head to the counter."}`;
     case "next":
-      return `You're next. ${mine}`;
+      return draw ? `You're next. ${mine} Get ready.` : `You're next. ${mine}`;
     case "close":
-      return `You're getting close. ${mine} ${
-        view.peopleAhead === 1 ? "One person" : `${view.peopleAhead} people`
-      } ahead of you.`;
+      return `You're getting close. ${mine} ${countOf(view.state.queue, view.peopleAhead)} ahead of you.`;
     default:
-      return `You're in the queue. ${mine} ${view.peopleAhead} ahead of you${
-        view.estimate ? `, about ${view.estimate.label}` : ""
-      }.`;
+      return draw
+        ? `You're in the draw. ${mine} ${view.state.waitingCount} still to go.`
+        : `You're in the queue. ${mine} ${view.peopleAhead} ahead of you${
+            view.estimate ? `, about ${view.estimate.label}` : ""
+          }.`;
   }
 }
 
@@ -81,7 +85,7 @@ export function TicketPass({
   onCancel,
   onSay,
 }: TicketPassProps): JSX.Element {
-  const proximity = proximityOf(entry, view.peopleAhead, view.state.openSeats);
+  const proximity = proximityOf(entry, view.state, view.peopleAhead);
   // Where they were called to, on a queue with more than one chair.
   const seat = seatFor(view.state, entry);
   const announcement = announcementFor(proximity, entry, view, seat);
@@ -98,6 +102,7 @@ export function TicketPass({
     number: entry.number,
     peopleAhead: view.peopleAhead,
     queueName: view.state.queue.name,
+    wording: view.state.queue,
     seatName: seat?.name ?? null,
     slug,
     customerToken,
@@ -156,11 +161,11 @@ export function TicketPass({
  * counter is working to, so a skip never feels arbitrary. With no hold, the
  * honest thing to say is that there is none.
  */
-function holdPromise(holdMinutes: number, stage: "next" | "current"): string {
+function holdPromise(holdMinutes: number, stage: "next" | "current", person: string): string {
   if (holdMinutes <= 0) {
     return stage === "next"
       ? "Be inside now. If you're not here when you're called, you'll be skipped and can rejoin."
-      : "If you're not here, your place goes to the next person and you can rejoin.";
+      : `If you're not here, your place goes to the next ${person} and you can rejoin.`;
   }
   return stage === "next"
     ? `Be inside now. Once you're called, your place is held for ${holdMinutes} minutes.`
@@ -173,7 +178,15 @@ function holdPromise(holdMinutes: number, stage: "next" | "current"): string {
  * "three away" to someone who is second in line reads as a screen that has
  * not noticed where they are.
  */
-function alertsCopy(turns: number): ReactNode {
+function alertsCopy(turns: number, draw: boolean): ReactNode {
+  // A draw has two nudges and no countdown: drawn, then called.
+  if (draw) {
+    return (
+      <>
+        when you&rsquo;re <span className="text-strong">drawn next</span> and when it&rsquo;s your turn
+      </>
+    );
+  }
   if (turns > 3) {
     return (
       <>
@@ -198,11 +211,13 @@ function alertsCopy(turns: number): ReactNode {
 function AlertsNotice({
   permission,
   turns,
+  draw,
   onRequest,
 }: {
   permission: AlertPermission;
   /** Turns ahead, not people: with several chairs the nudges come by turn. */
   turns: number;
+  draw: boolean;
   onRequest: () => void;
 }): JSX.Element {
   if (permission === "default") {
@@ -216,7 +231,7 @@ function AlertsNotice({
           </Button>
         }
       >
-        We can nudge you {alertsCopy(turns)}. Your place is held either way.
+        We can nudge you {alertsCopy(turns, draw)}. Your place is held either way.
       </Notice>
     );
   }
@@ -224,7 +239,7 @@ function AlertsNotice({
   return (
     <Notice tone="quiet" chip="!">
       {permission === "granted" ? (
-        <>Alerting you {alertsCopy(turns)}. Your place is held if you close this.</>
+        <>Alerting you {alertsCopy(turns, draw)}. Your place is held if you close this.</>
       ) : permission === "denied" ? (
         <>
           Alerts are blocked for this site, so keep an eye on this page. Your place is held if you
@@ -253,11 +268,13 @@ function WaitingScreen({
   presence: Presence | null;
   setPresence: (next: Presence) => void;
 }): JSX.Element {
+  const draw = isDraw(view.state.queue);
   const rows = deriveBoardRows({
     serving: view.state.serving,
     seatCount: view.state.seats.length,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
+    draw: draw ? { upNextNumber: view.state.upNextNumber } : undefined,
   });
   const oneAhead = view.peopleAhead === 1;
   const turns = turnsAhead(view.peopleAhead, view.state.openSeats);
@@ -271,7 +288,7 @@ function WaitingScreen({
             <h1 className="text-[22px] font-medium leading-tight tracking-[-0.02em] text-paper-ink lg:text-[26px]">
               {view.state.queue.name}
             </h1>
-            <TicketBadge inverted={close}>{close ? "Getting close" : "In queue"}</TicketBadge>
+            <TicketBadge inverted={close}>{draw ? "In the draw" : close ? "Getting close" : "In queue"}</TicketBadge>
           </div>
 
           <div className="mt-5 flex items-end justify-between gap-4 lg:mt-8">
@@ -292,11 +309,17 @@ function WaitingScreen({
                 </dd>
               </div>
               <div>
+                {/* In a draw nobody is ahead of anybody; what a person wants
+                    to know is which number is getting ready. */}
                 <MonoLabel as="dt" size={10} tone="paper">
-                  Ahead
+                  {draw ? "Up next" : "Ahead"}
                 </MonoLabel>
                 <dd>
-                  <Numeral value={view.peopleAhead} scale="small" className="mt-1 text-paper-ink lg:text-[40px]" />
+                  <Numeral
+                    value={draw ? view.state.upNextNumber : view.peopleAhead}
+                    scale="small"
+                    className="mt-1 text-paper-ink lg:text-[40px]"
+                  />
                 </dd>
               </div>
             </dl>
@@ -307,10 +330,12 @@ function WaitingScreen({
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
               <MonoLabel size={10} tone="paper">
-                Estimated wait
+                {draw ? "Still to go" : "Estimated wait"}
               </MonoLabel>
               <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink lg:text-[42px]">
-                {view.estimate?.label ?? "Almost there"}
+                {draw
+                  ? countOf(view.state.queue, view.state.waitingCount)
+                  : (view.estimate?.label ?? "Almost there")}
               </p>
             </div>
 
@@ -338,7 +363,7 @@ function WaitingScreen({
           {close && (
             <Notice tone="standing" chip="!">
               {oneAhead
-                ? "One person ahead of you. We'll tell you the moment it's your turn."
+                ? `${countOf(view.state.queue, 1)} ahead of you. We'll tell you the moment it's your turn.`
                 : chairs
                   ? `${view.peopleAhead} ahead of you across ${view.state.openSeats} chairs. About five minutes' walk is all you have.`
                   : `${view.peopleAhead} ahead of you. About five minutes' walk is all you have.`}
@@ -349,6 +374,7 @@ function WaitingScreen({
             <AlertsNotice
               permission={alerts.permission}
               turns={turns}
+              draw={draw}
               onRequest={alerts.request}
             />
           )}
@@ -410,14 +436,16 @@ function NextScreen({
           </div>
 
           <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] lg:text-[30px]">
-            {beingServed.length === 0
-              ? "You're up next."
-              : beingServed.length === 1
-                ? `You're up after ${beingServed[0]}.`
-                : `You're up after ${beingServed.slice(0, -1).join(", ")} and ${beingServed.at(-1)}.`}
+            {isDraw(view.state.queue)
+              ? "You've been drawn next. Get ready."
+              : beingServed.length === 0
+                ? "You're up next."
+                : beingServed.length === 1
+                  ? `You're up after ${beingServed[0]}.`
+                  : `You're up after ${beingServed.slice(0, -1).join(", ")} and ${beingServed.at(-1)}.`}
           </p>
           <p className="ticket-flip-muted mt-3 text-[13.5px] leading-[1.55]">
-            {holdPromise(view.state.queue.holdMinutes, "next")}
+            {holdPromise(view.state.queue.holdMinutes, "next", nounFor(view.state.queue, 1))}
           </p>
         </div>
 
@@ -492,7 +520,7 @@ function TurnScreen({
           {/* Plain white. A tinted white on this ground drops back under
               4.5:1, so the step down in hierarchy is size, not opacity. */}
           <p className="mt-3 text-[13.5px] leading-[1.55] text-white">
-            Show this screen if anyone asks. {holdPromise(view.state.queue.holdMinutes, "current")}
+            Show this screen if anyone asks. {holdPromise(view.state.queue.holdMinutes, "current", nounFor(view.state.queue, 1))}
           </p>
 
           <div className="mt-10 flex-1 lg:hidden" />

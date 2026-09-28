@@ -14,7 +14,7 @@ import { useOrigin } from "@/hooks/useStoredValue";
 import { useChime } from "@/hooks/useChime";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { cn } from "@/lib/utils";
-import type { PublicSeat, PublicState, QueueStatus, ServingSlot } from "@/lib/types";
+import { isDraw, nounFor, type PublicSeat, type PublicState, type QueueStatus, type ServingSlot } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
 const UP_NEXT = 3;
@@ -79,6 +79,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   }
 
   const { state } = queue;
+  const draw = isDraw(state.queue);
   const upNext = state.waitingNumbers.slice(0, UP_NEXT);
 
   const controls = (
@@ -146,7 +147,9 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
               Up next
             </MonoLabel>
 
-            {upNext.length === 0 ? (
+            {draw ? (
+              <DrawnNext state={state} />
+            ) : upNext.length === 0 ? (
               <p className="mt-2.5 font-sans text-[clamp(28px,5vw,44px)] leading-none text-muted">
                 Nobody waiting
               </p>
@@ -169,7 +172,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
           <p className="text-[clamp(13px,1.4vw,16px)] text-muted">
             {state.queue.name}
             <span aria-hidden="true"> · </span>
-            {state.waitingCount} waiting
+            {draw ? `${state.waitingCount} still to go` : `${state.waitingCount} ${nounFor(state.queue, 2)} waiting`}
             {statusSuffix(state.queue.status)}
             {state.queue.status === "PAUSED" && state.queue.pauseNote && (
               <>
@@ -216,11 +219,35 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   );
 }
 
+/**
+ * Up next in a draw: the one number drawn, alone. Nothing else is shown,
+ * because nothing else is known: the rest have no order until they are drawn.
+ */
+function DrawnNext({ state }: { state: PublicState }): JSX.Element {
+  if (state.upNextNumber !== null) {
+    return (
+      <p key={state.upNextNumber} className={cn("mt-2.5", upNextClasses[0])}>
+        {state.upNextNumber}
+      </p>
+    );
+  }
+  return (
+    <p className="mt-2.5 font-sans text-[clamp(28px,5vw,44px)] leading-none text-muted">
+      {state.waitingCount === 0
+        ? state.serving.length > 0 || state.placesTaken > 0
+          ? "That's everyone"
+          : "Nobody has a number yet"
+        : "Not drawn yet"}
+    </p>
+  );
+}
+
 /** What the room is told, in words, when the numbers change. */
 function servingAnnouncement(state: PublicState): string {
-  if (state.serving.length === 0) return "Nobody is being served yet.";
-  if (state.seats.length <= 1) return `Now serving number ${state.servingNumber}.`;
-  return `Now serving ${state.serving.map((slot) => `${slot.number} at ${slot.seatName}`).join(", ")}.`;
+  const drawn = isDraw(state.queue) && state.upNextNumber !== null ? ` Number ${state.upNextNumber} is up next.` : "";
+  if (state.serving.length === 0) return `Nobody is being served yet.${drawn}`;
+  if (state.seats.length <= 1) return `Now serving number ${state.servingNumber}.${drawn}`;
+  return `Now serving ${state.serving.map((slot) => `${slot.number} at ${slot.seatName}`).join(", ")}.${drawn}`;
 }
 
 /**

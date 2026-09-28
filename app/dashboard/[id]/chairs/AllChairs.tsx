@@ -10,13 +10,13 @@ import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
 import { ChairCard } from "../ChairCard";
-import { skipConsequence } from "../Counter";
+import { nameFor, skipConsequence } from "../Counter";
 import { DashboardChrome } from "../DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { chairsOf, openSeatKey } from "@/lib/seats";
 import { writeSession } from "@/lib/session";
-import type { QueueEntry } from "@/lib/types";
+import { isDraw, nextInLine, nounFor, type QueueEntry } from "@/lib/types";
 
 /**
  * Every chair as a full card, four to a row, for an owner running the whole
@@ -119,7 +119,10 @@ export function AllChairs({ queueId }: { queueId: string }): JSX.Element {
             <li key={chair.seat.id} className="min-w-0 border-t border-shell-line pt-4">
               <ChairCard
                 chair={chair}
-                next={view.waiting[0]}
+                next={nextInLine(view.queue, view.waiting)}
+                waitingCount={view.waitingCount}
+                draw={isDraw(view.queue)}
+                person={nounFor(view.queue, 1)}
                 single={false}
                 isOwner
                 principalId={queue.principalId}
@@ -156,7 +159,7 @@ export function AllChairs({ queueId }: { queueId: string }): JSX.Element {
         title={skipping ? `Skip #${skipping.number}?` : ""}
         description={
           skipping
-            ? `Use this when ${skipping.customerName || `Customer ${skipping.number}`} isn't there. ${skipConsequence(view.queue.holdMinutes)}`
+            ? `Use this when ${nameFor(skipping, nounFor(view.queue, 1))} isn't there. ${skipConsequence(view.queue.holdMinutes)}`
             : ""
         }
         confirmLabel="Skip them"

@@ -18,8 +18,14 @@ const HOLD_REQUEST_MINUTES = 2;
 
 export interface ChairCardProps {
   chair: Chair;
-  /** The head of the waiting list, for Serve next's label. */
+  /** Who the counter calls next, for the button's label: the head of the list, or the drawn number. */
   next: WaitingRow | undefined;
+  /** How many are waiting. In a draw nobody may be drawn yet while people wait. */
+  waitingCount: number;
+  /** The queue calls at random: the button draws rather than serves. */
+  draw: boolean;
+  /** What one person in this queue is called, for someone with no name shown. */
+  person: string;
   /**
    * A one-seat queue. The card is headed "At the counter", the chair's name
    * and worker are never shown, and the staffing rule is off: one chair is
@@ -61,6 +67,9 @@ export interface ChairCardProps {
 export function ChairCard({
   chair,
   next,
+  waitingCount,
+  draw,
+  person,
   single,
   isOwner,
   principalId,
@@ -173,7 +182,7 @@ export function ChairCard({
                 compact ? "text-[18px]" : "text-[22px]",
               )}
             >
-              {nameFor(current)}
+              {nameFor(current, person)}
               <PresenceTag presence={current.presence} />
             </p>
             <p className="mt-1 text-[13px] text-muted" suppressHydrationWarning>
@@ -212,7 +221,7 @@ export function ChairCard({
           </>
         ) : (
           <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] text-muted">
-            {next ? "Ready when you are." : "Nobody in the queue."}
+            {waitingCount > 0 ? "Ready when you are." : "Nobody in the queue."}
           </p>
         )}
       </div>
@@ -224,10 +233,10 @@ export function ChairCard({
               variant="contrast"
               size="md"
               loading={serving}
-              disabled={!next}
+              disabled={waitingCount === 0}
               onClick={() => onServeNext(seat.id)}
             >
-              <span className="truncate">{next ? `Serve next · ${next.number}` : "Serve next"}</span>
+              <span className="truncate">{serveLabel(draw, next)}</span>
             </Button>
             {!single && isOwner && (
               <Button variant="ghost" size="md" loading={seatPending} onClick={() => onSetOpen(seat.id, false)}>
@@ -291,7 +300,7 @@ export function ChairCard({
               loading={pendingEntryId === current.id}
               onClick={() => onAttend(current.id)}
             >
-              Done with {nameFor(current)}
+              Done with {nameFor(current, person)}
             </Button>
             <button
               type="button"
@@ -305,11 +314,20 @@ export function ChairCard({
         )}
       </div>
 
-      {!next && current && stage !== "closed" && (
+      {waitingCount === 0 && current && stage !== "closed" && (
         <p className="mt-3 text-[13px] text-muted">Nobody else is waiting.</p>
       )}
     </section>
   );
+}
+
+/**
+ * In order, the button names who it will call. In a draw it names the drawn
+ * number once there is one, and before the first call it says what it does.
+ */
+function serveLabel(draw: boolean, next: WaitingRow | undefined): string {
+  if (draw) return next ? `Call next · ${next.number}` : "Draw next";
+  return next ? `Serve next · ${next.number}` : "Serve next";
 }
 
 /**

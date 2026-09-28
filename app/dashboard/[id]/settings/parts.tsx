@@ -65,6 +65,58 @@ export function Switch({
 }
 
 /**
+ * One of a few, as a segmented row: the Appearance control on the profile,
+ * drawn for a setting. The explanation of whichever option is chosen sits
+ * under it, so the owner reads what the choice does rather than a label.
+ */
+export function Choice<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string; description: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}): JSX.Element {
+  const chosen = options.find((option) => option.value === value);
+  return (
+    <div>
+      <span id={`choice-${label}`} className="block text-[14.5px] font-medium text-strong">
+        {label}
+      </span>
+      <div
+        role="radiogroup"
+        aria-labelledby={`choice-${label}`}
+        className="mt-2 grid max-w-sm grid-cols-2 gap-1 rounded-[10px] bg-shell-mid p-1"
+      >
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "rounded-[8px] px-2 py-2 text-[13px] transition-colors pointer-coarse:min-h-11",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong",
+                selected ? "bg-shell-soft font-medium text-strong" : "text-muted hover:text-strong",
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      {chosen && <p className="mt-2 text-[13px] leading-[1.6] text-muted">{chosen.description}</p>}
+    </div>
+  );
+}
+
+/**
  * The service-time hint says which figure the estimates are actually using,
  * so the number in the box is never mistaken for the number on the pass.
  * With more than one seat open it says the figure is per seat, because the

@@ -11,6 +11,8 @@ import { nameFor } from "./Counter";
 
 interface SeatPickerProps {
   chairs: Chair[];
+  /** What one person in this queue is called, for someone with no name shown. */
+  person: string;
   isOwner: boolean;
   principalId: string | null;
   seatsFixed: boolean;
@@ -30,6 +32,7 @@ interface SeatPickerProps {
  */
 export function SeatPicker({
   chairs,
+  person,
   isOwner,
   principalId,
   seatsFixed,
@@ -94,7 +97,7 @@ export function SeatPicker({
                 : seat.worker
                   ? `${seat.worker.name || "The owner"} is here`
                   : entry
-                    ? `${nameFor(entry)} is on it`
+                    ? `${nameFor(entry, person)} is on it`
                     : "Free";
             // Staff: free means nobody's and nobody on it. The owner: any
             // open chair, including one they are about to take from somebody.

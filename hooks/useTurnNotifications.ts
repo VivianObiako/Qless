@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { subscribeToPush } from "@/lib/push";
-import type { Proximity } from "@/lib/types";
+import { countOf, isDraw, type Proximity, type QueueSummary } from "@/lib/types";
 
 /**
  * What this browser will let us do. "unsupported" and "denied" are different
@@ -18,6 +18,8 @@ interface TurnNotificationsInput {
   number: number | null;
   peopleAhead: number;
   queueName: string;
+  /** How the queue is served and what its people are called, for the wording. */
+  wording: Pick<QueueSummary, "servingOrder" | "personNoun" | "peopleNoun">;
   /** Where they were called to, on a queue with more than one chair. */
   seatName: string | null;
   /** For the push subscription, which is per queue and per entry. */
@@ -60,6 +62,7 @@ export function useTurnNotifications({
   number,
   peopleAhead,
   queueName,
+  wording,
   seatName,
   slug,
   customerToken,
@@ -132,7 +135,7 @@ export function useTurnNotifications({
     // a second alert for something they have not missed.
     if (document.visibilityState === "visible") return;
 
-    const message = messageFor(proximity, number, peopleAhead, queueName, seatName);
+    const message = messageFor(proximity, number, peopleAhead, queueName, wording, seatName);
     if (message === null) return;
 
     try {
@@ -151,7 +154,7 @@ export function useTurnNotifications({
       // service worker. There is no fallback worth building for a convenience:
       // the page still says everything this would have.
     }
-  }, [proximity, number, peopleAhead, queueName, seatName, permission, pushed]);
+  }, [proximity, number, peopleAhead, queueName, wording, seatName, permission, pushed]);
 
   return { permission, request, pushed };
 }
@@ -166,20 +169,19 @@ function messageFor(
   number: number,
   peopleAhead: number,
   queueName: string,
+  wording: Pick<QueueSummary, "servingOrder" | "personNoun" | "peopleNoun">,
   seatName: string | null,
 ): AlertMessage | null {
   switch (proximity) {
     case "close":
       return {
         title: "You're getting close",
-        body: `#${number} at ${queueName}. ${
-          peopleAhead === 1 ? "One person" : `${peopleAhead} people`
-        } ahead — start heading back.`,
+        body: `#${number} at ${queueName}. ${countOf(wording, peopleAhead)} ahead — start heading back.`,
       };
     case "next":
       return {
         title: "You're next",
-        body: `#${number} at ${queueName}. Be inside now.`,
+        body: `#${number} at ${queueName}. ${isDraw(wording) ? "Get ready." : "Be inside now."}`,
       };
     case "current":
       return {
