@@ -47,8 +47,9 @@ export function NewDayNotice({
   const [dismissed, setDismissed] = useState<string | null>(() => readDismissed(queueId));
   const now = useNow(60_000);
 
+  // Every chair empty, not just the one this screen happens to show.
   const idle =
-    view.serving === null && view.waiting.length === 0 && view.queue.nextNumber > 1 && view.lastActivityAt !== null;
+    view.servingList.length === 0 && view.waiting.length === 0 && view.queue.nextNumber > 1 && view.lastActivityAt !== null;
   if (!idle || view.lastActivityAt === null) return null;
   if (now - Date.parse(view.lastActivityAt) < NEW_DAY_AFTER_MS) return null;
   if (dismissed === view.lastActivityAt) return null;

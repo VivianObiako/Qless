@@ -18,6 +18,8 @@ interface TurnNotificationsInput {
   number: number | null;
   peopleAhead: number;
   queueName: string;
+  /** Where they were called to, on a queue with more than one chair. */
+  seatName: string | null;
   /** For the push subscription, which is per queue and per entry. */
   slug: string;
   customerToken: string | null;
@@ -58,6 +60,7 @@ export function useTurnNotifications({
   number,
   peopleAhead,
   queueName,
+  seatName,
   slug,
   customerToken,
 }: TurnNotificationsInput): TurnNotifications {
@@ -129,7 +132,7 @@ export function useTurnNotifications({
     // a second alert for something they have not missed.
     if (document.visibilityState === "visible") return;
 
-    const message = messageFor(proximity, number, peopleAhead, queueName);
+    const message = messageFor(proximity, number, peopleAhead, queueName, seatName);
     if (message === null) return;
 
     try {
@@ -148,7 +151,7 @@ export function useTurnNotifications({
       // service worker. There is no fallback worth building for a convenience:
       // the page still says everything this would have.
     }
-  }, [proximity, number, peopleAhead, queueName, permission, pushed]);
+  }, [proximity, number, peopleAhead, queueName, seatName, permission, pushed]);
 
   return { permission, request, pushed };
 }
@@ -163,6 +166,7 @@ function messageFor(
   number: number,
   peopleAhead: number,
   queueName: string,
+  seatName: string | null,
 ): AlertMessage | null {
   switch (proximity) {
     case "close":
@@ -180,7 +184,7 @@ function messageFor(
     case "current":
       return {
         title: "It's your turn",
-        body: `#${number} at ${queueName}. Head to the counter.`,
+        body: `#${number} at ${queueName}. ${seatName ? `Go to ${seatName}.` : "Head to the counter."}`,
       };
     default:
       return null;

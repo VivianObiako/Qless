@@ -27,19 +27,36 @@ handshake check it.
 | `/` | Landing |
 | `/create` | Create a queue |
 | `/q/[slug]` | Customer view — join, watch your place, say you're here, leave |
-| `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in |
+| `/dashboard/[id]` | The counter: serve, call, skip, add a walk-in. With more than one chair, a rail of chairs with one open |
+| `/dashboard/[id]/chairs` | Every chair as a full card, four to a row (owner) |
 | `/dashboard/[id]/history` | Every finished entry as a searchable, sortable, filterable, paginated table, with CSV export |
 | `/dashboard/[id]/share` | The link, the QR code, the print sheet, the display board and the customer view |
 | `/dashboard/[id]/settings` | Queue configuration (owner) |
 | `/display/[slug]` | Full-screen board for a wall screen, with an optional chime |
 | `/print/[slug]` | Printable QR sheet |
 | `/queues`, `/operators`, `/enter` | Owner's queues, staff roster, code entry |
+| `/profile` | Your name, the chair each counter opens on for you, appearance, devices |
 
-## What's next
+## Chairs
 
-Multi-seat queues — several chairs drawing from one line — is planned and
-designed but not built. The plan, rules and user stories are in
-`docs/PLAN.md` under "Plan — multi-seat queues".
+A queue has one or more seats — chairs, counters, rooms — drawing from one
+line. A queue with one seat renders exactly as a single counter. Add a
+second in Settings › Seats and the counter becomes a rail of chairs with
+one open as the card, calls are aimed at a chair somebody is at, the pass
+says "Go to Chair 2", the wall shows every chair, and the estimate divides
+by the chairs that are open. The rules are in `docs/PLAN.md` under "Plan —
+multi-seat queues" and the decisions in `docs/DECISIONS.md`.
+
+## End-to-end tests
+
+```bash
+npx playwright test
+```
+
+They run against the real API on `:8080` and the dev server on `:3000`, and
+reuse a dev server that is already running. To point them at a dev server on
+another port, set `PLAYWRIGHT_BASE_URL`, which the API must also allow as an
+origin. `e2e/seats.spec.ts` is the two-chair day.
 
 ## Tablets
 

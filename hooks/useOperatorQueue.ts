@@ -6,10 +6,14 @@ import {
   actOnEntry,
   actOnQueue,
   addWalkIn as apiAddWalkIn,
+  getMyQueues,
   getOperatorView,
+  leaveSeat,
   pauseQueue,
   queueSocketUrl,
   serveNext,
+  takeSeat,
+  updateSeat,
 } from "@/lib/api";
 import { classifyUnauthorized, type AccessOutcome } from "@/lib/access";
 import {
@@ -21,7 +25,7 @@ import {
   setSession,
   type SessionRole,
 } from "@/lib/session";
-import type { EntryAction, OperatorEvent, OperatorView, QueueAction } from "@/lib/types";
+import type { EntryAction, OperatorEvent, OperatorView, QueueAction, Seat, UpdateSeatInput } from "@/lib/types";
 import type { ConnectionState } from "@/components/LiveIndicator";
 import { useQueueSocket } from "./useQueueSocket";
 import { useIsClient, useStoredValue } from "./useStoredValue";
@@ -56,9 +60,25 @@ interface OperatorQueue {
    * checks every request regardless.
    */
   isOwner: boolean;
+  /**
+   * The signed-in person's own id, once known. It is how an operator's
+   * counter finds their chair among the seats; null until the first load.
+   */
+  principalId: string | null;
+  /** What they are called: the owner's name or the operator's, or empty. */
+  myName: string;
   connection: ConnectionState;
-  serveNextCustomer: () => Promise<void>;
-  actOnCustomer: (entryId: string, action: EntryAction) => Promise<void>;
+  /** Calls the next person to a seat. With one seat the id may be left out. */
+  serveNextCustomer: (seatId?: string) => Promise<void>;
+  /** The seat matters only to "serve": where the call lands. */
+  actOnCustomer: (entryId: string, action: EntryAction, seatId?: string) => Promise<void>;
+  /** The seat mid-change, so one tile or card can show it. */
+  pendingSeatId: string | null;
+  takeChair: (seatId: string) => Promise<void>;
+  leaveChair: (seatId: string) => Promise<void>;
+  setChairOpen: (seatId: string, active: boolean) => Promise<void>;
+  /** Owner only: who works a chair, or null for nobody. */
+  assignChair: (seatId: string, worker: UpdateSeatInput["worker"]) => Promise<void>;
   /** Put somebody in the queue from the counter. Resolves false if refused. */
   addWalkIn: (name: string) => Promise<boolean>;
   addingWalkIn: boolean;
@@ -83,6 +103,7 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
   const [pendingAction, setPendingAction] = useState<QueueAction | null>(null);
   const [access, setAccess] = useState<AccessOutcome | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
+  const [pendingSeatId, setPendingSeatId] = useState<string | null>(null);
 
   const isClient = useIsClient();
   const sessionToken = useStoredValue(sessionTokenKey());
@@ -200,42 +221,92 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
   );
   const connection = useQueueSocket<OperatorEvent>({ url: socketUrl, onEvent, onReconnect });
 
-  const serveNextCustomer = useCallback(async (): Promise<void> => {
-    if (!token) return;
+  const me = useMe(token);
 
-    setServing(true);
-    setActionError(null);
-    try {
-      // The action response is the new dashboard state, so the screen updates
-      // from a single round trip rather than waiting for its own broadcast.
-      setView(await serveNext(queueId, token));
-    } catch (caught) {
-      if (caught instanceof ApiError) setActionError(caught);
-      void classify(caught);
-    } finally {
-      setServing(false);
-    }
-  }, [queueId, token, classify]);
+  const serveNextCustomer = useCallback(
+    async (seatId?: string): Promise<void> => {
+      if (!token) return;
+
+      setServing(true);
+      setActionError(null);
+      try {
+        // The action response is the new dashboard state, so the screen updates
+        // from a single round trip rather than waiting for its own broadcast.
+        setView(await serveNext(queueId, token, seatId));
+      } catch (caught) {
+        if (caught instanceof ApiError) setActionError(caught);
+        // A chair that stopped being free under the operator — somebody else
+        // called to it, or it was closed — is worth a resync for the same
+        // reason a stale row is.
+        if (caught instanceof ApiError && caught.status === 409) void load();
+        void classify(caught);
+      } finally {
+        setServing(false);
+      }
+    },
+    [queueId, token, load, classify],
+  );
 
   const actOnCustomer = useCallback(
-    async (entryId: string, action: EntryAction): Promise<void> => {
+    async (entryId: string, action: EntryAction, seatId?: string): Promise<void> => {
       if (!token) return;
 
       setPendingEntryId(entryId);
       setActionError(null);
       try {
-        setView(await actOnEntry(queueId, entryId, action, token));
+        setView(await actOnEntry(queueId, entryId, action, token, seatId));
       } catch (caught) {
         if (caught instanceof ApiError) setActionError(caught);
         // A stale row — someone else already dealt with this customer — is the
         // one failure worth resyncing for, since the screen is now wrong.
-        if (caught instanceof ApiError && caught.code === "entry_not_active") void load();
+        if (caught instanceof ApiError && caught.status === 409) void load();
         void classify(caught);
       } finally {
         setPendingEntryId(null);
       }
     },
     [queueId, token, load, classify],
+  );
+
+  // Seat changes answer with the seat list alone; the rest of the view is
+  // untouched by them, and the next frame carries the whole thing anyway.
+  const changeSeat = useCallback(
+    async (seatId: string, work: () => Promise<{ seats: Seat[] }>): Promise<void> => {
+      if (!token) return;
+
+      setPendingSeatId(seatId);
+      setActionError(null);
+      try {
+        const result = await work();
+        setView((current) => (current ? { ...current, seats: result.seats } : current));
+      } catch (caught) {
+        if (caught instanceof ApiError) setActionError(caught);
+        if (caught instanceof ApiError && caught.status === 409) void load();
+        void classify(caught);
+      } finally {
+        setPendingSeatId(null);
+      }
+    },
+    [token, load, classify],
+  );
+
+  const takeChair = useCallback(
+    (seatId: string): Promise<void> => changeSeat(seatId, () => takeSeat(queueId, seatId, token ?? "")),
+    [changeSeat, queueId, token],
+  );
+  const leaveChair = useCallback(
+    (seatId: string): Promise<void> => changeSeat(seatId, () => leaveSeat(queueId, seatId, token ?? "")),
+    [changeSeat, queueId, token],
+  );
+  const setChairOpen = useCallback(
+    (seatId: string, active: boolean): Promise<void> =>
+      changeSeat(seatId, () => updateSeat(queueId, seatId, { active }, token ?? "")),
+    [changeSeat, queueId, token],
+  );
+  const assignChair = useCallback(
+    (seatId: string, worker: UpdateSeatInput["worker"]): Promise<void> =>
+      changeSeat(seatId, () => updateSeat(queueId, seatId, { worker }, token ?? "")),
+    [changeSeat, queueId, token],
   );
 
   const [addingWalkIn, setAddingWalkIn] = useState(false);
@@ -299,9 +370,16 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
     access,
     endedAs,
     isOwner: role !== "OPERATOR",
+    principalId: me.id,
+    myName: me.name,
     connection,
     serveNextCustomer,
     actOnCustomer,
+    pendingSeatId,
+    takeChair,
+    leaveChair,
+    setChairOpen,
+    assignChair,
     addWalkIn,
     addingWalkIn,
     actOnThisQueue,
@@ -309,3 +387,41 @@ export function useOperatorQueue(queueId: string, tokenFromUrl: string | null): 
   };
 }
 
+
+/**
+ * Who this session is, kept across mounts like the switcher's list: every
+ * dashboard screen renders its own chrome, and the answer does not change
+ * for the life of a token.
+ */
+let rememberedMe: { token: string; id: string; name: string } | null = null;
+
+function useMe(token: string | null): { id: string | null; name: string } {
+  const [me, setMe] = useState<{ id: string | null; name: string }>(() =>
+    rememberedMe && rememberedMe.token === token
+      ? { id: rememberedMe.id, name: rememberedMe.name }
+      : { id: null, name: "" },
+  );
+
+  useEffect(() => {
+    if (!token) return;
+    if (rememberedMe && rememberedMe.token === token) return;
+
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const mine = await getMyQueues(token, controller.signal);
+        rememberedMe = { token, id: mine.principalId, name: mine.displayName };
+        setMe({ id: mine.principalId, name: mine.displayName });
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        // Without an id the counter cannot tell which chair is theirs, and
+        // says so; a session that has ended is handled by the queue load.
+        if (!(caught instanceof ApiError)) return;
+      }
+    })();
+
+    return () => controller.abort();
+  }, [token]);
+
+  return me;
+}

@@ -16,9 +16,12 @@ import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotif
 import { deriveBoardRows } from "@/lib/board";
 import {
   proximityOf,
+  seatFor,
+  turnsAhead,
   type CustomerView,
   type Presence,
   type Proximity,
+  type PublicSeat,
   type QueueEntry,
 } from "@/lib/types";
 
@@ -42,12 +45,12 @@ interface ScreenProps {
  * What a screen reader is told when the queue moves. One sentence, rebuilt on
  * every change, read politely — the screen itself is doing the shouting.
  */
-function announcementFor(proximity: Proximity, entry: QueueEntry, view: CustomerView): string {
+function announcementFor(proximity: Proximity, entry: QueueEntry, view: CustomerView, seat: PublicSeat | null): string {
   const mine = `Your number is ${entry.number}.`;
 
   switch (proximity) {
     case "current":
-      return `It's your turn. ${mine} Head to the counter.`;
+      return `It's your turn. ${mine} ${seat ? `Go to ${seat.name}.` : "Head to the counter."}`;
     case "next":
       return `You're next. ${mine}`;
     case "close":
@@ -78,8 +81,10 @@ export function TicketPass({
   onCancel,
   onSay,
 }: TicketPassProps): JSX.Element {
-  const proximity = proximityOf(entry, view.peopleAhead);
-  const announcement = announcementFor(proximity, entry, view);
+  const proximity = proximityOf(entry, view.peopleAhead, view.state.openSeats);
+  // Where they were called to, on a queue with more than one chair.
+  const seat = seatFor(view.state, entry);
+  const announcement = announcementFor(proximity, entry, view, seat);
   // What this entry has said. It lives on the server, so it is the same on
   // every device the customer opens the pass on.
   const presence = entry.presence;
@@ -93,6 +98,7 @@ export function TicketPass({
     number: entry.number,
     peopleAhead: view.peopleAhead,
     queueName: view.state.queue.name,
+    seatName: seat?.name ?? null,
     slug,
     customerToken,
   });
@@ -102,6 +108,7 @@ export function TicketPass({
       <TurnScreen
         view={view}
         entry={entry}
+        seat={seat}
         onCancel={onCancel}
         onSay={onSay}
         presence={presence}
@@ -166,15 +173,15 @@ function holdPromise(holdMinutes: number, stage: "next" | "current"): string {
  * "three away" to someone who is second in line reads as a screen that has
  * not noticed where they are.
  */
-function alertsCopy(peopleAhead: number): ReactNode {
-  if (peopleAhead > 3) {
+function alertsCopy(turns: number): ReactNode {
+  if (turns > 3) {
     return (
       <>
         at <span className="text-strong">three away</span>, one away, and your turn
       </>
     );
   }
-  if (peopleAhead > 1) {
+  if (turns > 1) {
     return (
       <>
         at <span className="text-strong">one away</span> and your turn
@@ -190,11 +197,12 @@ function alertsCopy(peopleAhead: number): ReactNode {
 
 function AlertsNotice({
   permission,
-  peopleAhead,
+  turns,
   onRequest,
 }: {
   permission: AlertPermission;
-  peopleAhead: number;
+  /** Turns ahead, not people: with several chairs the nudges come by turn. */
+  turns: number;
   onRequest: () => void;
 }): JSX.Element {
   if (permission === "default") {
@@ -208,7 +216,7 @@ function AlertsNotice({
           </Button>
         }
       >
-        We can nudge you {alertsCopy(peopleAhead)}. Your place is held either way.
+        We can nudge you {alertsCopy(turns)}. Your place is held either way.
       </Notice>
     );
   }
@@ -216,7 +224,7 @@ function AlertsNotice({
   return (
     <Notice tone="quiet" chip="!">
       {permission === "granted" ? (
-        <>Alerting you {alertsCopy(peopleAhead)}. Your place is held if you close this.</>
+        <>Alerting you {alertsCopy(turns)}. Your place is held if you close this.</>
       ) : permission === "denied" ? (
         <>
           Alerts are blocked for this site, so keep an eye on this page. Your place is held if you
@@ -246,11 +254,14 @@ function WaitingScreen({
   setPresence: (next: Presence) => void;
 }): JSX.Element {
   const rows = deriveBoardRows({
-    servingNumber: view.state.servingNumber,
+    serving: view.state.serving,
+    seatCount: view.state.seats.length,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
   });
   const oneAhead = view.peopleAhead === 1;
+  const turns = turnsAhead(view.peopleAhead, view.state.openSeats);
+  const chairs = view.state.openSeats > 1;
 
   return (
     <Shell connection={connection} showToggle>
@@ -274,7 +285,7 @@ function WaitingScreen({
             <dl className="shrink-0 space-y-3 text-right lg:space-y-5">
               <div>
                 <MonoLabel as="dt" size={10} tone="paper">
-                  Now serving
+                  {chairs ? "Last called" : "Now serving"}
                 </MonoLabel>
                 <dd>
                   <Numeral value={view.state.servingNumber} scale="small" className="mt-1 text-paper-ink lg:text-[40px]" />
@@ -328,14 +339,16 @@ function WaitingScreen({
             <Notice tone="standing" chip="!">
               {oneAhead
                 ? "One person ahead of you. We'll tell you the moment it's your turn."
-                : `${view.peopleAhead} ahead of you. About five minutes' walk is all you have.`}
+                : chairs
+                  ? `${view.peopleAhead} ahead of you across ${view.state.openSeats} chairs. About five minutes' walk is all you have.`
+                  : `${view.peopleAhead} ahead of you. About five minutes' walk is all you have.`}
             </Notice>
           )}
 
           {!close && (
             <AlertsNotice
               permission={alerts.permission}
-              peopleAhead={view.peopleAhead}
+              turns={turns}
               onRequest={alerts.request}
             />
           )}
@@ -364,11 +377,13 @@ function NextScreen({
   setPresence,
 }: ScreenProps & { presence: Presence | null; setPresence: (next: Presence) => void }): JSX.Element {
   const rows = deriveBoardRows({
-    servingNumber: view.state.servingNumber,
+    serving: view.state.serving,
+    seatCount: view.state.seats.length,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
     collapsed: true,
   });
+  const beingServed = view.state.serving.map((slot) => slot.number);
 
   return (
     <Shell connection={connection} surface="flip">
@@ -395,9 +410,11 @@ function NextScreen({
           </div>
 
           <p className="text-[24px] font-medium leading-tight tracking-[-0.02em] lg:text-[30px]">
-            {view.state.servingNumber === null
+            {beingServed.length === 0
               ? "You're up next."
-              : `You're up after ${view.state.servingNumber}.`}
+              : beingServed.length === 1
+                ? `You're up after ${beingServed[0]}.`
+                : `You're up after ${beingServed.slice(0, -1).join(", ")} and ${beingServed.at(-1)}.`}
           </p>
           <p className="ticket-flip-muted mt-3 text-[13.5px] leading-[1.55]">
             {holdPromise(view.state.queue.holdMinutes, "next")}
@@ -425,13 +442,24 @@ function NextScreen({
 function TurnScreen({
   view,
   entry,
+  seat,
   onCancel,
   presence,
   setPresence,
 }: Omit<ScreenProps, "connection"> & {
+  /** Where to go, on a queue with more than one chair. */
+  seat: PublicSeat | null;
   presence: Presence | null;
   setPresence: (next: Presence) => void;
 }): JSX.Element {
+  const queueName = view.state.queue.name;
+  // "Kofi is ready for you at Ade's" when the chair has somebody named at
+  // it; the shop itself otherwise.
+  const ready = seat
+    ? seat.workerName
+      ? `${seat.workerName} is ready for you at ${queueName}.`
+      : `${queueName} is ready for you at ${seat.name}.`
+    : `${queueName} is ready for you.`;
   return (
     <Shell connection="called" surface="signal">
       <div className="flex flex-1 flex-col gap-6 lg:grid lg:flex-none lg:grid-cols-[auto_1fr] lg:items-center lg:gap-16">
@@ -447,8 +475,19 @@ function TurnScreen({
         <div className="lg:border-l lg:border-white/35 lg:pl-16">
           <hr className="mb-6 border-0 border-t border-white/35 lg:hidden" />
 
-          <p className="text-[clamp(26px,8vw,34px)] font-medium leading-tight tracking-[-0.02em] text-white lg:text-[44px]">
-            {view.state.queue.name} is ready for you.
+          {seat && (
+            <p className="text-[clamp(26px,8vw,34px)] font-medium leading-tight tracking-[-0.02em] text-white lg:text-[44px]">
+              Go to {seat.name}.
+            </p>
+          )}
+          <p
+            className={
+              seat
+                ? "mt-3 text-[17px] font-medium leading-snug text-white lg:text-[22px]"
+                : "text-[clamp(26px,8vw,34px)] font-medium leading-tight tracking-[-0.02em] text-white lg:text-[44px]"
+            }
+          >
+            {ready}
           </p>
           {/* Plain white. A tinted white on this ground drops back under
               4.5:1, so the step down in hierarchy is size, not opacity. */}
@@ -459,7 +498,7 @@ function TurnScreen({
           <div className="mt-10 flex-1 lg:hidden" />
 
           <div className="mt-8 space-y-2 lg:max-w-xs">
-            <PresencePanel stage="current" presence={presence} onSet={setPresence} onSignal />
+            <PresencePanel stage="current" presence={presence} onSet={setPresence} onSignal seatName={seat?.name ?? null} />
             <button
               type="button"
               onClick={onCancel}
@@ -491,11 +530,14 @@ function PresencePanel({
   presence,
   onSet,
   onSignal = false,
+  seatName = null,
 }: {
   stage: "close" | "next" | "current";
   presence: Presence | null;
   onSet: (next: Presence) => void;
   onSignal?: boolean;
+  /** Where to go once here, on a queue with more than one chair. */
+  seatName?: string | null;
 }): JSX.Element {
   const here = presence === "HERE";
   const primary = onSignal ? "onSignal" : "contrast";
@@ -514,7 +556,9 @@ function PresencePanel({
           {stage === "current" ? "You're here" : "You're marked as here"}
         </div>
         {stage !== "close" && (
-          <p className={held}>{stage === "current" ? "Go to the counter." : "Wait to be called."}</p>
+          <p className={held}>
+            {stage === "current" ? (seatName ? `Go to ${seatName}.` : "Go to the counter.") : "Wait to be called."}
+          </p>
         )}
       </div>
     );

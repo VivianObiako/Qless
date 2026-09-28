@@ -4,7 +4,7 @@ import { useState, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut, Monitor, Moon, MoreHorizontal, PenLine, Smartphone, Sun, Users } from "lucide-react";
+import { LogOut, Monitor, Moon, MoreHorizontal, Smartphone, Sun, UserRound, Users } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Icon } from "@/components/Icon";
 import { ApiError, revokeOtherSessions } from "@/lib/api";
@@ -15,7 +15,6 @@ import { useDisclosure } from "@/hooks/useDisclosure";
 import { useStoredValue } from "@/hooks/useStoredValue";
 import { useOwnerName } from "@/hooks/useOwnerName";
 import { useTheme } from "@/hooks/useTheme";
-import { OwnerNameDialog } from "./OwnerNameDialog";
 
 interface PersonalMenuProps {
   /** "row" is the sidebar's bottom row; "avatar" is the compact top-bar form. */
@@ -52,7 +51,6 @@ export function PersonalMenu({
 
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const [revoking, setRevoking] = useState(false);
-  const [editingName, setEditingName] = useState(false);
   const owner = useOwnerName();
 
   const roleWord = isOwner ? "Owner" : "Operator";
@@ -137,19 +135,15 @@ export function PersonalMenu({
         </div>
         <div className="mb-1.5 h-px bg-shell-line" />
 
-        {isOwner && (
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              setEditingName(true);
-            }}
-            className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13.5px] text-strong transition-colors hover:bg-shell-mid"
-          >
-            <Icon icon={PenLine} size={15} className="text-muted" />
-            {owner.name ? "Change your name" : "Add your name"}
-          </button>
-        )}
+        {/* Name, chair and devices live on one screen; the menu keeps the
+            quick things — appearance and the way out. */}
+        <Link
+          href="/profile"
+          className="flex items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-[13.5px] text-strong transition-colors hover:bg-shell-mid"
+        >
+          <Icon icon={UserRound} size={15} className="text-muted" />
+          Profile
+        </Link>
 
         {isOwner && (
           <Link
@@ -214,10 +208,6 @@ export function PersonalMenu({
           Sign out on this device
         </button>
       </div>
-
-      {isOwner && (
-        <OwnerNameDialog open={editingName} onOpenChange={setEditingName} name={owner.name} onSave={owner.rename} />
-      )}
 
       <ConfirmDialog
         open={confirmingRevoke}

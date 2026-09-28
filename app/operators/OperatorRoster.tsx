@@ -19,9 +19,11 @@ import {
   createOperator,
   getMyQueues,
   getOperators,
+  getSeats,
   regenerateOperatorCode,
   revokeOperator,
   updateOperator,
+  updateSeat,
 } from "@/lib/api";
 import type { AccessOutcome } from "@/lib/access";
 import {
@@ -31,7 +33,7 @@ import {
   type SessionRole,
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import type { Operator, Queue } from "@/lib/types";
+import type { Operator, Queue, Seat } from "@/lib/types";
 
 /**
  * The owner's roster.
@@ -47,6 +49,9 @@ export function OperatorRoster(): JSX.Element {
 
   const [operators, setOperators] = useState<Operator[] | null>(null);
   const [queues, setQueues] = useState<Queue[]>([]);
+  // Each queue's chairs, for the chair picker on a row. Only queues with
+  // more than one chair show one; a one-chair queue has nothing to pick.
+  const [seatsByQueue, setSeatsByQueue] = useState<Record<string, Seat[]>>({});
   const [error, setError] = useState<ApiError | null>(null);
   const [access, setAccess] = useState<AccessOutcome | null>(null);
   const [endedAs, setEndedAs] = useState<SessionRole | null>(null);
@@ -75,6 +80,19 @@ export function OperatorRoster(): JSX.Element {
       if (roster.status === "fulfilled") {
         setOperators(roster.value.operators);
         setError(null);
+
+        if (mine.status === "fulfilled") {
+          const lists = await Promise.allSettled(
+            mine.value.queues.map((queue) => getSeats(queue.id, token, controller.signal)),
+          );
+          if (controller.signal.aborted) return;
+          const byQueue: Record<string, Seat[]> = {};
+          mine.value.queues.forEach((queue, index) => {
+            const list = lists[index];
+            if (list.status === "fulfilled") byQueue[queue.id] = list.value.seats;
+          });
+          setSeatsByQueue(byQueue);
+        }
         return;
       }
 
@@ -102,6 +120,18 @@ export function OperatorRoster(): JSX.Element {
     setOperators((current) =>
       (current ?? []).map((existing) => (existing.id === operator.id ? operator : existing)),
     );
+  }
+
+  // A chair changing hands shows on two rows — the one that took it and
+  // the one that lost it — so the roster is re-read rather than patched.
+  async function seatsChanged(queueId: string, seats: Seat[], sessionToken: string): Promise<void> {
+    setSeatsByQueue((current) => ({ ...current, [queueId]: seats }));
+    try {
+      const roster = await getOperators(sessionToken);
+      setOperators(roster.operators);
+    } catch {
+      // The row already shows the seat it asked for; the next load corrects the rest.
+    }
   }
 
   // The chrome names the page, so this screen's own title is an h2 under it.
@@ -165,8 +195,10 @@ export function OperatorRoster(): JSX.Element {
               key={operator.id}
               operator={operator}
               queues={queues}
+              seatsByQueue={seatsByQueue}
               token={sessionToken}
               onChanged={replace}
+              onSeatsChanged={(queueId, seats) => void seatsChanged(queueId, seats, sessionToken)}
               onCodeIssued={(code) => setIssued({ operator, code })}
             />
           ))}
@@ -233,14 +265,18 @@ function PlainShell({ children }: { children: JSX.Element }): JSX.Element {
 function OperatorRow({
   operator,
   queues,
+  seatsByQueue,
   token,
   onChanged,
+  onSeatsChanged,
   onCodeIssued,
 }: {
   operator: Operator;
   queues: Queue[];
+  seatsByQueue: Record<string, Seat[]>;
   token: string;
   onChanged: (operator: Operator) => void;
+  onSeatsChanged: (queueId: string, seats: Seat[]) => void;
   onCodeIssued: (code: string) => void;
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
@@ -271,6 +307,30 @@ function OperatorRow({
       onChanged(result.operator);
     });
   }
+
+  // Giving somebody a chair, or taking it away: the seat is told who works
+  // it, and whoever held it before is moved off by the server.
+  function assignSeat(queueId: string, seatId: string): void {
+    const held = operator.seats.find((seat) => seat.queueId === queueId);
+    void run(async () => {
+      if (seatId === "") {
+        if (!held) return;
+        const result = await updateSeat(queueId, held.seatId, { worker: null }, token);
+        onSeatsChanged(queueId, result.seats);
+        return;
+      }
+      const result = await updateSeat(
+        queueId,
+        seatId,
+        { worker: { type: "OPERATOR", operatorId: operator.id } },
+        token,
+      );
+      onSeatsChanged(queueId, result.seats);
+    });
+  }
+
+  // Queues they work that have chairs to choose between.
+  const chairQueues = queues.filter((queue) => assigned.has(queue.id) && (seatsByQueue[queue.id]?.length ?? 0) > 1);
 
   return (
     <li className="py-5">
@@ -322,6 +382,44 @@ function OperatorRow({
               >
                 {queue.name}
               </button>
+            );
+          })}
+        </div>
+      )}
+
+      {chairQueues.length > 0 && (
+        <div className="mt-4 flex flex-col gap-2">
+          {chairQueues.map((queue) => {
+            const seats = seatsByQueue[queue.id] ?? [];
+            const held = operator.seats.find((seat) => seat.queueId === queue.id);
+            const selectId = `chair-${operator.id}-${queue.id}`;
+            return (
+              <div key={queue.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <label htmlFor={selectId} className="text-[13px] text-dim">
+                  {queues.length > 1 ? `Chair at ${queue.name}` : "Their chair"}
+                </label>
+                <select
+                  id={selectId}
+                  value={held?.seatId ?? ""}
+                  disabled={busy}
+                  onChange={(event) => assignSeat(queue.id, event.target.value)}
+                  className="h-9 rounded-full border border-faint bg-transparent px-3 text-[13px] text-strong transition-colors hover:border-strong focus:border-strong focus:outline-none disabled:opacity-60 pointer-coarse:h-11"
+                >
+                  <option value="">No chair yet</option>
+                  {seats.map((seat) => {
+                    const other = seat.worker && seat.worker.operatorId !== operator.id;
+                    return (
+                      <option key={seat.id} value={seat.id}>
+                        {seat.name}
+                        {!seat.active ? " · closed" : other ? ` · ${seat.worker?.name || "Owner"}` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                {queue.seatsFixed && held === undefined && (
+                  <span className="text-[12.5px] text-muted">Chairs are fixed here, so they cannot pick one themselves.</span>
+                )}
+              </div>
             );
           })}
         </div>

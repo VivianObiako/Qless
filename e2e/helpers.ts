@@ -55,11 +55,61 @@ export async function serveNext(
   request: APIRequestContext,
   queueId: string,
   token: string,
+  seatId?: string,
 ): Promise<void> {
   const response = await request.post(`${API}/api/queues/${queueId}/next`, {
+    data: seatId ? { seatId } : undefined,
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(response.ok()).toBeTruthy();
+}
+
+/** Adds a chair. The queue already has one, "Counter"; a second is what turns multi-seat on. */
+export async function addSeat(
+  request: APIRequestContext,
+  queueId: string,
+  token: string,
+  name: string,
+): Promise<string> {
+  const response = await request.post(`${API}/api/queues/${queueId}/seats`, {
+    data: { name },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(response.status()).toBe(201);
+  return (await response.json()).seat.id;
+}
+
+/** The queue's chairs in order, with their ids. */
+export async function listSeats(
+  request: APIRequestContext,
+  queueId: string,
+  token: string,
+): Promise<{ id: string; name: string }[]> {
+  const response = await request.get(`${API}/api/queues/${queueId}/seats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()).seats;
+}
+
+/** The caller sits down at a chair, under the same rules as the counter's picker. */
+export async function takeSeat(
+  request: APIRequestContext,
+  queueId: string,
+  token: string,
+  seatId: string,
+): Promise<void> {
+  const response = await request.post(`${API}/api/queues/${queueId}/seats/${seatId}/take`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
+/** Redeems an access code for a session token, the way /enter does. */
+export async function redeem(request: APIRequestContext, code: string): Promise<string> {
+  const response = await request.post(`${API}/api/access/redeem`, { data: { code } });
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()).token;
 }
 
 export async function createOperator(

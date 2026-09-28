@@ -14,10 +14,13 @@ import { useOrigin } from "@/hooks/useStoredValue";
 import { useChime } from "@/hooks/useChime";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { cn } from "@/lib/utils";
-import type { PublicState, QueueStatus } from "@/lib/types";
+import type { PublicSeat, PublicState, QueueStatus, ServingSlot } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
 const UP_NEXT = 3;
+
+/** Up to this many chairs sit in a row; above it the wall becomes a list. */
+const CHAIRS_IN_A_ROW = 4;
 
 /**
  * The screen on the wall.
@@ -35,24 +38,22 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
   // A wall screen that goes to sleep is a blank wall.
   useWakeLock();
 
-  // A tone when the number changes, once the board has been told to. The
-  // first frame and a reconnect are not changes; only a number giving way to
-  // a different number is.
+  // A tone when a new number is called to any chair, once the board has
+  // been told to. The first frame and a reconnect are not calls; only the
+  // set of numbers being served gaining one it did not have is. Somebody
+  // finishing changes nothing the room needs to hear.
   const chime = useChime();
-  const lastServing = useRef<number | null | undefined>(undefined);
-  const servingNumber = queue.state?.servingNumber;
+  const lastServing = useRef<string | undefined>(undefined);
+  const servingKey = queue.state ? queue.state.serving.map((slot) => slot.number).join(",") : undefined;
   useEffect(() => {
-    if (servingNumber === undefined) return;
+    if (servingKey === undefined) return;
     const previous = lastServing.current;
-    lastServing.current = servingNumber;
-    if (
-      previous === undefined ||
-      previous === servingNumber ||
-      servingNumber === null
-    )
-      return;
-    chime.play();
-  }, [servingNumber, chime]);
+    lastServing.current = servingKey;
+    if (previous === undefined || previous === servingKey) return;
+    const before = new Set(previous.split(",").filter(Boolean));
+    const called = servingKey.split(",").filter(Boolean).some((number) => !before.has(number));
+    if (called) chime.play();
+  }, [servingKey, chime]);
 
   if (queue.loading) {
     return (
@@ -125,20 +126,20 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
             rather than every count that moved with it — a wall screen that
             interrupts is worse than one nobody hears.
           */}
-          <p role="status" aria-live="polite" className="min-w-0">
-            <span className="sr-only">
-              {state.servingNumber === null
-                ? "Nobody is being served yet."
-                : `Now serving number ${state.servingNumber}.`}
-            </span>
-            <span aria-hidden="true">
-              <Numeral
-                value={state.servingNumber}
-                scale="display"
-                className="text-strong md:text-[clamp(180px,32vw,320px)] lg:text-[clamp(180px,24vw,340px)]"
-              />
-            </span>
-          </p>
+          <div role="status" aria-live="polite" className="min-w-0">
+            <span className="sr-only">{servingAnnouncement(state)}</span>
+            <div aria-hidden="true">
+              {state.seats.length <= 1 ? (
+                <Numeral
+                  value={state.servingNumber}
+                  scale="display"
+                  className="text-strong md:text-[clamp(180px,32vw,320px)] lg:text-[clamp(180px,24vw,340px)]"
+                />
+              ) : (
+                <Chairs seats={state.seats} serving={state.serving} />
+              )}
+            </div>
+          </div>
 
           <div className="border-t border-white/15 pt-6">
             <MonoLabel size={13} tone="muted" className="lg:text-[15px]">
@@ -213,6 +214,88 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
       </div>
     </Frame>
   );
+}
+
+/** What the room is told, in words, when the numbers change. */
+function servingAnnouncement(state: PublicState): string {
+  if (state.serving.length === 0) return "Nobody is being served yet.";
+  if (state.seats.length <= 1) return `Now serving number ${state.servingNumber}.`;
+  return `Now serving ${state.serving.map((slot) => `${slot.number} at ${slot.seatName}`).join(", ")}.`;
+}
+
+/**
+ * Every chair, with the number at it. Up to four sit in a row, a number
+ * under each chair's name and a dash where nobody is; above four the wall
+ * becomes a list — number, chair, who — sized to the count. A closed chair
+ * says so rather than disappearing, so the room can see why one barber is
+ * not calling.
+ */
+function Chairs({ seats, serving }: { seats: PublicSeat[]; serving: ServingSlot[] }): JSX.Element {
+  const byId = new Map(serving.map((slot) => [slot.seatId, slot]));
+  const chairs = seats.map((seat) => ({ seat, slot: byId.get(seat.id) ?? null }));
+
+  if (chairs.length > CHAIRS_IN_A_ROW) {
+    const dense = chairs.length > 8;
+    return (
+      <ol className={cn("flex flex-col", dense ? "gap-1" : "gap-2")}>
+        {chairs.map(({ seat, slot }) => (
+          <li
+            key={seat.id}
+            className={cn(
+              "flex items-baseline gap-5 border-b border-white/10 pb-1.5 lg:gap-8",
+              !seat.active && "opacity-40",
+            )}
+          >
+            <span
+              className={cn(
+                "numeral w-[3ch] text-right",
+                dense ? "text-[clamp(28px,4vw,48px)]" : "text-[clamp(36px,5.5vw,72px)]",
+                slot ? "text-strong" : "text-white/40",
+              )}
+            >
+              {slot ? slot.number : "—"}
+            </span>
+            <span className={cn("font-sans text-strong", dense ? "text-[clamp(16px,2vw,24px)]" : "text-[clamp(20px,2.6vw,32px)]")}>
+              {seat.name}
+            </span>
+            <span className={cn("font-sans text-muted", dense ? "text-[clamp(13px,1.5vw,18px)]" : "text-[clamp(15px,1.8vw,22px)]")}>
+              {chairWord(seat, slot)}
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
+  const numeral =
+    chairs.length <= 2
+      ? "text-[clamp(96px,16vw,220px)] lg:text-[clamp(120px,13vw,240px)]"
+      : "text-[clamp(64px,11vw,150px)] lg:text-[clamp(80px,9vw,170px)]";
+
+  return (
+    <ol className={cn("grid gap-x-6 gap-y-8 lg:gap-x-10", chairs.length <= 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4")}>
+      {chairs.map(({ seat, slot }) => (
+        <li key={seat.id} className={cn("min-w-0", !seat.active && "opacity-40")}>
+          <span className={cn("numeral block leading-none", numeral, slot ? "text-strong" : "text-white/40")}>
+            {slot ? slot.number : "—"}
+          </span>
+          <span className="mt-3 block truncate font-sans text-[clamp(18px,2.2vw,30px)] leading-tight text-strong">
+            {seat.name}
+          </span>
+          <span className="mt-1 block truncate font-sans text-[clamp(14px,1.5vw,20px)] leading-tight text-muted">
+            {chairWord(seat, slot)}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** "with Ade", "free" or "closed today": the line under a chair's name. */
+function chairWord(seat: PublicSeat, slot: ServingSlot | null): string {
+  if (!seat.active) return "closed today";
+  if (slot) return seat.workerName ? `with ${seat.workerName}` : "being served";
+  return "free";
 }
 
 /**

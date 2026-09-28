@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type JSX } from "react";
-import { Button } from "@/components/Button";
+import { useEffect, useRef, useState, type JSX } from "react";
+import { toast } from "sonner";
 import { AccessNotice } from "@/components/AccessNotice";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LinkButton } from "@/components/LinkButton";
@@ -11,7 +11,10 @@ import { Counter, skipConsequence, type Confirmation } from "./Counter";
 import { NewDayNotice } from "./NewDayNotice";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
+import { useStoredValue } from "@/hooks/useStoredValue";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { chairsOf, myChair, openSeatKey, type Chair } from "@/lib/seats";
+import { writeSession } from "@/lib/session";
 import type { QueueAction } from "@/lib/types";
 
 interface OperatorDashboardProps {
@@ -35,8 +38,16 @@ export function OperatorDashboard({
   const [confirming, setConfirming] = useState<Confirmation>(null);
   const [query, setQuery] = useState("");
 
+  // Which chair this device has open, per queue. Staff have no choice — the
+  // open chair is theirs — so it is read for the owner only.
+  const rememberedSeatId = useStoredValue(openSeatKey(queueId));
+
   // A counter tablet that dims to black is a blank counter.
   useWakeLock();
+
+  const chairs = queue.view ? chairsOf(queue.view) : [];
+  const mine = myChair(chairs, queue.isOwner, queue.principalId);
+  useMovedOffNotice(mine, queue.isOwner, queue.principalId);
 
   if (queue.loading) {
     return (
@@ -92,6 +103,17 @@ export function OperatorDashboard({
 
   const { view } = queue;
 
+  // The open chair. Staff: theirs, or the first as a place to read from.
+  // The owner: what this device remembers, the chair they are on, or the
+  // first — a tile that has since been removed falls through to the next.
+  const openChair: Chair | null = queue.isOwner
+    ? (chairs.find((chair) => chair.seat.id === rememberedSeatId) ?? mine ?? chairs[0] ?? null)
+    : (mine ?? chairs[0] ?? null);
+
+  function openChairOnCounter(seatId: string): void {
+    writeSession(openSeatKey(queueId), seatId);
+  }
+
   return (
     <DashboardChrome
       queueId={queueId}
@@ -126,17 +148,29 @@ export function OperatorDashboard({
       <Counter
         view={view}
         isOwner={queue.isOwner}
+        principalId={queue.principalId}
         serving={queue.serving}
         pendingEntryId={queue.pendingEntryId}
         pendingAction={queue.pendingAction}
+        pendingSeatId={queue.pendingSeatId}
         query={query}
         onQuery={setQuery}
+        chairs={chairs}
+        openChair={openChair}
+        canOpenChair={(chair) => queue.isOwner || chair.seat.id === mine?.seat.id}
+        onOpenChair={openChairOnCounter}
+        allChairsHref={queue.isOwner && chairs.length > 1 ? `/dashboard/${queueId}/chairs` : undefined}
         onServeNext={queue.serveNextCustomer}
-        onEntry={(entryId, action) => void queue.actOnCustomer(entryId, action)}
+        onEntry={(entryId, action, seatId) => void queue.actOnCustomer(entryId, action, seatId)}
         onQueue={(action, note) => void queue.actOnThisQueue(action, note)}
         onConfirm={setConfirming}
         onAddWalkIn={queue.addWalkIn}
         addingWalkIn={queue.addingWalkIn}
+        onTake={(seatId) => void queue.takeChair(seatId)}
+        onLeave={(seatId) => void queue.leaveChair(seatId)}
+        onSetOpen={(seatId, active) => void queue.setChairOpen(seatId, active)}
+        onAssign={(seatId, worker) => void queue.assignChair(seatId, worker)}
+        token={queue.token}
       />
 
       <Confirmations
@@ -150,6 +184,31 @@ export function OperatorDashboard({
       />
     </DashboardChrome>
   );
+}
+
+/**
+ * The picker is a soft lock: whoever picks a chair last has it, and the
+ * other device is moved off on its next frame. This is the "and told" half
+ * — an operator whose chair changes under them hears about it once.
+ */
+function useMovedOffNotice(mine: Chair | null, isOwner: boolean, principalId: string | null): void {
+  const previous = useRef<string | null | undefined>(undefined);
+  const current = mine?.seat.id ?? null;
+  const name = mine?.seat.name ?? null;
+
+  useEffect(() => {
+    // Nothing to compare until the first frame has said where they are.
+    if (isOwner || principalId === null) return;
+    if (previous.current === undefined) {
+      previous.current = current;
+      return;
+    }
+    if (previous.current !== current) {
+      if (current === null) toast("You've been moved off your chair. Pick another, or ask the owner.");
+      else if (previous.current !== null) toast(`You've been moved to ${name}.`);
+      previous.current = current;
+    }
+  }, [current, name, isOwner, principalId]);
 }
 
 function Confirmations({
