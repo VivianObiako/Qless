@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createQueue, joinQueue, makeDraw, signIn, unique, upNextNumber } from "./helpers";
+import { API, createQueue, joinQueue, makeDraw, signIn, unique, upNextNumber } from "./helpers";
 
 /**
  * A hackathon's presentation order. Three places, teams take a number, the
@@ -9,6 +9,11 @@ import { createQueue, joinQueue, makeDraw, signIn, unique, upNextNumber } from "
 test("a draw hands out fixed places and calls one drawn ahead", async ({ browser, page, request }) => {
   const queue = await createQueue(request, unique("E2E Hackathon"));
   await makeDraw(request, queue.id, queue.ownerToken, 3);
+  const phrase = await request.patch(`${API}/api/queues/${queue.id}`, {
+    data: { callPhrase: "PRESENTING" },
+    headers: { Authorization: `Bearer ${queue.ownerToken}` },
+  });
+  expect(phrase.ok()).toBeTruthy();
 
   // A team joins from its phone. The pass is a place in a draw, not a line.
   await page.goto(`/q/${queue.slug}`);
@@ -48,6 +53,9 @@ test("a draw hands out fixed places and calls one drawn ahead", async ({ browser
   // The wall shows the drawn number alone and what is left, never a run.
   await page.goto(`/display/${queue.slug}`);
   await expect(page.getByText(/2 still to go/)).toBeVisible();
+  // The room hears the organizer's word for it, not the shop's.
+  await expect(page.getByText("Now presenting", { exact: true })).toBeVisible();
+  await expect(page.getByText("Now serving")).toHaveCount(0);
 
   // A draw cannot lose its number of places.
   await ownerPage.goto(`/dashboard/${queue.id}/settings#waiting`);

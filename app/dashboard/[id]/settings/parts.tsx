@@ -81,14 +81,16 @@ export function Choice<T extends string>({
   onChange: (value: T) => void;
 }): JSX.Element {
   const chosen = options.find((option) => option.value === value);
+  // An id cannot hold spaces: aria-labelledby reads a space as a list of ids.
+  const labelId = `choice-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   return (
     <div>
-      <span id={`choice-${label}`} className="block text-[14.5px] font-medium text-strong">
+      <span id={labelId} className="block text-[14.5px] font-medium text-strong">
         {label}
       </span>
       <div
         role="radiogroup"
-        aria-labelledby={`choice-${label}`}
+        aria-labelledby={labelId}
         className="mt-2 grid max-w-sm grid-cols-2 gap-1 rounded-[10px] bg-shell-mid p-1"
       >
         {options.map((option) => {

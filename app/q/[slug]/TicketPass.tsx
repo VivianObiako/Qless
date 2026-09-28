@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotifications";
 import { deriveBoardRows } from "@/lib/board";
+import { wordingFor } from "@/lib/phrases";
 import {
   countOf,
   isDraw,
@@ -302,7 +303,7 @@ function WaitingScreen({
             <dl className="shrink-0 space-y-3 text-right lg:space-y-5">
               <div>
                 <MonoLabel as="dt" size={10} tone="paper">
-                  {chairs ? "Last called" : "Now serving"}
+                  {chairs ? "Last called" : wordingFor(view.state.queue).now}
                 </MonoLabel>
                 <dd>
                   <Numeral value={view.state.servingNumber} scale="small" className="mt-1 text-paper-ink lg:text-[40px]" />

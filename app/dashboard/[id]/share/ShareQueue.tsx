@@ -21,6 +21,7 @@ import {
   type SessionRole,
 } from "@/lib/session";
 import { useIsClient, useOrigin, useStoredValue } from "@/hooks/useStoredValue";
+import { wordingFor } from "@/lib/phrases";
 import type { Queue } from "@/lib/types";
 
 const shareQrId = "share-qr";
@@ -188,7 +189,7 @@ function Sharing({ queue }: { queue: Queue }): JSX.Element {
           href={`/display/${queue.slug}`}
           icon={Monitor}
           title="Display board"
-          detail="Now serving and up next, for a screen on the wall. Opens in a new tab."
+          detail={`${wordingFor(queue).now} and up next, for a screen on the wall. Opens in a new tab.`}
           external
         />
         <ShareRow
