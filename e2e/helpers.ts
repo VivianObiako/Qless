@@ -139,6 +139,28 @@ export async function setShowNames(
   expect(response.ok()).toBeTruthy();
 }
 
+/** Turns a queue into a draw with a fixed number of places, and names its people. */
+export async function makeDraw(
+  request: APIRequestContext,
+  queueId: string,
+  token: string,
+  places: number,
+  nouns: { personNoun: string; peopleNoun: string } = { personNoun: "team", peopleNoun: "teams" },
+): Promise<void> {
+  const response = await request.patch(`${API}/api/queues/${queueId}`, {
+    data: { servingOrder: "RANDOM", maxCapacity: places, ...nouns },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(response.ok()).toBeTruthy();
+}
+
+/** The number a draw has picked as up next, or null. */
+export async function upNextNumber(request: APIRequestContext, slug: string): Promise<number | null> {
+  const response = await request.get(`${API}/api/queues/${slug}`);
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()).state.upNextNumber;
+}
+
 /** Puts a session in the browser the way redeeming a code would. */
 export async function signIn(page: Page, token: string, role: "OWNER" | "OPERATOR"): Promise<void> {
   await page.addInitScript(

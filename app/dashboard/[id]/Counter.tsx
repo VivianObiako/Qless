@@ -14,7 +14,7 @@ import { StatusDot } from "./QueueSwitcher";
 import { ChairCard } from "./ChairCard";
 import { ChairRail } from "./ChairRail";
 import { SeatPicker } from "./SeatPicker";
-import { MEASURE_SAMPLE } from "@/lib/types";
+import { DEFAULT_PERSON_NOUN, MEASURE_SAMPLE, isDraw, nextInLine, nounFor } from "@/lib/types";
 import type {
   EntryAction,
   OperatorView,
@@ -73,9 +73,13 @@ interface CounterProps {
   token: string | null;
 }
 
-/** A row's name, or the number said as a name when the queue keeps names to its owner. */
-export function nameFor(entry: { customerName: string; number: number }): string {
-  return entry.customerName || `Customer ${entry.number}`;
+/**
+ * A row's name, or the number said as a name when the queue keeps names to its
+ * owner: "Guest 7" on a queue whose people are guests.
+ */
+export function nameFor(entry: { customerName: string; number: number }, person: string = DEFAULT_PERSON_NOUN): string {
+  if (entry.customerName) return entry.customerName;
+  return `${person.charAt(0).toUpperCase()}${person.slice(1)} ${entry.number}`;
 }
 
 /**
@@ -138,7 +142,7 @@ function callTargets(
     const only = chairs[0];
     if (!only) return { chairs: [], reason: "This queue has no chair to call people to.", hint: null };
     if (only.state === "closed") return { chairs: [], reason: "Open the counter before calling anyone.", hint: null };
-    const busyWith = view.serving?.servedAt ? nameFor(view.serving) : null;
+    const busyWith = view.serving?.servedAt ? nameFor(view.serving, nounFor(view.queue, 1)) : null;
     if (busyWith) return { chairs: [], reason: `Finish with ${busyWith} before calling anyone else.`, hint: null };
     return { chairs: [only], reason: null, hint: null };
   }
@@ -152,7 +156,7 @@ function callTargets(
       };
     }
     if (mine.state !== "ready") {
-      const name = mine.entry ? nameFor(mine.entry) : "them";
+      const name = mine.entry ? nameFor(mine.entry, nounFor(view.queue, 1)) : "them";
       return { chairs: [], reason: `Finish with ${name} before calling anyone to ${mine.seat.name}.`, hint: null };
     }
     return { chairs: [mine], reason: null, hint: `Call now sends people to ${mine.seat.name}.` };
@@ -228,6 +232,7 @@ export function Counter({
           single ? null : (
             <SeatPicker
               chairs={chairs}
+              person={nounFor(view.queue, 1)}
               isOwner={isOwner}
               principalId={principalId}
               seatsFixed={view.queue.seatsFixed}
@@ -256,7 +261,10 @@ export function Counter({
         {openChair ? (
           <ChairCard
             chair={openChair}
-            next={view.waiting[0]}
+            next={nextInLine(view.queue, view.waiting)}
+            waitingCount={view.waitingCount}
+            draw={isDraw(view.queue)}
+            person={nounFor(view.queue, 1)}
             single={single}
             isOwner={isOwner}
             principalId={principalId}
@@ -284,6 +292,7 @@ export function Counter({
           </section>
         )}
         <WaitingList
+          queue={view.queue}
           waiting={view.waiting}
           targets={targets}
           query={query}
@@ -458,7 +467,7 @@ function QueueStatusLine({ queue }: { queue: Queue }): JSX.Element {
     ? "Paused: nobody new can join. Everyone waiting keeps their place."
     : closed
       ? "Closed: nobody new can join. Everyone waiting keeps their place."
-      : "New customers can join by scanning the code.";
+      : `New ${nounFor(queue, 2)} can join by scanning the code.`;
 
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-shell-line pt-5 text-[13.5px] text-muted">
@@ -545,6 +554,7 @@ function Stats({
 }): JSX.Element {
   const last = view.waiting.at(-1);
   const backOfLine = view.waiting.length === 0 ? "No wait" : (last?.estimate?.label ?? "—");
+  const draw = isDraw(view.queue);
 
   const arrival = view.arrival.sample > 0 ? String(view.arrival.minutes) : "—";
   const open = chairs.filter((chair) => chair.seat.active).length;
@@ -559,7 +569,17 @@ function Stats({
     <div>
     <dl className="grid grid-cols-2 border-y border-shell-line sm:grid-cols-5">
       <Stat label="Waiting" value={String(view.waitingCount)} />
-      <Stat label="Wait at the back" value={backOfLine} />
+      {/* A draw quotes no wait. What the person running it needs instead is
+          how many of the fixed places are gone, to know whether to add some. */}
+      {draw ? (
+        <Stat
+          label="Places taken"
+          value={String(view.placesTaken)}
+          unit={view.queue.maxCapacity === null ? undefined : `of ${view.queue.maxCapacity}`}
+        />
+      ) : (
+        <Stat label="Wait at the back" value={backOfLine} />
+      )}
       {ownChair && ownChair.sample > 0 ? (
         <Stat label={`Your service at ${ownChair.seatName}`} value={String(ownChair.minutes)} unit="min" />
       ) : view.measured.sample >= MEASURE_SAMPLE ? (
@@ -604,6 +624,7 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
 }
 
 function WaitingList({
+  queue,
   waiting,
   targets,
   query,
@@ -616,6 +637,7 @@ function WaitingList({
   holdMinutes,
   single,
 }: {
+  queue: Queue;
   waiting: WaitingRow[];
   targets: CallTargets;
   query: string;
@@ -629,12 +651,15 @@ function WaitingList({
   single: boolean;
 }): JSX.Element {
   const now = useNow();
+  const person = nounFor(queue, 1);
+  // The row the counter calls next: the head of the list, or the drawn one.
+  const nextId = nextInLine(queue, waiting)?.id;
 
   const needle = query.trim().toLowerCase();
   const shown = needle
     ? waiting.filter(
         (entry) =>
-          String(entry.number).includes(needle) || nameFor(entry).toLowerCase().includes(needle),
+          String(entry.number).includes(needle) || nameFor(entry, person).toLowerCase().includes(needle),
       )
     : waiting;
 
@@ -658,7 +683,7 @@ function WaitingList({
 
       {waiting.length === 0 ? (
         <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">
-          No one is waiting. Share the queue and customers appear here.
+          No one is waiting. Share the queue and {nounFor(queue, 2)} appear here.
         </p>
       ) : shown.length === 0 ? (
         <p className="mt-6 text-[13.5px] leading-[1.6] text-muted">Nobody matches “{query}”.</p>
@@ -676,8 +701,8 @@ function WaitingList({
                 className="text-strong"
               />
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-[14.5px] font-medium text-strong">{nameFor(entry)}</span>
-                {entry.id === waiting[0]?.id && (
+                <span className="truncate text-[14.5px] font-medium text-strong">{nameFor(entry, person)}</span>
+                {entry.id === nextId && (
                   <span className="shrink-0 rounded-full border border-shell-line px-2 py-px text-[11.5px] text-muted">
                     Next
                   </span>
@@ -701,6 +726,7 @@ function WaitingList({
                 />
                 <RowMenu
                   entry={entry}
+                  person={person}
                   targets={targets}
                   single={single}
                   disabled={pendingEntryId === entry.id}
@@ -717,6 +743,7 @@ function WaitingList({
       {skipped.length > 0 && (
         <SkippedList
           skipped={skipped}
+          person={person}
           pendingEntryId={pendingEntryId}
           onRecall={onCall}
           now={now}
@@ -807,6 +834,7 @@ function CallButton({
  */
 function SkippedList({
   skipped,
+  person,
   pendingEntryId,
   onRecall,
   now,
@@ -815,6 +843,7 @@ function SkippedList({
   single,
 }: {
   skipped: QueueEntry[];
+  person: string;
   pendingEntryId: string | null;
   targets: CallTargets;
   single: boolean;
@@ -838,7 +867,7 @@ function SkippedList({
           >
             <Numeral value={entry.number} scale="board" animateOnChange={false} className="text-muted" />
             <span className="min-w-0 truncate text-[14px] text-dim">
-              {nameFor(entry)}
+              {nameFor(entry, person)}
               {entry.completedAt && (
                 <span className="text-muted" suppressHydrationWarning>
                   {" "}· skipped {minutesSince(entry.completedAt, now)} min ago
@@ -865,6 +894,7 @@ function SkippedList({
  */
 function RowMenu({
   entry,
+  person,
   disabled,
   targets,
   single,
@@ -873,6 +903,7 @@ function RowMenu({
   onSkip,
 }: {
   entry: WaitingRow;
+  person: string;
   disabled: boolean;
   targets: CallTargets;
   single: boolean;
@@ -893,7 +924,7 @@ function RowMenu({
         disabled={disabled}
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={`More for ${nameFor(entry)}`}
+        aria-label={`More for ${nameFor(entry, person)}`}
         onClick={toggle}
         className={cn(
           "grid size-8 place-items-center rounded-full border border-transparent text-muted transition-colors",

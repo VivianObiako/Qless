@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LinkButton } from "@/components/LinkButton";
 import { Notice } from "@/components/Notice";
 import { QueueArranging } from "@/components/QueueArranging";
-import { Counter, skipConsequence, type Confirmation } from "./Counter";
+import { Counter, nameFor, skipConsequence, type Confirmation } from "./Counter";
 import { NewDayNotice } from "./NewDayNotice";
 import { DashboardChrome } from "./DashboardChrome";
 import { useOperatorQueue } from "@/hooks/useOperatorQueue";
@@ -15,7 +15,7 @@ import { useStoredValue } from "@/hooks/useStoredValue";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { chairsOf, myChair, openSeatKey, type Chair } from "@/lib/seats";
 import { writeSession } from "@/lib/session";
-import type { QueueAction } from "@/lib/types";
+import { nounFor, type QueueAction } from "@/lib/types";
 
 interface OperatorDashboardProps {
   queueId: string;
@@ -176,6 +176,7 @@ export function OperatorDashboard({
       <Confirmations
         confirming={confirming}
         holdMinutes={view.queue.holdMinutes}
+        person={nounFor(view.queue, 1)}
         onClose={() => setConfirming(null)}
         pendingAction={queue.pendingAction}
         pendingEntryId={queue.pendingEntryId}
@@ -214,6 +215,7 @@ function useMovedOffNotice(mine: Chair | null, isOwner: boolean, principalId: st
 function Confirmations({
   confirming,
   holdMinutes,
+  person,
   onClose,
   pendingAction,
   pendingEntryId,
@@ -222,6 +224,8 @@ function Confirmations({
 }: {
   confirming: Confirmation;
   holdMinutes: number;
+  /** What one person in this queue is called, for someone with no name shown. */
+  person: string;
   onClose: () => void;
   pendingAction: QueueAction | null;
   pendingEntryId: string | null;
@@ -241,7 +245,7 @@ function Confirmations({
         open={open}
         onOpenChange={onOpenChange}
         title={`Skip #${entry.number}?`}
-        description={`Use this when ${entry.customerName || `Customer ${entry.number}`} isn't there. ${skipConsequence(holdMinutes)}`}
+        description={`Use this when ${nameFor(entry, person)} isn't there. ${skipConsequence(holdMinutes)}`}
         confirmLabel="Skip them"
         cancelLabel="Keep waiting"
         destructive

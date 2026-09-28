@@ -12,7 +12,7 @@ import { QueueArranging } from "@/components/QueueArranging";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
-import type { CustomerView, QueueEntry } from "@/lib/types";
+import { isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
 import { getCustomerToken } from "@/lib/session";
@@ -67,7 +67,11 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
         open={confirmingLeave}
         onOpenChange={setConfirmingLeave}
         title="Cancel your place?"
-        description="You'll lose your number. If you come back you'll join at the end of the queue."
+        description={
+          isDraw(view.state.queue)
+            ? "You'll lose your number and your place in the draw. If every place has gone when you come back, you won't get another."
+            : "You'll lose your number. If you come back you'll join at the end of the queue."
+        }
         confirmLabel="Cancel my place"
         cancelLabel="Keep my place"
         destructive
@@ -94,8 +98,12 @@ function JoinScreen({
   onJoin: (name: string) => Promise<boolean>;
   connection: ConnectionState;
 }): JSX.Element {
-  const { queue: summary, servingNumber, waitingCount, isFull } = view.state;
+  const { queue: summary, servingNumber, waitingCount, isFull, placesTaken } = view.state;
   const canJoin = summary.status === "OPEN" && !isFull;
+  const draw = isDraw(summary);
+  // A draw's capacity is always set; the fallback is for a frame caught
+  // mid-change.
+  const placesLeft = Math.max(0, (summary.maxCapacity ?? placesTaken) - placesTaken);
 
   return (
     <PlainShell connection={connection}>
@@ -115,21 +123,37 @@ function JoinScreen({
             <Numeral value={servingNumber} scale="medium" className="mt-1.5 text-paper-ink" />
           </div>
           <div className="text-right">
+            {/* A draw is about getting a number at all: what is left of the
+                fixed places matters more than how many hold one. */}
             <MonoLabel size={10} tone="paper">
-              Waiting
+              {draw ? "Places left" : "Waiting"}
             </MonoLabel>
-            <Numeral value={waitingCount} scale="medium" className="mt-1.5 text-paper-ink" />
+            <Numeral value={draw ? placesLeft : waitingCount} scale="medium" className="mt-1.5 text-paper-ink" />
           </div>
         </div>
 
         <Perforation className="-mx-[22px] my-5" />
 
-        <MonoLabel size={10} tone="paper">
-          Est. wait if you join now
-        </MonoLabel>
-        <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink">
-          {view.joinEstimate?.label ?? "No wait"}
-        </p>
+        {draw ? (
+          <>
+            <MonoLabel size={10} tone="paper">
+              How numbers are called
+            </MonoLabel>
+            <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink">At random</p>
+            <p className="mt-2 text-[13px] leading-[1.55] text-paper-muted">
+              Everyone with a number is in the draw. You&rsquo;ll be told when you&rsquo;re drawn next.
+            </p>
+          </>
+        ) : (
+          <>
+            <MonoLabel size={10} tone="paper">
+              Est. wait if you join now
+            </MonoLabel>
+            <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink">
+              {view.joinEstimate?.label ?? "No wait"}
+            </p>
+          </>
+        )}
       </TicketCard>
 
       {view.entry && <PreviousEntryNotice entry={view.entry} />}
@@ -150,14 +174,21 @@ function JoinScreen({
 
       {summary.status === "CLOSED" && (
         <Notice tone="standing" title="Queue closed">
-          This queue isn&rsquo;t accepting new customers.
+          This queue isn&rsquo;t accepting new {nounFor(summary, 2)}.
         </Notice>
       )}
 
-      {summary.status === "OPEN" && isFull && (
+      {summary.status === "OPEN" && isFull && !draw && (
         <Notice tone="standing" title="Queue full">
           {summary.maxCapacity} is the limit for now. Keep this page open: it updates on its own, and
           the moment a place frees you can take it.
+        </Notice>
+      )}
+
+      {summary.status === "OPEN" && isFull && draw && (
+        <Notice tone="standing" title="All places are taken">
+          All {summary.maxCapacity} numbers have been given out. Ask whoever is running it if you were
+          expecting one. If someone cancels, a place opens here.
         </Notice>
       )}
 

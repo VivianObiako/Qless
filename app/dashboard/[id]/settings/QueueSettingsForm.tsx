@@ -23,9 +23,9 @@ import {
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
 import { cn } from "@/lib/utils";
-import type { Queue, Seat, ServiceMeasure } from "@/lib/types";
+import { NOUN_LIMIT, nounFor, type Queue, type Seat, type ServiceMeasure, type ServingOrder } from "@/lib/types";
 import { SeatsTab } from "./SeatsTab";
-import { SaveRow, Section, Switch, measuredHint } from "./parts";
+import { Choice, SaveRow, Section, Switch, measuredHint } from "./parts";
 
 /**
  * The queue's own configuration. Owner-only, and the server says so on every
@@ -321,6 +321,8 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
   const router = useRouter();
   const [name, setName] = useState(queue.name);
   const [description, setDescription] = useState(queue.description);
+  const [personNoun, setPersonNoun] = useState(queue.personNoun);
+  const [peopleNoun, setPeopleNoun] = useState(queue.peopleNoun);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -328,8 +330,13 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
   const [archiving, setArchiving] = useState(false);
 
   useEffect(() => {
-    onDirty(name !== queue.name || description !== queue.description);
-  }, [name, description, queue.name, queue.description, onDirty]);
+    onDirty(
+      name !== queue.name ||
+        description !== queue.description ||
+        personNoun !== queue.personNoun ||
+        peopleNoun !== queue.peopleNoun,
+    );
+  }, [name, description, personNoun, peopleNoun, queue, onDirty]);
 
   async function archive(): Promise<void> {
     setArchiving(true);
@@ -353,7 +360,24 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
     }
     setNameError(null);
     setSaving(true);
-    setError(await save(queueId, token, { name: trimmedName, description: description.trim() }, onSaved));
+    // An emptied box is sent empty: the server puts the ordinary word back.
+    setError(
+      await save(
+        queueId,
+        token,
+        {
+          name: trimmedName,
+          description: description.trim(),
+          personNoun: personNoun.trim(),
+          peopleNoun: peopleNoun.trim(),
+        },
+        (saved) => {
+          setPersonNoun(saved.personNoun);
+          setPeopleNoun(saved.peopleNoun);
+          onSaved(saved);
+        },
+      ),
+    );
     setSaving(false);
   }
 
@@ -378,6 +402,30 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
             placeholder="Walk-ins welcome"
             maxLength={200}
           />
+        </Section>
+
+        <Section
+          title="What to call people"
+          description="The word for the people in this queue, on their phones, on the wall and at the counter."
+        >
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="One"
+              value={personNoun}
+              onChange={(event) => setPersonNoun(event.target.value)}
+              placeholder="customer"
+              hint="guest, participant, team"
+              maxLength={NOUN_LIMIT}
+            />
+            <Field
+              label="More than one"
+              value={peopleNoun}
+              onChange={(event) => setPeopleNoun(event.target.value)}
+              placeholder="customers"
+              hint="guests, participants, teams"
+              maxLength={NOUN_LIMIT}
+            />
+          </div>
         </Section>
 
         <SaveRow error={error} saving={saving} />
@@ -427,16 +475,22 @@ function WaitingTab({
   const [serviceMinutes, setServiceMinutes] = useState(String(queue.averageServiceMinutes));
   const [capacity, setCapacity] = useState(queue.maxCapacity === null ? "" : String(queue.maxCapacity));
   const [holdMinutes, setHoldMinutes] = useState(String(queue.holdMinutes));
+  // A server from before draws sends no order; that queue is served in order.
+  const [order, setOrder] = useState<ServingOrder>(queue.servingOrder ?? "IN_ORDER");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capacityError, setCapacityError] = useState<string | null>(null);
+  const draw = order === "RANDOM";
+  const people = nounFor(queue, 2);
 
   useEffect(() => {
     onDirty(
       serviceMinutes !== String(queue.averageServiceMinutes) ||
         capacity !== (queue.maxCapacity === null ? "" : String(queue.maxCapacity)) ||
-        holdMinutes !== String(queue.holdMinutes),
+        holdMinutes !== String(queue.holdMinutes) ||
+        order !== (queue.servingOrder ?? "IN_ORDER"),
     );
-  }, [serviceMinutes, capacity, holdMinutes, queue, onDirty]);
+  }, [serviceMinutes, capacity, holdMinutes, order, queue, onDirty]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -448,10 +502,16 @@ function WaitingTab({
     }
 
     const parsedCapacity = capacity.trim() === "" ? null : Number.parseInt(capacity, 10);
-    if (parsedCapacity !== null && (!Number.isFinite(parsedCapacity) || parsedCapacity < 1)) {
-      setError("Maximum queue size must be a whole number, or left empty for no limit.");
+    const capacityValid = parsedCapacity !== null && Number.isFinite(parsedCapacity) && parsedCapacity >= 1 && parsedCapacity <= 1000;
+    if (draw && !capacityValid) {
+      setCapacityError("A draw needs a fixed number of places, from 1 to 1000.");
       return;
     }
+    if (parsedCapacity !== null && !capacityValid) {
+      setCapacityError("Maximum queue size must be a whole number from 1 to 1000, or left empty for no limit.");
+      return;
+    }
+    setCapacityError(null);
 
     const hold = holdMinutes.trim() === "" ? 0 : Number.parseInt(holdMinutes, 10);
     if (!Number.isFinite(hold) || hold < 0 || hold > 120) {
@@ -467,7 +527,7 @@ function WaitingTab({
       await save(
         queueId,
         token,
-        { averageServiceMinutes: minutes, maxCapacity: parsedCapacity, holdMinutes: hold },
+        { averageServiceMinutes: minutes, maxCapacity: parsedCapacity, holdMinutes: hold, servingOrder: order },
         onSaved,
       ),
     );
@@ -476,30 +536,73 @@ function WaitingTab({
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      <Section title="Waiting" description="The estimate customers see, and how long the line can get.">
-        <Field
-          label="Average service time"
-          type="number"
-          inputMode="numeric"
-          value={serviceMinutes}
-          onChange={(event) => setServiceMinutes(event.target.value)}
-          hint={measuredHint(measured, openSeats)}
-          suffix="minutes"
-          min={1}
-          max={480}
-          required
+      <Section title="Calling" description="How the counter picks who goes next.">
+        <Choice<ServingOrder>
+          label="Call people"
+          value={order}
+          onChange={(next) => {
+            setOrder(next);
+            setCapacityError(null);
+          }}
+          options={[
+            {
+              value: "IN_ORDER",
+              label: "In order",
+              description: `The lowest number goes next. ${people.charAt(0).toUpperCase() + people.slice(1)} see their place in line and an estimated wait.`,
+            },
+            {
+              value: "RANDOM",
+              label: "At random",
+              description:
+                "A draw. Everyone with a number is in it, each call picks one at random, and the next is drawn ahead so they get warning. There is no wait estimate, and the number of places is fixed.",
+            },
+          ]}
         />
+      </Section>
+
+      <Section
+        title={draw ? "Places" : "Waiting"}
+        description={
+          draw
+            ? "How many numbers the draw hands out. Nobody can join once they are gone."
+            : `The estimate ${people} see, and how long the line can get.`
+        }
+      >
+        {/* A draw quotes no wait, so the figure that builds one is kept but
+            not asked for. Switching back brings it back as it was. */}
+        {!draw && (
+          <Field
+            label="Average service time"
+            type="number"
+            inputMode="numeric"
+            value={serviceMinutes}
+            onChange={(event) => setServiceMinutes(event.target.value)}
+            hint={measuredHint(measured, openSeats)}
+            suffix="minutes"
+            min={1}
+            max={480}
+            required
+          />
+        )}
         <Field
-          label="Maximum queue size"
+          label={draw ? "Number of places" : "Maximum queue size"}
           type="number"
           inputMode="numeric"
           value={capacity}
           onChange={(event) => setCapacity(event.target.value)}
-          hint="Optional. Leave empty for no limit."
-          placeholder="No limit"
-          suffix="people"
+          error={capacityError}
+          hint={
+            draw
+              ? `Everyone gets a number. Raise this if someone was missed. ${
+                  queue.servingOrder === "RANDOM" ? "" : "Anyone already waiting counts toward it."
+                }`.trim()
+              : "Optional. Leave empty for no limit."
+          }
+          placeholder={draw ? undefined : "No limit"}
+          suffix={people}
           min={1}
           max={1000}
+          required={draw}
         />
       </Section>
 

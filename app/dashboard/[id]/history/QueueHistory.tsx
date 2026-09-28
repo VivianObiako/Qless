@@ -32,7 +32,7 @@ import {
 } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
-import type { EntryStatus, HistoryEntry, HistoryResponse } from "@/lib/types";
+import { labelFor, nounFor, type EntryStatus, type HistoryEntry, type HistoryResponse } from "@/lib/types";
 
 /** How a finished entry ended, in the operator's words rather than the enum's. */
 const outcomeLabel: Record<EntryStatus, string> = {
@@ -133,6 +133,8 @@ export function QueueHistory({ queueId }: { queueId: string }): JSX.Element {
         showsNames={result.showsNames}
         viewerIsOwner={role !== "OPERATOR"}
         ownerName={result.ownerName}
+        person={nounFor(result.queue, 1)}
+        people={nounFor(result.queue, 2)}
       />
     );
   }
@@ -166,8 +168,8 @@ function servedBy(
   return ownerName || "The owner";
 }
 
-function nameFor(entry: HistoryEntry): string {
-  return entry.customerName || `Customer ${entry.number}`;
+function nameFor(entry: HistoryEntry, person: string): string {
+  return labelFor({ personNoun: person, peopleNoun: "" }, entry);
 }
 
 function finishedAt(entry: HistoryEntry): string {
@@ -248,6 +250,8 @@ function HistoryTable({
   showsNames,
   viewerIsOwner,
   ownerName,
+  person,
+  people,
 }: {
   queueName: string;
   entries: HistoryEntry[];
@@ -256,6 +260,9 @@ function HistoryTable({
   showsNames: boolean;
   viewerIsOwner: boolean;
   ownerName: string;
+  /** What the people in this queue are called, for rows with no name shown. */
+  person: string;
+  people: string;
 }): JSX.Element {
   const [day, setDay] = useState<string>("all");
   const [outcome, setOutcome] = useState<string>("all");
@@ -302,7 +309,7 @@ function HistoryTable({
         (by === "all" || servedBy(entry, viewerIsOwner, ownerName) === by) &&
         (chair === "all" || entry.seatName === chair) &&
         (needle === "" ||
-          nameFor(entry).toLowerCase().includes(needle) ||
+          nameFor(entry, person).toLowerCase().includes(needle) ||
           String(entry.number) === needle),
     );
     const sign = direction === "asc" ? 1 : -1;
@@ -311,7 +318,7 @@ function HistoryTable({
         case "number":
           return (a.number - b.number) * sign;
         case "name":
-          return nameFor(a).localeCompare(nameFor(b)) * sign;
+          return nameFor(a, person).localeCompare(nameFor(b, person)) * sign;
         default:
           return (
             (new Date(finishedAt(a)).getTime() -
@@ -321,6 +328,7 @@ function HistoryTable({
       }
     });
   }, [
+    person,
     entries,
     day,
     outcome,
@@ -432,7 +440,7 @@ function HistoryTable({
 
       {entries.length === 0 ? (
         <p className="mt-6 max-w-md text-[14.5px] leading-[1.6] text-dim">
-          Nothing finished yet. Customers appear here once they have been
+          Nothing finished yet. {people.charAt(0).toUpperCase() + people.slice(1)} appear here once they have been
           served, skipped, or have left the queue.
         </p>
       ) : (
@@ -607,7 +615,7 @@ function HistoryTable({
                         {entry.number}
                       </td>
                       <td className="max-w-[260px] truncate py-3 pr-4 font-medium text-strong">
-                        {nameFor(entry)}
+                        {nameFor(entry, person)}
                         {entry.walkIn && (
                           <span className="ml-2 text-[12px] font-normal text-muted">
                             Walk-in
