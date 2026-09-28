@@ -37,7 +37,12 @@ export interface QueueSummary {
   /** What the people in this queue are called: customer, guest, participant. */
   personNoun: string;
   peopleNoun: string;
+  /** What being called is named on the screens the room sees. See lib/phrases.ts. */
+  callPhrase: CallPhrase;
 }
+
+/** Serving at a counter, presenting at a hackathon, seeing at a clinic, up for anything else. */
+export type CallPhrase = "SERVING" | "PRESENTING" | "SEEING" | "UP";
 
 /**
  * In order is the queue as it has always been: the lowest number next. At
@@ -300,6 +305,7 @@ export interface CreateQueueInput {
   servingOrder?: ServingOrder;
   personNoun?: string;
   peopleNoun?: string;
+  callPhrase?: CallPhrase;
   /** Read only when this request creates the business. */
   ownerName?: string;
 }
@@ -321,6 +327,7 @@ export interface UpdateQueueInput {
   /** Blank puts the default back. */
   personNoun?: string;
   peopleNoun?: string;
+  callPhrase?: CallPhrase;
 }
 
 export interface SeatsResponse {

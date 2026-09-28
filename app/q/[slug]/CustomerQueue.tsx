@@ -12,6 +12,7 @@ import { QueueArranging } from "@/components/QueueArranging";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
+import { wordingFor, type CallWording } from "@/lib/phrases";
 import { isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
@@ -118,7 +119,7 @@ function JoinScreen({
         <div className="mt-6 flex items-start justify-between gap-4">
           <div>
             <MonoLabel size={10} tone="paper">
-              Now serving
+              {wordingFor(summary).now}
             </MonoLabel>
             <Numeral value={servingNumber} scale="medium" className="mt-1.5 text-paper-ink" />
           </div>
@@ -156,7 +157,7 @@ function JoinScreen({
         )}
       </TicketCard>
 
-      {view.entry && <PreviousEntryNotice entry={view.entry} />}
+      {view.entry && <PreviousEntryNotice entry={view.entry} wording={wordingFor(summary)} />}
 
       {summary.status === "PAUSED" && (
         <Notice tone="standing" title="Queue paused">
@@ -204,7 +205,7 @@ function JoinScreen({
   );
 }
 
-function PreviousEntryNotice({ entry }: { entry: QueueEntry }): JSX.Element | null {
+function PreviousEntryNotice({ entry, wording }: { entry: QueueEntry; wording: CallWording }): JSX.Element | null {
   switch (entry.status) {
     case "SKIPPED":
       return (
@@ -214,8 +215,8 @@ function PreviousEntryNotice({ entry }: { entry: QueueEntry }): JSX.Element | nu
       );
     case "ATTENDED":
       return (
-        <Notice tone="quiet" title="You've been served" chip="✓">
-          Thanks for waiting. Take another number if you need anything else.
+        <Notice tone="quiet" title={wording.doneTitle} chip="✓">
+          {wording.doneBody}
         </Notice>
       );
     case "LEFT":

@@ -23,7 +23,8 @@ import {
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
 import { cn } from "@/lib/utils";
-import { NOUN_LIMIT, nounFor, type Queue, type Seat, type ServiceMeasure, type ServingOrder } from "@/lib/types";
+import { NOUN_LIMIT, nounFor, type CallPhrase, type Queue, type Seat, type ServiceMeasure, type ServingOrder } from "@/lib/types";
+import { CALL_PHRASES, CALL_PHRASE_ORDER } from "@/lib/phrases";
 import { SeatsTab } from "./SeatsTab";
 import { Choice, SaveRow, Section, Switch, measuredHint } from "./parts";
 
@@ -323,6 +324,8 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
   const [description, setDescription] = useState(queue.description);
   const [personNoun, setPersonNoun] = useState(queue.personNoun);
   const [peopleNoun, setPeopleNoun] = useState(queue.peopleNoun);
+  // A server from before the setting sends none; that queue says "serving".
+  const [phrase, setPhrase] = useState<CallPhrase>(queue.callPhrase ?? "SERVING");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -334,9 +337,10 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
       name !== queue.name ||
         description !== queue.description ||
         personNoun !== queue.personNoun ||
-        peopleNoun !== queue.peopleNoun,
+        peopleNoun !== queue.peopleNoun ||
+        phrase !== (queue.callPhrase ?? "SERVING"),
     );
-  }, [name, description, personNoun, peopleNoun, queue, onDirty]);
+  }, [name, description, personNoun, peopleNoun, phrase, queue, onDirty]);
 
   async function archive(): Promise<void> {
     setArchiving(true);
@@ -370,6 +374,7 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
           description: description.trim(),
           personNoun: personNoun.trim(),
           peopleNoun: peopleNoun.trim(),
+          callPhrase: phrase,
         },
         (saved) => {
           setPersonNoun(saved.personNoun);
@@ -405,8 +410,8 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
         </Section>
 
         <Section
-          title="What to call people"
-          description="The word for the people in this queue, on their phones, on the wall and at the counter."
+          title="Wording"
+          description="The words on phones, the wall and the join page. Your counter keeps its own."
         >
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
@@ -426,6 +431,19 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
               maxLength={NOUN_LIMIT}
             />
           </div>
+          <Choice<CallPhrase>
+            label="When someone is called"
+            value={phrase}
+            onChange={setPhrase}
+            options={CALL_PHRASE_ORDER.map((value) => {
+              const wording = CALL_PHRASES[value];
+              return {
+                value,
+                label: wording.label,
+                description: `For ${wording.suits}. The wall says "${wording.now}", and after their turn a ${nounFor({ personNoun, peopleNoun }, 1)} is told "${wording.doneTitle}".`,
+              };
+            })}
+          />
         </Section>
 
         <SaveRow error={error} saving={saving} />

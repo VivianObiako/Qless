@@ -14,6 +14,7 @@ import { useOrigin } from "@/hooks/useStoredValue";
 import { useChime } from "@/hooks/useChime";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { cn } from "@/lib/utils";
+import { wordingFor } from "@/lib/phrases";
 import { isDraw, nounFor, type PublicSeat, type PublicState, type QueueStatus, type ServingSlot } from "@/lib/types";
 
 /** How many numbers the "up next" row carries, per the handoff. */
@@ -119,7 +120,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
             tone="inherit"
             className="text-display-label lg:text-[17px]"
           >
-            Now serving
+            {wordingFor(state.queue).now}
           </MonoLabel>
 
           {/*
@@ -137,7 +138,7 @@ export function DisplayBoard({ slug }: { slug: string }): JSX.Element {
                   className="text-strong md:text-[clamp(180px,32vw,320px)] lg:text-[clamp(180px,24vw,340px)]"
                 />
               ) : (
-                <Chairs seats={state.seats} serving={state.serving} />
+                <Chairs seats={state.seats} serving={state.serving} inUse={wordingFor(state.queue).inUse} />
               )}
             </div>
           </div>
@@ -244,10 +245,11 @@ function DrawnNext({ state }: { state: PublicState }): JSX.Element {
 
 /** What the room is told, in words, when the numbers change. */
 function servingAnnouncement(state: PublicState): string {
+  const wording = wordingFor(state.queue);
   const drawn = isDraw(state.queue) && state.upNextNumber !== null ? ` Number ${state.upNextNumber} is up next.` : "";
-  if (state.serving.length === 0) return `Nobody is being served yet.${drawn}`;
-  if (state.seats.length <= 1) return `Now serving number ${state.servingNumber}.${drawn}`;
-  return `Now serving ${state.serving.map((slot) => `${slot.number} at ${slot.seatName}`).join(", ")}.${drawn}`;
+  if (state.serving.length === 0) return `${wording.nobodyYet}${drawn}`;
+  if (state.seats.length <= 1) return `${wording.now} number ${state.servingNumber}.${drawn}`;
+  return `${wording.now} ${state.serving.map((slot) => `${slot.number} at ${slot.seatName}`).join(", ")}.${drawn}`;
 }
 
 /**
@@ -257,7 +259,16 @@ function servingAnnouncement(state: PublicState): string {
  * says so rather than disappearing, so the room can see why one barber is
  * not calling.
  */
-function Chairs({ seats, serving }: { seats: PublicSeat[]; serving: ServingSlot[] }): JSX.Element {
+function Chairs({
+  seats,
+  serving,
+  inUse,
+}: {
+  seats: PublicSeat[];
+  serving: ServingSlot[];
+  /** Under a chair with somebody at it and nobody named: "being served", "presenting". */
+  inUse: string;
+}): JSX.Element {
   const byId = new Map(serving.map((slot) => [slot.seatId, slot]));
   const chairs = seats.map((seat) => ({ seat, slot: byId.get(seat.id) ?? null }));
 
@@ -286,7 +297,7 @@ function Chairs({ seats, serving }: { seats: PublicSeat[]; serving: ServingSlot[
               {seat.name}
             </span>
             <span className={cn("font-sans text-muted", dense ? "text-[clamp(13px,1.5vw,18px)]" : "text-[clamp(15px,1.8vw,22px)]")}>
-              {chairWord(seat, slot)}
+              {chairWord(seat, slot, inUse)}
             </span>
           </li>
         ))}
@@ -310,7 +321,7 @@ function Chairs({ seats, serving }: { seats: PublicSeat[]; serving: ServingSlot[
             {seat.name}
           </span>
           <span className="mt-1 block truncate font-sans text-[clamp(14px,1.5vw,20px)] leading-tight text-muted">
-            {chairWord(seat, slot)}
+            {chairWord(seat, slot, inUse)}
           </span>
         </li>
       ))}
@@ -319,9 +330,9 @@ function Chairs({ seats, serving }: { seats: PublicSeat[]; serving: ServingSlot[
 }
 
 /** "with Ade", "free" or "closed today": the line under a chair's name. */
-function chairWord(seat: PublicSeat, slot: ServingSlot | null): string {
+function chairWord(seat: PublicSeat, slot: ServingSlot | null, inUse: string): string {
   if (!seat.active) return "closed today";
-  if (slot) return seat.workerName ? `with ${seat.workerName}` : "being served";
+  if (slot) return seat.workerName ? `with ${seat.workerName}` : inUse;
   return "free";
 }
 
