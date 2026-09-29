@@ -39,7 +39,15 @@ export interface QueueSummary {
   peopleNoun: string;
   /** What being called is named on the screens the room sees. See lib/phrases.ts. */
   callPhrase: CallPhrase;
+  /** How numbers are given out: in joining order, or at random from 1 to the places. */
+  numbering: Numbering;
 }
+
+/**
+ * Sequential is 1, 2, 3 in joining order. Random hands each joiner a random
+ * unused number from 1 to the places; the queue is still called lowest first.
+ */
+export type Numbering = "SEQUENTIAL" | "RANDOM";
 
 /** Serving at a counter, presenting at a hackathon, seeing at a clinic, up for anything else. */
 export type CallPhrase = "SERVING" | "PRESENTING" | "SEEING" | "UP";
@@ -306,6 +314,7 @@ export interface CreateQueueInput {
   personNoun?: string;
   peopleNoun?: string;
   callPhrase?: CallPhrase;
+  numbering?: Numbering;
   /** Read only when this request creates the business. */
   ownerName?: string;
 }
@@ -328,6 +337,7 @@ export interface UpdateQueueInput {
   personNoun?: string;
   peopleNoun?: string;
   callPhrase?: CallPhrase;
+  numbering?: Numbering;
 }
 
 export interface SeatsResponse {
@@ -454,6 +464,19 @@ export function proximityOf(entry: QueueEntry, state: PublicState, peopleAhead: 
  */
 export function isDraw(summary: Pick<QueueSummary, "servingOrder">): boolean {
   return summary.servingOrder === "RANDOM";
+}
+
+/** Whether this queue hands out random numbers. A server from before sends none: sequential. */
+export function hasRandomNumbers(summary: Pick<QueueSummary, "numbering">): boolean {
+  return summary.numbering === "RANDOM";
+}
+
+/**
+ * Whether the capacity is a fixed number of places, counted by numbers
+ * handed out: a draw and random numbers. A number once given keeps its place.
+ */
+export function hasFixedPlaces(summary: Pick<QueueSummary, "servingOrder" | "numbering">): boolean {
+  return isDraw(summary) || hasRandomNumbers(summary);
 }
 
 /**

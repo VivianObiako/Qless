@@ -17,6 +17,7 @@ import { deriveBoardRows } from "@/lib/board";
 import { wordingFor } from "@/lib/phrases";
 import {
   countOf,
+  hasRandomNumbers,
   isDraw,
   nounFor,
   proximityOf,
@@ -275,6 +276,7 @@ function WaitingScreen({
     seatCount: view.state.seats.length,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
+    servingLabel: wordingFor(view.state.queue).boardStatus,
     draw: draw ? { upNextNumber: view.state.upNextNumber } : undefined,
   });
   const oneAhead = view.peopleAhead === 1;
@@ -325,6 +327,14 @@ function WaitingScreen({
               </div>
             </dl>
           </div>
+
+          {/* Random numbers: the number looks like any other, so say how it
+              was given. It is also why a low number can arrive late. */}
+          {hasRandomNumbers(view.state.queue) && (
+            <p className="mt-3 text-[12.5px] leading-[1.5] text-paper-muted">
+              Your number was drawn at random when you joined.
+            </p>
+          )}
 
           <Perforation className="-mx-[22px] my-5 lg:-mx-8 lg:my-7" />
 
@@ -408,6 +418,7 @@ function NextScreen({
     seatCount: view.state.seats.length,
     waitingNumbers: view.state.waitingNumbers,
     myNumber: entry.number,
+    servingLabel: wordingFor(view.state.queue).boardStatus,
     collapsed: true,
   });
   const beingServed = view.state.serving.map((slot) => slot.number);
@@ -448,6 +459,11 @@ function NextScreen({
           <p className="ticket-flip-muted mt-3 text-[13.5px] leading-[1.55]">
             {holdPromise(view.state.queue.holdMinutes, "next", nounFor(view.state.queue, 1))}
           </p>
+          {hasRandomNumbers(view.state.queue) && (
+            <p className="ticket-flip-muted mt-2 text-[12.5px] leading-[1.5]">
+              Your number was drawn at random when you joined.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-1 flex-col gap-4 lg:flex-none">

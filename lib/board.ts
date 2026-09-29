@@ -10,6 +10,8 @@ interface BoardInput {
   myNumber: number;
   /** State 03 collapses the board to the counter plus "you — next". */
   collapsed?: boolean;
+  /** Beside the number being called on a one-chair queue, in the queue's own words. */
+  servingLabel?: string;
   /**
    * A draw: nobody is ahead of anybody, so the board shows the drawn number
    * and how many others are still in it, and never a run of numbers.
@@ -35,13 +37,14 @@ export function deriveBoardRows({
   myNumber,
   collapsed = false,
   draw,
+  servingLabel = "At the counter",
 }: BoardInput): BoardRow[] {
   const rows: BoardRow[] = [];
 
   for (const slot of serving) {
     rows.push({
       label: String(slot.number),
-      status: seatCount > 1 ? slot.seatName : "At the counter",
+      status: seatCount > 1 ? slot.seatName : servingLabel,
       kind: "serving",
     });
   }

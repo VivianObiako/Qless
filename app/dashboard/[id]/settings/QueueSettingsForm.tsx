@@ -480,6 +480,19 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
   );
 }
 
+/**
+ * The three ways a queue can run, as one choice. Two settings sit behind it:
+ * how numbers are given out, and who is called next. Random numbers called at
+ * random is not offered: a draw over a draw.
+ */
+type HowItWorks = "IN_ORDER" | "RANDOM_NUMBERS" | "RANDOM_CALL";
+
+function howItWorksOf(queue: Queue): HowItWorks {
+  if (queue.servingOrder === "RANDOM") return "RANDOM_CALL";
+  if (queue.numbering === "RANDOM") return "RANDOM_NUMBERS";
+  return "IN_ORDER";
+}
+
 function WaitingTab({
   queueId,
   queue,
@@ -493,22 +506,25 @@ function WaitingTab({
   const [serviceMinutes, setServiceMinutes] = useState(String(queue.averageServiceMinutes));
   const [capacity, setCapacity] = useState(queue.maxCapacity === null ? "" : String(queue.maxCapacity));
   const [holdMinutes, setHoldMinutes] = useState(String(queue.holdMinutes));
-  // A server from before draws sends no order; that queue is served in order.
-  const [order, setOrder] = useState<ServingOrder>(queue.servingOrder ?? "IN_ORDER");
+  const [mode, setMode] = useState<HowItWorks>(howItWorksOf(queue));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capacityError, setCapacityError] = useState<string | null>(null);
-  const draw = order === "RANDOM";
+  const draw = mode === "RANDOM_CALL";
+  const randomNumbers = mode === "RANDOM_NUMBERS";
+  const fixedPlaces = draw || randomNumbers;
   const people = nounFor(queue, 2);
+  const person = nounFor(queue, 1);
+  const People = people.charAt(0).toUpperCase() + people.slice(1);
 
   useEffect(() => {
     onDirty(
       serviceMinutes !== String(queue.averageServiceMinutes) ||
         capacity !== (queue.maxCapacity === null ? "" : String(queue.maxCapacity)) ||
         holdMinutes !== String(queue.holdMinutes) ||
-        order !== (queue.servingOrder ?? "IN_ORDER"),
+        mode !== howItWorksOf(queue),
     );
-  }, [serviceMinutes, capacity, holdMinutes, order, queue, onDirty]);
+  }, [serviceMinutes, capacity, holdMinutes, mode, queue, onDirty]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -521,8 +537,12 @@ function WaitingTab({
 
     const parsedCapacity = capacity.trim() === "" ? null : Number.parseInt(capacity, 10);
     const capacityValid = parsedCapacity !== null && Number.isFinite(parsedCapacity) && parsedCapacity >= 1 && parsedCapacity <= 1000;
-    if (draw && !capacityValid) {
-      setCapacityError("A draw needs a fixed number of places, from 1 to 1000.");
+    if (fixedPlaces && !capacityValid) {
+      setCapacityError(
+        draw
+          ? "A draw needs a fixed number of places, from 1 to 1000."
+          : "Random numbers need a fixed number of places, from 1 to 1000.",
+      );
       return;
     }
     if (parsedCapacity !== null && !capacityValid) {
@@ -545,7 +565,15 @@ function WaitingTab({
       await save(
         queueId,
         token,
-        { averageServiceMinutes: minutes, maxCapacity: parsedCapacity, holdMinutes: hold, servingOrder: order },
+        {
+          averageServiceMinutes: minutes,
+          maxCapacity: parsedCapacity,
+          holdMinutes: hold,
+          // Sent together, so the queue never passes through a combination
+          // the server refuses on the way from one mode to another.
+          servingOrder: draw ? "RANDOM" : "IN_ORDER",
+          numbering: randomNumbers ? "RANDOM" : "SEQUENTIAL",
+        },
         onSaved,
       ),
     );
@@ -554,23 +582,28 @@ function WaitingTab({
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      <Section title="Calling" description="How the counter picks who goes next.">
-        <Choice<ServingOrder>
-          label="Call people"
-          value={order}
+      <Section title="How it works" description="How numbers are given out, and who is called next.">
+        <Choice<HowItWorks>
+          label="Numbers and calling"
+          value={mode}
           onChange={(next) => {
-            setOrder(next);
+            setMode(next);
             setCapacityError(null);
           }}
           options={[
             {
               value: "IN_ORDER",
               label: "In order",
-              description: `The lowest number goes next. ${people.charAt(0).toUpperCase() + people.slice(1)} see their place in line and an estimated wait.`,
+              description: `First come, first called. The lowest number goes next, and ${people} see their place in line and an estimated wait.`,
             },
             {
-              value: "RANDOM",
-              label: "At random",
+              value: "RANDOM_NUMBERS",
+              label: "Random numbers",
+              description: `Each ${person} who joins gets a random number from 1 to the number of places, then ${people} are called from the lowest number up. Pause the queue once everyone has a number, so nobody joins with a low number after the first call.`,
+            },
+            {
+              value: "RANDOM_CALL",
+              label: "Random call",
               description:
                 "A draw. Everyone with a number is in it, each call picks one at random, and the next is drawn ahead so they get warning. There is no wait estimate, and the number of places is fixed.",
             },
@@ -579,11 +612,13 @@ function WaitingTab({
       </Section>
 
       <Section
-        title={draw ? "Places" : "Waiting"}
+        title={fixedPlaces ? "Places" : "Waiting"}
         description={
           draw
             ? "How many numbers the draw hands out. Nobody can join once they are gone."
-            : `The estimate ${people} see, and how long the line can get.`
+            : randomNumbers
+              ? "The numbers to give out. Nobody can join once they are gone."
+              : `The estimate ${people} see, and how long the line can get.`
         }
       >
         {/* A draw quotes no wait, so the figure that builds one is kept but
@@ -603,20 +638,22 @@ function WaitingTab({
           />
         )}
         <Field
-          label={draw ? "Number of places" : "Maximum queue size"}
+          label={fixedPlaces ? "Number of places" : "Maximum queue size"}
           type="number"
           inputMode="numeric"
           value={capacity}
           onChange={(event) => setCapacity(event.target.value)}
           error={capacityError}
           hint={
-            draw
-              ? `Everyone gets a number. Raise this if someone was missed. ${
-                  queue.servingOrder === "RANDOM" ? "" : "Anyone already waiting counts toward it."
-                }`.trim()
-              : "Optional. Leave empty for no limit."
+            randomNumbers
+              ? `Numbers run from 1 to ${capacity.trim() || "this"}. Raise this if someone was missed.`
+              : draw
+                ? `Everyone gets a number. Raise this if someone was missed. ${
+                    queue.servingOrder === "RANDOM" ? "" : "Anyone already waiting counts toward it."
+                  }`.trim()
+                : "Optional. Leave empty for no limit."
           }
-          placeholder={draw ? undefined : "No limit"}
+          placeholder={fixedPlaces ? undefined : "No limit"}
           suffix={people}
           min={1}
           max={1000}

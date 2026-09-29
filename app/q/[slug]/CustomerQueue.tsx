@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
 import { wordingFor, type CallWording } from "@/lib/phrases";
-import { isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
+import { hasFixedPlaces, hasRandomNumbers, isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
 import { getCustomerToken } from "@/lib/session";
@@ -71,6 +71,8 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
         description={
           isDraw(view.state.queue)
             ? "You'll lose your number and your place in the draw. If every place has gone when you come back, you won't get another."
+            : hasRandomNumbers(view.state.queue)
+              ? "You'll lose your number. If every place has gone when you come back, you won't get another."
             : "You'll lose your number. If you come back you'll join at the end of the queue."
         }
         confirmLabel="Cancel my place"
@@ -102,8 +104,10 @@ function JoinScreen({
   const { queue: summary, servingNumber, waitingCount, isFull, placesTaken } = view.state;
   const canJoin = summary.status === "OPEN" && !isFull;
   const draw = isDraw(summary);
-  // A draw's capacity is always set; the fallback is for a frame caught
-  // mid-change.
+  const randomNumbers = hasRandomNumbers(summary);
+  const fixedPlaces = hasFixedPlaces(summary);
+  // A fixed-places queue's capacity is always set; the fallback is for a
+  // frame caught mid-change.
   const placesLeft = Math.max(0, (summary.maxCapacity ?? placesTaken) - placesTaken);
 
   return (
@@ -127,9 +131,9 @@ function JoinScreen({
             {/* A draw is about getting a number at all: what is left of the
                 fixed places matters more than how many hold one. */}
             <MonoLabel size={10} tone="paper">
-              {draw ? "Places left" : "Waiting"}
+              {fixedPlaces ? "Places left" : "Waiting"}
             </MonoLabel>
-            <Numeral value={draw ? placesLeft : waitingCount} scale="medium" className="mt-1.5 text-paper-ink" />
+            <Numeral value={fixedPlaces ? placesLeft : waitingCount} scale="medium" className="mt-1.5 text-paper-ink" />
           </div>
         </div>
 
@@ -144,6 +148,15 @@ function JoinScreen({
             <p className="mt-2 text-[13px] leading-[1.55] text-paper-muted">
               Everyone with a number is in the draw. You&rsquo;ll be told when you&rsquo;re drawn next.
             </p>
+          </>
+        ) : randomNumbers ? (
+          // The wait can't be known before the number is: it is drawn on
+          // joining. The ticket says so in its own voice instead.
+          <>
+            <MonoLabel size={10} tone="paper">
+              Your place
+            </MonoLabel>
+            <p className="numeral mt-1.5 text-[clamp(28px,8vw,36px)] text-paper-ink">Luck of the draw</p>
           </>
         ) : (
           <>
@@ -179,14 +192,14 @@ function JoinScreen({
         </Notice>
       )}
 
-      {summary.status === "OPEN" && isFull && !draw && (
+      {summary.status === "OPEN" && isFull && !fixedPlaces && (
         <Notice tone="standing" title="Queue full">
           {summary.maxCapacity} is the limit for now. Keep this page open: it updates on its own, and
           the moment a place frees you can take it.
         </Notice>
       )}
 
-      {summary.status === "OPEN" && isFull && draw && (
+      {summary.status === "OPEN" && isFull && fixedPlaces && (
         <Notice tone="standing" title="All places are taken">
           All {summary.maxCapacity} numbers have been given out. Ask whoever is running it if you were
           expecting one. If someone cancels, a place opens here.
