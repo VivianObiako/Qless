@@ -15,6 +15,8 @@ export interface CallWording {
   now: string;
   /** Under a chair on the wall while somebody is at it: "being served". */
   inUse: string;
+  /** The status beside the number being called on a pass's board. */
+  boardStatus: string;
   /** Read aloud by the wall when nobody has been called. */
   nobodyYet: string;
   /** The notice on the join page after someone's turn is over. */
@@ -28,6 +30,7 @@ export const CALL_PHRASES: Record<CallPhrase, CallWording> = {
     suits: "shops and counters",
     now: "Now serving",
     inUse: "being served",
+    boardStatus: "At the counter",
     nobodyYet: "Nobody is being served yet.",
     doneTitle: "You've been served",
     doneBody: "Thanks for waiting. Take another number if you need anything else.",
@@ -37,6 +40,7 @@ export const CALL_PHRASES: Record<CallPhrase, CallWording> = {
     suits: "hackathons and pitch nights",
     now: "Now presenting",
     inUse: "presenting",
+    boardStatus: "Presenting",
     nobodyYet: "Nobody is presenting yet.",
     doneTitle: "Thanks for presenting",
     doneBody: "That's your turn done. Take another number only if you've been asked to go again.",
@@ -46,6 +50,7 @@ export const CALL_PHRASES: Record<CallPhrase, CallWording> = {
     suits: "clinics and advisors",
     now: "Now seeing",
     inUse: "being seen",
+    boardStatus: "Being seen",
     nobodyYet: "Nobody is being seen yet.",
     doneTitle: "You've been seen",
     doneBody: "Thanks for waiting. Take another number if you need to be seen again.",
@@ -55,6 +60,7 @@ export const CALL_PHRASES: Record<CallPhrase, CallWording> = {
     suits: "anything else",
     now: "Now up",
     inUse: "on now",
+    boardStatus: "On now",
     nobodyYet: "Nobody is up yet.",
     doneTitle: "You're all done",
     doneBody: "Thanks for waiting. Take another number if you need another turn.",

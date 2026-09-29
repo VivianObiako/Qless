@@ -91,7 +91,10 @@ export function Choice<T extends string>({
       <div
         role="radiogroup"
         aria-labelledby={labelId}
-        className="mt-2 grid max-w-sm grid-cols-2 gap-1 rounded-[10px] bg-shell-mid p-1"
+        className={cn(
+          "mt-2 grid gap-1 rounded-[10px] bg-shell-mid p-1",
+          options.length === 3 ? "max-w-md grid-cols-3" : "max-w-sm grid-cols-2",
+        )}
       >
         {options.map((option) => {
           const selected = option.value === value;

@@ -14,7 +14,7 @@ import { StatusDot } from "./QueueSwitcher";
 import { ChairCard } from "./ChairCard";
 import { ChairRail } from "./ChairRail";
 import { SeatPicker } from "./SeatPicker";
-import { DEFAULT_PERSON_NOUN, MEASURE_SAMPLE, isDraw, nextInLine, nounFor } from "@/lib/types";
+import { DEFAULT_PERSON_NOUN, MEASURE_SAMPLE, hasFixedPlaces, isDraw, nextInLine, nounFor } from "@/lib/types";
 import type {
   EntryAction,
   OperatorView,
@@ -554,7 +554,7 @@ function Stats({
 }): JSX.Element {
   const last = view.waiting.at(-1);
   const backOfLine = view.waiting.length === 0 ? "No wait" : (last?.estimate?.label ?? "—");
-  const draw = isDraw(view.queue);
+  const fixedPlaces = hasFixedPlaces(view.queue);
 
   const arrival = view.arrival.sample > 0 ? String(view.arrival.minutes) : "—";
   const open = chairs.filter((chair) => chair.seat.active).length;
@@ -571,7 +571,7 @@ function Stats({
       <Stat label="Waiting" value={String(view.waitingCount)} />
       {/* A draw quotes no wait. What the person running it needs instead is
           how many of the fixed places are gone, to know whether to add some. */}
-      {draw ? (
+      {fixedPlaces ? (
         <Stat
           label="Places taken"
           value={String(view.placesTaken)}
