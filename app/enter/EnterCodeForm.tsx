@@ -162,7 +162,7 @@ function RotatedCode({ redeemed, code }: { redeemed: RedeemResponse; code: strin
     setSaving(true);
     setError(null);
     try {
-      await acknowledgeRecoveryCode(redeemed.token);
+      await acknowledgeRecoveryCode(redeemed.token, code);
       // Replace rather than push: going back to a code that has just been
       // retired would show a screen that can never work again.
       router.replace(destinationFor(redeemed));
