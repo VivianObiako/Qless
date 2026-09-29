@@ -16,7 +16,17 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { DashboardChrome } from "@/app/dashboard/[id]/DashboardChrome";
 import { Section } from "@/app/dashboard/[id]/settings/parts";
-import { ApiError, getMyQueues, getSeats, leaveSeat, revokeOtherSessions, takeSeat } from "@/lib/api";
+import { RecoveryCode } from "@/components/RecoveryCode";
+import {
+  ApiError,
+  acknowledgeRecoveryCode,
+  getMyQueues,
+  getSeats,
+  leaveSeat,
+  requestRecoveryCode,
+  revokeOtherSessions,
+  takeSeat,
+} from "@/lib/api";
 import type { AccessOutcome } from "@/lib/access";
 import { isMine } from "@/lib/seats";
 import { clearSession, getSessionRole, sessionTokenKey, type SessionRole } from "@/lib/session";
@@ -183,6 +193,48 @@ function ProfileBody({
   const [busyQueue, setBusyQueue] = useState<string | null>(null);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  // A new recovery code, held only until the owner says it is saved: after
+  // that nothing can show it again.
+  const [newCode, setNewCode] = useState<string | null>(null);
+  const [requestingCode, setRequestingCode] = useState(false);
+  const [savingCode, setSavingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+
+  async function getNewCode(): Promise<void> {
+    setRequestingCode(true);
+    try {
+      const result = await requestRecoveryCode(token);
+      setCodeError(null);
+      setNewCode(result.recoveryCode);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Something went wrong.");
+    } finally {
+      setRequestingCode(false);
+    }
+  }
+
+  // Saying it is saved is the moment the old code stops working, so it is
+  // the last thing that happens; until then both work.
+  async function confirmNewCode(code: string): Promise<void> {
+    setSavingCode(true);
+    setCodeError(null);
+    try {
+      await acknowledgeRecoveryCode(token, code);
+      setNewCode(null);
+      toast.success("New recovery code saved. Your old one no longer works.");
+    } catch (caught) {
+      // Replaced on another device: the code on screen will never work, so
+      // it goes, and the owner starts again with their current code intact.
+      if (caught instanceof ApiError && caught.code === "recovery_code_replaced") {
+        setNewCode(null);
+        toast.error(caught.message);
+        return;
+      }
+      setCodeError(caught instanceof ApiError ? caught.message : "Something went wrong.");
+    } finally {
+      setSavingCode(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -230,6 +282,25 @@ function ProfileBody({
   function signOut(): void {
     clearSession();
     router.push("/");
+  }
+
+  if (newCode) {
+    return (
+      <div className="max-w-md">
+        <RecoveryCode
+          code={newCode}
+          queueName={queues[0]?.name}
+          continueLabel="Done"
+          saving={savingCode}
+          onContinue={() => void confirmNewCode(newCode)}
+        />
+        {codeError && (
+          <Notice tone="standing" title="Couldn't finish saving" chip="!" className="mt-4">
+            {codeError} Your previous code still works, so nothing is lost. Try Done again.
+          </Notice>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -320,6 +391,23 @@ function ProfileBody({
             })}
           </div>
         </Section>
+
+        {isOwner && (
+          <Section
+            title="Recovery code"
+            description="Gets you back into your queues on a new device. Only a scrambled copy is kept, so it can't be shown again."
+          >
+            <div>
+              <Button type="button" variant="ghost" size="md" loading={requestingCode} onClick={() => void getNewCode()}>
+                Get a new code
+              </Button>
+            </div>
+            <p className="text-[13px] leading-[1.6] text-dim">
+              Lost yours? Get a new one here while this device is signed in. Your current code keeps working
+              until you&rsquo;ve saved the new one.
+            </p>
+          </Section>
+        )}
 
         <Section
           title="Devices"

@@ -147,9 +147,24 @@ export function revokeOtherSessions(sessionToken: string): Promise<void> {
   return request<void>("/api/sessions/revoke-others", { method: "POST", sessionToken });
 }
 
-export function acknowledgeRecoveryCode(sessionToken: string): Promise<void> {
+/**
+ * A new recovery code for a signed-in owner who has lost theirs. It is staged:
+ * the old code keeps working until acknowledgeRecoveryCode says this one is
+ * saved.
+ */
+export function requestRecoveryCode(sessionToken: string): Promise<{ recoveryCode: string }> {
+  return request<{ recoveryCode: string }>("/api/me/recovery-code", { method: "POST", sessionToken });
+}
+
+/**
+ * Confirms a recovery code is saved, which makes it the only one that works.
+ * The code is named so that only it is made live: if another device replaced
+ * it meanwhile, the server answers `recovery_code_replaced` and changes nothing.
+ */
+export function acknowledgeRecoveryCode(sessionToken: string, code: string): Promise<void> {
   return request<void>("/api/access/recovery-code/acknowledge", {
     method: "POST",
+    body: { code },
     sessionToken,
   });
 }
