@@ -91,9 +91,18 @@ a secret. Nothing sensitive is committed; `.env*` is ignored.
 
 ## Tests
 
+There are two layers, and they never load each other's files.
+
 ```bash
-npx playwright test
+npm test           # Jest and React Testing Library: logic, components, hooks
+npm run test:e2e   # Playwright: the real stack, see End-to-end tests above
 ```
+
+`npm test` needs nothing running and is what CI runs on every push and pull
+request, between lint and build. Tests sit beside the file they cover as
+`*.test.ts(x)`, find elements the way a person would (by role, label and
+accessible name), and share fixtures from `test/fixtures.ts`. `next build`
+type-checks them too, so a test that no longer matches a type fails the build.
 
 The end-to-end specs in `e2e/` need both the API and this app running.
 
