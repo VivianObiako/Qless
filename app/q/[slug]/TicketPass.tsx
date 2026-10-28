@@ -41,7 +41,8 @@ interface ScreenProps {
   view: CustomerView;
   entry: QueueEntry;
   connection: ConnectionState;
-  onCancel: () => void;
+  /** Absent when the owner has turned cancelling off: staff remove people instead. */
+  onCancel?: () => void;
   /** Tell the counter where you are. The entry comes back carrying it. */
   onSay: (presence: Presence) => void;
 }
@@ -110,13 +111,17 @@ export function TicketPass({
     customerToken,
   });
 
+  // The server refuses a cancel here too; this only stops offering one. Absent
+  // means an API older than the setting, which always allowed it.
+  const cancel = view.state.queue.customersCanLeave === false ? undefined : onCancel;
+
   const screen =
     proximity === "current" ? (
       <TurnScreen
         view={view}
         entry={entry}
         seat={seat}
-        onCancel={onCancel}
+        onCancel={cancel}
         onSay={onSay}
         presence={presence}
         setPresence={setPresence}
@@ -126,7 +131,7 @@ export function TicketPass({
         view={view}
         entry={entry}
         connection={connection}
-        onCancel={onCancel}
+        onCancel={cancel}
         onSay={onSay}
         presence={presence}
         setPresence={setPresence}
@@ -136,7 +141,7 @@ export function TicketPass({
         view={view}
         entry={entry}
         connection={connection}
-        onCancel={onCancel}
+        onCancel={cancel}
         onSay={onSay}
         close={proximity === "close"}
         alerts={alerts}
@@ -394,9 +399,13 @@ function WaitingScreen({
 
           <div className="space-y-2">
             {close && <PresencePanel stage="close" presence={presence} onSet={setPresence} />}
-            <Button variant="ghost" fullWidth onClick={onCancel}>
-              Cancel my place
-            </Button>
+            {onCancel ? (
+              <Button variant="ghost" fullWidth onClick={onCancel}>
+                Cancel my place
+              </Button>
+            ) : (
+              <LeaveNote />
+            )}
           </div>
         </div>
       </div>
@@ -473,9 +482,13 @@ function NextScreen({
 
           <div className="space-y-2">
             <PresencePanel stage="next" presence={presence} onSet={setPresence} />
-            <Button variant="ghost" fullWidth onClick={onCancel}>
-              Cancel my place
-            </Button>
+            {onCancel ? (
+              <Button variant="ghost" fullWidth onClick={onCancel}>
+                Cancel my place
+              </Button>
+            ) : (
+              <LeaveNote />
+            )}
           </div>
         </div>
       </div>
@@ -544,13 +557,19 @@ function TurnScreen({
 
           <div className="mt-8 space-y-2 lg:max-w-xs">
             <PresencePanel stage="current" presence={presence} onSet={setPresence} onSignal seatName={seat?.name ?? null} />
-            <button
-              type="button"
-              onClick={onCancel}
-              className="block w-full py-2 text-center text-[13px] text-white/90 underline-offset-4 hover:underline"
-            >
-              Cancel my place
-            </button>
+            {onCancel ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="block w-full py-2 text-center text-[13px] text-white/90 underline-offset-4 hover:underline"
+              >
+                Cancel my place
+              </button>
+            ) : (
+              <p className="py-2 text-center text-[13px] text-white/90">
+                Need to leave the queue? Ask at the admin and they will take you off the list.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -657,6 +676,16 @@ function PresencePanel({
  * The appearance control disappears from state 03 onwards: at that point the
  * customer is being called, and nothing should compete with the number.
  */
+/** Where "Cancel my place" was, on a queue whose owner has turned cancelling off. */
+function LeaveNote(): JSX.Element {
+  return (
+    <div className="rounded-[var(--radius-panel)] border border-shell-line px-4 py-3.5">
+      <p className="text-[14px] font-medium text-strong">Need to leave the queue?</p>
+      <p className="mt-1 text-[13px] leading-[1.55] text-muted">Ask at the admin and they will take you off the list.</p>
+    </div>
+  );
+}
+
 function Shell({
   children,
   connection,

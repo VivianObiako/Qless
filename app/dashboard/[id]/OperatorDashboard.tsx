@@ -181,6 +181,7 @@ export function OperatorDashboard({
         pendingAction={queue.pendingAction}
         pendingEntryId={queue.pendingEntryId}
         onSkip={(entryId) => void queue.actOnCustomer(entryId, "skip")}
+        onRemove={(entryId) => void queue.actOnCustomer(entryId, "remove")}
         onAct={(action) => void queue.actOnThisQueue(action)}
       />
     </DashboardChrome>
@@ -220,6 +221,7 @@ function Confirmations({
   pendingAction,
   pendingEntryId,
   onSkip,
+  onRemove,
   onAct,
 }: {
   confirming: Confirmation;
@@ -230,6 +232,7 @@ function Confirmations({
   pendingAction: QueueAction | null;
   pendingEntryId: string | null;
   onSkip: (entryId: string) => void;
+  onRemove: (entryId: string) => void;
   onAct: (action: QueueAction) => void;
 }): JSX.Element {
   const open = confirming !== null;
@@ -252,6 +255,26 @@ function Confirmations({
         loading={pendingEntryId === entry.id}
         onConfirm={() => {
           onSkip(entry.id);
+          onClose();
+        }}
+      />
+    );
+  }
+
+  if (confirming?.kind === "remove") {
+    const { entry } = confirming;
+    return (
+      <ConfirmDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={`Remove ${nameFor(entry, person)}, number ${entry.number}?`}
+        description="They leave the queue now and lose their number. Their phone says they were removed. They can join again for a new number."
+        confirmLabel="Remove"
+        cancelLabel="Keep them"
+        destructive
+        loading={pendingEntryId === entry.id}
+        onConfirm={() => {
+          onRemove(entry.id);
           onClose();
         }}
       />

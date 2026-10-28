@@ -507,6 +507,7 @@ function WaitingTab({
   const [capacity, setCapacity] = useState(queue.maxCapacity === null ? "" : String(queue.maxCapacity));
   const [holdMinutes, setHoldMinutes] = useState(String(queue.holdMinutes));
   const [mode, setMode] = useState<HowItWorks>(howItWorksOf(queue));
+  const [canLeave, setCanLeave] = useState(queue.customersCanLeave ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capacityError, setCapacityError] = useState<string | null>(null);
@@ -522,9 +523,10 @@ function WaitingTab({
       serviceMinutes !== String(queue.averageServiceMinutes) ||
         capacity !== (queue.maxCapacity === null ? "" : String(queue.maxCapacity)) ||
         holdMinutes !== String(queue.holdMinutes) ||
-        mode !== howItWorksOf(queue),
+        mode !== howItWorksOf(queue) ||
+        canLeave !== (queue.customersCanLeave ?? true),
     );
-  }, [serviceMinutes, capacity, holdMinutes, mode, queue, onDirty]);
+  }, [serviceMinutes, capacity, holdMinutes, mode, canLeave, queue, onDirty]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -573,6 +575,7 @@ function WaitingTab({
           // the server refuses on the way from one mode to another.
           servingOrder: draw ? "RANDOM" : "IN_ORDER",
           numbering: randomNumbers ? "RANDOM" : "SEQUENTIAL",
+          customersCanLeave: canLeave,
         },
         onSaved,
       ),
@@ -676,6 +679,19 @@ function WaitingTab({
         <p className="text-[13px] leading-[1.6] text-dim">
           {arrivalHint(arrival, Number.parseInt(holdMinutes, 10))}
         </p>
+      </Section>
+
+      <Section title="Cancelling" description={`Whether ${people} can give up their place from their phone.`}>
+        <Switch
+          label={`Let ${people} cancel their place`}
+          description={
+            canLeave
+              ? "The ticket has a Cancel my place button."
+              : `No cancel button on the ticket. ${People} ask your staff, who remove them from the counter.`
+          }
+          checked={canLeave}
+          onChange={setCanLeave}
+        />
       </Section>
 
       <SaveRow error={error} saving={saving} />

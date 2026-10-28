@@ -41,6 +41,9 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
     const left = await queue.leave();
     setConfirmingLeave(false);
     if (left) toast.success("Your place has been cancelled");
+    // The only refusal a live pass can meet: the owner turned cancelling off
+    // while the dialog was open. The pass redraws without the button.
+    else toast.error("Ask at the admin and they will take you off the list.");
   }
 
   return (
@@ -209,6 +212,11 @@ function JoinScreen({
       {canJoin && (
         <>
           <JoinQueueForm onJoin={onJoin} joining={joining} />
+          {summary.customersCanLeave === false && (
+            <p className="text-center text-[12.5px] leading-[1.55] text-muted">
+              Once you join, only the admin can take you off the list.
+            </p>
+          )}
           <MonoLabel size={10} tone="muted" className="text-center">
             No app · No account · Your place is held
           </MonoLabel>
@@ -233,6 +241,13 @@ function PreviousEntryNotice({ entry, wording }: { entry: QueueEntry; wording: C
         </Notice>
       );
     case "LEFT":
+      if (entry.removedByStaff) {
+        return (
+          <Notice tone="quiet" title="The admin removed you from the queue">
+            Number {entry.number} is no longer held. Take a new number below.
+          </Notice>
+        );
+      }
       return (
         <Notice tone="quiet" title="You cancelled your place">
           Number {entry.number} is no longer held. Take a new number below.
