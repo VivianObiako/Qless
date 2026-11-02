@@ -43,6 +43,8 @@ export interface QueueSummary {
   numbering: Numbering;
   /** Whether the pass offers "Cancel my place". Off, only staff take someone off the list. */
   customersCanLeave: boolean;
+  /** Whether the join page asks for a team name. On, a team already in line cannot join again. */
+  asksTeamName: boolean;
 }
 
 /**
@@ -343,6 +345,7 @@ export interface UpdateQueueInput {
   callPhrase?: CallPhrase;
   numbering?: Numbering;
   customersCanLeave?: boolean;
+  asksTeamName?: boolean;
 }
 
 export interface SeatsResponse {

@@ -23,7 +23,7 @@ import {
 } from "@/lib/session";
 import { useIsClient, useStoredValue } from "@/hooks/useStoredValue";
 import { cn } from "@/lib/utils";
-import { NOUN_LIMIT, nounFor, type CallPhrase, type Queue, type Seat, type ServiceMeasure, type ServingOrder } from "@/lib/types";
+import { DEFAULT_PEOPLE_NOUN, DEFAULT_PERSON_NOUN, NOUN_LIMIT, nounFor, type CallPhrase, type Queue, type Seat, type ServiceMeasure, type ServingOrder } from "@/lib/types";
 import { CALL_PHRASES, CALL_PHRASE_ORDER } from "@/lib/phrases";
 import { SeatsTab } from "./SeatsTab";
 import { Choice, SaveRow, Section, Switch, measuredHint } from "./parts";
@@ -318,6 +318,8 @@ async function save(
   }
 }
 
+type AsksFor = "PERSON" | "TEAM";
+
 function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.Element {
   const router = useRouter();
   const [name, setName] = useState(queue.name);
@@ -326,6 +328,7 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
   const [peopleNoun, setPeopleNoun] = useState(queue.peopleNoun);
   // A server from before the setting sends none; that queue says "serving".
   const [phrase, setPhrase] = useState<CallPhrase>(queue.callPhrase ?? "SERVING");
+  const [asksFor, setAsksFor] = useState<AsksFor>(queue.asksTeamName ? "TEAM" : "PERSON");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -338,9 +341,21 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
         description !== queue.description ||
         personNoun !== queue.personNoun ||
         peopleNoun !== queue.peopleNoun ||
-        phrase !== (queue.callPhrase ?? "SERVING"),
+        phrase !== (queue.callPhrase ?? "SERVING") ||
+        (asksFor === "TEAM") !== (queue.asksTeamName ?? false),
     );
-  }, [name, description, personNoun, peopleNoun, phrase, queue, onDirty]);
+  }, [name, description, personNoun, peopleNoun, phrase, asksFor, queue, onDirty]);
+
+  function chooseAsksFor(next: AsksFor): void {
+    setAsksFor(next);
+    // A team queue still calling them "customers" reads wrong everywhere, so
+    // the ordinary words give way. Words the owner chose stay.
+    const ordinary = [personNoun, peopleNoun].every((noun) => !noun.trim() || noun === DEFAULT_PERSON_NOUN || noun === DEFAULT_PEOPLE_NOUN);
+    if (next === "TEAM" && ordinary) {
+      setPersonNoun("team");
+      setPeopleNoun("teams");
+    }
+  }
 
   async function archive(): Promise<void> {
     setArchiving(true);
@@ -375,6 +390,7 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
           personNoun: personNoun.trim(),
           peopleNoun: peopleNoun.trim(),
           callPhrase: phrase,
+          asksTeamName: asksFor === "TEAM",
         },
         (saved) => {
           setPersonNoun(saved.personNoun);
@@ -413,6 +429,24 @@ function GeneralTab({ queueId, queue, token, onSaved, onDirty }: TabProps): JSX.
           title="Wording"
           description="The words on phones, the wall and the join page. Your counter keeps its own."
         >
+          <Choice<AsksFor>
+            label="Join page asks for"
+            value={asksFor}
+            onChange={chooseAsksFor}
+            options={[
+              {
+                value: "PERSON",
+                label: "Their name",
+                description: "Each person gives their own name. This is how every queue works today.",
+              },
+              {
+                value: "TEAM",
+                label: "A team name",
+                description:
+                  "For competitions and hackathons. The join page asks for a team name, and a team already in the queue cannot join a second time.",
+              },
+            ]}
+          />
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="One"
