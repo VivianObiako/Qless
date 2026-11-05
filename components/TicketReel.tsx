@@ -232,7 +232,7 @@ function StubTicket({ number, index }: { number: number; index: number }): JSX.E
       <TicketCard className="flex h-full w-full flex-col justify-between p-[22px]">
         <div className="flex items-start justify-between">
           <MonoLabel size={10} tone="paper">
-            Qless pass
+            Less Queues pass
           </MonoLabel>
           <MonoLabel size={10} tone="paper">
             Waiting

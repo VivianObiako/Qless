@@ -52,9 +52,9 @@ export function RecoveryCode({
   }
 
   function downloadCode(): void {
-    const slug = (queueName ?? "qless").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = (queueName ?? "less-queues").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const body = [
-      "Qless recovery code",
+      "Less Queues recovery code",
       queueName ? `Business: ${queueName}` : null,
       "",
       code,
@@ -124,7 +124,7 @@ export function RecoveryCode({
         </p>
 
         <p className="mt-3 hidden text-[13px] leading-[1.55] text-paper-muted print:block">
-          Enter it at {origin || "the Qless site"}/enter on any device. Redeeming it issues a fresh
+          Enter it at {origin || "the Less Queues site"}/enter on any device. Redeeming it issues a fresh
           code and retires this one, so print the replacement and shred this sheet.
         </p>
       </TicketCard>

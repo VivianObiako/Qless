@@ -35,7 +35,7 @@ export function Wordmark({ className, asLink = true, size = 22 }: WordmarkProps)
   const content = (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <Mark size={size} className="shrink-0 text-strong" />
-      <span className="text-[15px] font-medium tracking-[-0.01em] text-strong">Qless</span>
+      <span className="text-[15px] font-medium tracking-[-0.01em] text-strong">Less Queues</span>
     </span>
   );
 

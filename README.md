@@ -1,6 +1,6 @@
-# Qless — web
+# Less Queues — web
 
-The Next.js frontend for Qless, a zero-install virtual queue for physical
+The Next.js frontend for Less Queues (formerly Qless), a zero-install virtual queue for physical
 businesses. Customers scan a QR code, enter a name and get a number. The
 operator runs the queue from a dashboard on the counter.
 
@@ -86,6 +86,8 @@ person being called. Tokens live in `app/globals.css`; the reasoning is in
 | Variable | Required | Notes |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | yes | Baked into the client bundle at build time |
+| `SITE_URL` | no | This deployment's own address, e.g. `https://lessqueues.com`. With `LEGACY_HOSTS`, turns on the handoff |
+| `LEGACY_HOSTS` | no | Comma-separated old hostnames that hand their visitors over to `SITE_URL` |
 
 Being a `NEXT_PUBLIC_` value it is visible to the browser, so it must never hold
 a secret. Nothing sensitive is committed; `.env*` is ignored.
@@ -119,8 +121,8 @@ full table; from this app's side it comes down to which API each one talks to:
 | | Web | Talks to |
 |---|---|---|
 | Development | `http://localhost:3000` | A local API on `http://localhost:8080` |
-| Staging | The Vercel `staging` branch and every preview (`staging.lessqueues.com` after the rename) | The staging API and its own database |
-| Production | `https://qless-indol.vercel.app` (`lessqueues.com` after the rename) | The production API |
+| Staging | `https://staging.lessqueues.com` (the `staging` branch) and every preview | The staging API and its own database |
+| Production | `https://lessqueues.com` | The production API |
 
 Changes move one way: feature branch, then `staging`, then `main`. Production
 deploys from `main` only.
@@ -147,11 +149,27 @@ ships to the browser it must never hold a secret. There are no other
 environment variables, and nothing sensitive is committed.
 
 **3.** Staging is the `staging` git branch. Vercel builds it as a preview, so
-it gets the staging API with no extra setting, at the branch's own stable
-address. After the rename, add `staging.lessqueues.com` in the project's domain
-settings and assign it to the `staging` branch.
+it gets the staging API with no extra setting. `staging.lessqueues.com` is
+assigned to that branch in the project's domain settings, behind Vercel's
+login like every preview.
 
-**4.** Add each web domain to its own API's `ALLOWED_ORIGIN`. Both CORS and the
+**4.** The old addresses hand over. The site used to live at
+`qless-indol.vercel.app`, and printed QR codes point there forever. Browser
+storage belongs to one address, so without help everyone arriving from an old
+link would lose their ticket and their sign-in. Set, per environment:
+
+| Vercel environment | `SITE_URL` | `LEGACY_HOSTS` |
+|---|---|---|
+| Production | `https://lessqueues.com` | `qless-indol.vercel.app` |
+| Preview, `staging` branch only | `https://staging.lessqueues.com` | `qless-git-staging-vivianobiakos-projects.vercel.app` |
+
+An old address then moves each visitor to the same page on the new one,
+carrying this site's `qless.*` storage entries in the URL fragment, which is
+never sent to a server. The new address keeps them only if the browser says it
+came from an old address, never overwrites what it already holds, and wipes the
+fragment. `lib/handoff.ts` has the rules. Leave both unset anywhere else.
+
+**5.** Add each web domain to its own API's `ALLOWED_ORIGIN`. Both CORS and the
 WebSocket handshake check it, so the app cannot load data until this is done.
 
 ### Preview deployments
