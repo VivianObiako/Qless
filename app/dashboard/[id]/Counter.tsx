@@ -33,6 +33,7 @@ import type {
  */
 export type Confirmation =
   | { kind: "skip"; entry: QueueEntry }
+  | { kind: "remove"; entry: QueueEntry }
   | { kind: "close" }
   | { kind: "reset" }
   | null;
@@ -301,6 +302,7 @@ export function Counter({
           onCall={(entryId, seatId) => onEntry(entryId, "serve", seatId)}
           onAttend={(entryId) => onEntry(entryId, "attend")}
           onSkip={(entry) => onConfirm({ kind: "skip", entry })}
+          onRemove={(entry) => onConfirm({ kind: "remove", entry })}
           skipped={view.skipped}
           holdMinutes={view.queue.holdMinutes}
           single={single}
@@ -633,6 +635,7 @@ function WaitingList({
   onCall,
   onAttend,
   onSkip,
+  onRemove,
   skipped,
   holdMinutes,
   single,
@@ -646,6 +649,7 @@ function WaitingList({
   onCall: (entryId: string, seatId: string) => void;
   onAttend: (entryId: string) => void;
   onSkip: (entry: WaitingRow) => void;
+  onRemove: (entry: WaitingRow) => void;
   skipped: QueueEntry[];
   holdMinutes: number;
   single: boolean;
@@ -733,6 +737,7 @@ function WaitingList({
                   onCall={(seatId) => onCall(entry.id, seatId)}
                   onAttend={() => onAttend(entry.id)}
                   onSkip={() => onSkip(entry)}
+                  onRemove={() => onRemove(entry)}
                 />
               </span>
             </li>
@@ -901,6 +906,7 @@ function RowMenu({
   onCall,
   onAttend,
   onSkip,
+  onRemove,
 }: {
   entry: WaitingRow;
   person: string;
@@ -910,6 +916,7 @@ function RowMenu({
   onCall: (seatId: string) => void;
   onAttend: () => void;
   onSkip: () => void;
+  onRemove: () => void;
 }): JSX.Element {
   const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
 
@@ -966,6 +973,9 @@ function RowMenu({
         <span className="my-1 block h-px bg-shell-line" />
         <button type="button" className={cn(item, "text-dim")} onClick={() => { setOpen(false); onSkip(); }}>
           Skip…
+        </button>
+        <button type="button" className={cn(item, "text-dim")} onClick={() => { setOpen(false); onRemove(); }}>
+          Remove from queue…
         </button>
       </span>
     </span>

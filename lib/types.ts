@@ -41,6 +41,8 @@ export interface QueueSummary {
   callPhrase: CallPhrase;
   /** How numbers are given out: in joining order, or at random from 1 to the places. */
   numbering: Numbering;
+  /** Whether the pass offers "Cancel my place". Off, only staff take someone off the list. */
+  customersCanLeave: boolean;
 }
 
 /**
@@ -170,6 +172,8 @@ export interface QueueEntry {
   presenceAt: string | null;
   /** Added at the counter by staff; no phone can recover this entry. */
   walkIn: boolean;
+  /** A LEFT entry that staff ended, so the phone does not say they cancelled. */
+  removedByStaff: boolean;
   /** Where they were called to. Null while they wait; kept afterwards. */
   seatId: string | null;
   /**
@@ -338,6 +342,7 @@ export interface UpdateQueueInput {
   peopleNoun?: string;
   callPhrase?: CallPhrase;
   numbering?: Numbering;
+  customersCanLeave?: boolean;
 }
 
 export interface SeatsResponse {
@@ -423,7 +428,7 @@ export interface HistoryResponse {
 export type QueueAction = "pause" | "resume" | "close" | "reset" | "archive" | "unarchive";
 
 /** The per-entry actions that share one endpoint shape. */
-export type EntryAction = "serve" | "attend" | "skip" | "start";
+export type EntryAction = "serve" | "attend" | "skip" | "start" | "remove";
 
 /**
  * How close a customer is to being served. The customer page uses this to pick

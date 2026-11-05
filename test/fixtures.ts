@@ -35,6 +35,7 @@ export function entry(overrides: Partial<QueueEntry> = {}): QueueEntry {
     presence: null,
     presenceAt: null,
     walkIn: false,
+    removedByStaff: false,
     seatId: null,
     drawnAt: null,
     ...overrides,
