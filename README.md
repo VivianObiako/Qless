@@ -8,7 +8,8 @@ The Go API lives in [Qless-backend](https://github.com/VivianObiako/Qless-backen
 
 ## Running it locally
 
-Start the API first, then:
+Start the API first. From the API repository, `docker compose up --build` runs
+it and its database with nothing else installed. Then:
 
 ```bash
 cp .env.example .env.local
@@ -110,39 +111,62 @@ The end-to-end specs in `e2e/` need both the API and this app running.
 
 Product docs are in `docs/`, shared with the backend repo.
 
+## Environments
+
+Development, staging and production share nothing. The API repo's README has the
+full table; from this app's side it comes down to which API each one talks to:
+
+| | Web | Talks to |
+|---|---|---|
+| Development | `http://localhost:3000` | A local API on `http://localhost:8080` |
+| Staging | The Vercel `staging` branch and every preview (`staging.lessqueues.com` after the rename) | The staging API and its own database |
+| Production | `https://qless-indol.vercel.app` (`lessqueues.com` after the rename) | The production API |
+
+Changes move one way: feature branch, then `staging`, then `main`. Production
+deploys from `main` only.
+
 ## Deploying
 
-The app deploys to Vercel; the API is a separate Render service.
+The app deploys to Vercel; the API is a separate Render service per environment.
 
 **1.** Import this repository on Vercel. It detects Next.js with no extra
 configuration.
 
-**2.** Set one environment variable:
+**2.** Set one environment variable, with a different value per environment:
 
-| Variable | Value |
+| Vercel environment | `NEXT_PUBLIC_API_URL` |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | The Render service URL, e.g. `https://qless-api.onrender.com` |
+| Production | The production API URL |
+| Preview | The **staging** API URL |
+| Development | `http://localhost:8080` |
 
-Set it for Production, Preview and Development. It is compiled into the client
-bundle, so a change needs a redeploy — and because it ships to the browser it
-must never hold a secret. There are no other environment variables, and nothing
-sensitive is committed.
+The Preview value must be the staging API, never production: a preview is
+unreviewed code, and until now every preview could write to real queues. It is
+compiled into the client bundle, so a change needs a redeploy — and because it
+ships to the browser it must never hold a secret. There are no other
+environment variables, and nothing sensitive is committed.
 
-**3.** Add the resulting Vercel domain to the API's `ALLOWED_ORIGIN`. Both CORS
-and the WebSocket handshake check it, so the app cannot load data until this is
-done.
+**3.** Staging is the `staging` git branch. Vercel builds it as a preview, so
+it gets the staging API with no extra setting, at the branch's own stable
+address. After the rename, add `staging.lessqueues.com` in the project's domain
+settings and assign it to the `staging` branch.
+
+**4.** Add each web domain to its own API's `ALLOWED_ORIGIN`. Both CORS and the
+WebSocket handshake check it, so the app cannot load data until this is done.
 
 ### Preview deployments
 
 Every preview gets its own domain, and the API only answers origins it has been
-told about. `ALLOWED_ORIGIN` takes a comma-separated list, so add the preview
-domain alongside production:
+told about. A preview talks to the staging API, so *staging's* `ALLOWED_ORIGIN`
+carries one pattern that covers them all. A `*` matches one run of characters
+with no dot or slash:
 
 ```
-ALLOWED_ORIGIN=https://qless.app,https://qless-git-my-branch.vercel.app
+ALLOWED_ORIGIN=https://qless-*-vivianobiakos-projects.vercel.app,http://localhost:3000
 ```
 
-Without that, a preview build loads but every API call and the live socket fail.
+The production API never lists a preview domain. Without the pattern in staging, a
+preview build loads but every API call and the live socket fail.
 
 ### The API sleeps on the free tier
 
