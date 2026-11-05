@@ -46,6 +46,13 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
     else toast.error("Ask at the admin and they will take you off the list.");
   }
 
+  async function onJoin(name: string): Promise<boolean> {
+    const joined = await queue.join(name);
+    // A team checks the name it is in line under, since that is what the room will hear.
+    if (joined && view.state.queue.asksTeamName) toast.success(`You're in as ${name}`);
+    return joined;
+  }
+
   return (
     <>
       {activeEntry ? (
@@ -62,7 +69,8 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
         <JoinScreen
           view={view}
           joining={queue.joining}
-          onJoin={queue.join}
+          joinErrorCode={queue.actionError?.code}
+          onJoin={onJoin}
           connection={queue.connection}
         />
       )}
@@ -96,11 +104,13 @@ export function CustomerQueue({ slug }: { slug: string }): JSX.Element {
 function JoinScreen({
   view,
   joining,
+  joinErrorCode,
   onJoin,
   connection,
 }: {
   view: CustomerView;
   joining: boolean;
+  joinErrorCode?: string;
   onJoin: (name: string) => Promise<boolean>;
   connection: ConnectionState;
 }): JSX.Element {
@@ -211,7 +221,12 @@ function JoinScreen({
 
       {canJoin && (
         <>
-          <JoinQueueForm onJoin={onJoin} joining={joining} />
+          <JoinQueueForm
+            onJoin={onJoin}
+            joining={joining}
+            asksTeamName={summary.asksTeamName}
+            joinErrorCode={joinErrorCode}
+          />
           {summary.customersCanLeave === false && (
             <p className="text-center text-[12.5px] leading-[1.55] text-muted">
               Once you join, only the admin can take you off the list.
