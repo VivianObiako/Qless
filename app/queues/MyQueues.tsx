@@ -281,7 +281,7 @@ function SignedOut(): JSX.Element {
         Sign in with your code
       </h1>
       <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
-        Qless has no passwords. Your recovery code — or the access code your manager gave you — is
+        Less Queues has no passwords. Your recovery code — or the access code your manager gave you — is
         what brings your queues back on this device.
       </p>
 
