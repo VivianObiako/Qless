@@ -362,7 +362,12 @@ function CounterHeading({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {picker}
-        <AddWalkIn onAdd={onAddWalkIn} adding={addingWalkIn} disabled={queue.status === "CLOSED"} />
+        <AddWalkIn
+          onAdd={onAddWalkIn}
+          adding={addingWalkIn}
+          disabled={queue.status === "CLOSED"}
+          teams={queue.asksTeamName ?? false}
+        />
         <QueueControls
           queue={queue}
           isOwner={isOwner}
@@ -384,10 +389,13 @@ function AddWalkIn({
   onAdd,
   adding,
   disabled,
+  teams,
 }: {
   onAdd: (name: string) => Promise<boolean>;
   adding: boolean;
   disabled: boolean;
+  /** The queue asks for team names, so the form does too. */
+  teams: boolean;
 }): JSX.Element {
   const { open, setOpen, toggle, containerRef, triggerRef, panelId } = useDisclosure();
   const [name, setName] = useState("");
@@ -397,7 +405,7 @@ function AddWalkIn({
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Enter their name");
+      setError(teams ? "Enter the team name" : "Enter their name");
       return;
     }
     setError(null);
@@ -419,7 +427,7 @@ function AddWalkIn({
         className={cn(controlClasses("ghost", "md"), "disabled:opacity-50")}
       >
         <Icon icon={Plus} size={15} />
-        Add a person
+        {teams ? "Add a team" : "Add a person"}
       </button>
       <form
         id={panelId}
@@ -429,7 +437,7 @@ function AddWalkIn({
         className="absolute right-0 top-full z-20 mt-1.5 w-[300px] rounded-[12px] border border-shell-line bg-shell-soft p-4 shadow-[0_1px_2px_rgb(0_0_0_/_0.05),0_12px_32px_rgb(0_0_0_/_0.10)]"
       >
         <div className="flex items-start justify-between gap-3">
-          <p className="text-[14px] font-medium text-strong">Add a person to the queue</p>
+          <p className="text-[14px] font-medium text-strong">{teams ? "Add a team to the queue" : "Add a person to the queue"}</p>
           <button
             type="button"
             aria-label="Close"
@@ -444,11 +452,11 @@ function AddWalkIn({
         </p>
         <Field
           className="mt-3"
-          label="Their name"
+          label={teams ? "Team name" : "Their name"}
           value={name}
           onChange={(event) => setName(event.target.value)}
           error={error}
-          placeholder="First name is enough"
+          placeholder={teams ? "Exactly as they registered it" : "First name is enough"}
           maxLength={60}
           autoComplete="off"
           autoFocus={open}
