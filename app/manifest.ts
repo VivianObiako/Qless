@@ -7,8 +7,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Qless",
-    short_name: "Qless",
+    name: "Less Queues",
+    short_name: "Less Queues",
     description: "A virtual queue. Scan the code, take a number, walk away.",
     start_url: "/queues",
     display: "standalone",

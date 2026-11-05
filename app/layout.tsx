@@ -2,6 +2,7 @@ import type { JSX } from "react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { handoffConfig, handoffInitScript } from "@/lib/handoff";
 import { reelInitScript } from "@/lib/reel";
 import { DEFAULT_PREFERENCE, resolveTheme, themeInitScript } from "@/lib/theme";
 import "./globals.css";
@@ -25,8 +26,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Qless — stop waiting in line",
-    template: "%s · Qless",
+    default: "Less Queues — Take back your time",
+    template: "%s · Less Queues",
   },
   description:
     "Scan the code, take your number, and go and live your life. Your place is held and your phone tells you when to come back.",
@@ -47,6 +48,9 @@ export const viewport: Viewport = {
   ],
 };
 
+// Set per deployment: the old addresses that hand their visitors over to this one.
+const handoff = handoffConfig(process.env.SITE_URL, process.env.LEGACY_HOSTS);
+
 export default function RootLayout({ children }: LayoutProps<"/">): JSX.Element {
   return (
     <html
@@ -56,6 +60,8 @@ export default function RootLayout({ children }: LayoutProps<"/">): JSX.Element 
       suppressHydrationWarning
     >
       <head>
+        {/* First, so an old address moves on before anything paints. */}
+        {handoff && <script dangerouslySetInnerHTML={{ __html: handoffInitScript(handoff) }} />}
         {/* Applies the stored theme before first paint, so the shell is never
             painted in the wrong colour and then corrected. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />

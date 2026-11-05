@@ -31,7 +31,7 @@ export function AccessNotice({ outcome, role, what }: AccessNoticeProps): JSX.El
         chip="!"
         action={<LinkButton href="/queues">My queues</LinkButton>}
       >
-        You are still signed in — this one is simply not yours to open. An address in Qless says
+        You are still signed in — this one is simply not yours to open. An address in Less Queues says
         what a thing is, never who may open it. Whatever you can run is on your own list.
       </Notice>
     );

@@ -71,7 +71,7 @@ function BackFace(): JSX.Element {
       <div className="flex items-start justify-between gap-3">
         <span className="inline-flex items-center gap-2.5">
           <Mark size={22} className="shrink-0 text-paper-ink" />
-          <span className="text-[15px] font-medium tracking-[-0.01em] text-paper-ink">Qless</span>
+          <span className="text-[15px] font-medium tracking-[-0.01em] text-paper-ink">Less Queues</span>
         </span>
         <TicketBadge>Admit one</TicketBadge>
       </div>

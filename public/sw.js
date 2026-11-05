@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
       );
       if (onScreen) return;
 
-      await self.registration.showNotification(data.title || "Qless", {
+      await self.registration.showNotification(data.title || "Less Queues", {
         body: data.body || "",
         tag: data.tag || "qless",
         renotify: true,
