@@ -85,7 +85,7 @@ export function writeSession(key: string, value: string): void {
   notify();
 }
 
-function removeSession(key: string): void {
+export function removeSession(key: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(key);

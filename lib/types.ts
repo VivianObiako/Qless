@@ -611,3 +611,35 @@ export function entryIsStale(state: PublicState, entry: QueueEntry | null): bool
   }
 }
 
+
+/** The operator's view of the whole service. Counts and queue names only. */
+export interface AdminResponse {
+  health: {
+    databaseMs: number;
+    uptimeSec: number;
+    /** Empty outside Render. */
+    commit: string;
+    push: boolean;
+  };
+  stats: {
+    businesses: number;
+    queues: number;
+    queuesLast7d: number;
+    queuesLast30d: number;
+    activeQueues7d: number;
+    joinsLast7d: number;
+    joinsLast30d: number;
+    servedLast30d: number;
+    waitingNow: number;
+    pushSubscribers: number;
+    joinsByDay: { day: string; joins: number }[];
+    topQueues: {
+      name: string;
+      slug: string;
+      createdAt: string;
+      archivedAt: string | null;
+      joins30d: number;
+      lastJoinAt: string | null;
+    }[];
+  };
+}

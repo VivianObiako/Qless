@@ -144,6 +144,14 @@ export default function LandingPage(): JSX.Element {
           </ol>
         </section>
       </main>
+
+      <footer className="border-t border-shell-line">
+        <div className="mx-auto flex w-full max-w-[1400px] justify-end px-6 py-4 lg:px-10 xl:px-14">
+          <Link href="/privacy" className="text-[13px] text-muted transition-colors hover:text-strong">
+            Privacy
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }
