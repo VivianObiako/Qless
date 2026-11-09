@@ -18,8 +18,9 @@ export function HomeScreenHint(): JSX.Element | null {
 
   return (
     <Notice title="On iPhone? Do this before you join" chip="!">
-      iPhones only send alerts from the Home Screen. Tap Share, then Add to Home Screen, open Less Queues
-      from there and take your number. Or join here and keep this page open.
+      iPhones only send alerts from the Home Screen. Open Safari&rsquo;s Share menu and choose Add to Home
+      Screen (it may be under View More), then open Less Queues from there and take your number. Or join
+      here and keep this page open.
     </Notice>
   );
 }
