@@ -97,8 +97,8 @@ export function RecoveryCode({
         Save your recovery code
       </h1>
       <p className="mt-3 max-w-md text-[15px] leading-[1.6] text-dim">
-        This is how you get back to your queues on a new phone or a new laptop. We show it once and
-        we cannot show it again.
+        This device is already signed in. Save this code to open your queues on another phone or
+        laptop later. We only show it once.
       </p>
 
       <TicketCard className="recovery-ticket mt-8 p-[22px]">

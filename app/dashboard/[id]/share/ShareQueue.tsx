@@ -22,6 +22,7 @@ import {
 } from "@/lib/session";
 import { useIsClient, useOrigin, useStoredValue } from "@/hooks/useStoredValue";
 import { wordingFor } from "@/lib/phrases";
+import { canShareLinks, copyQueueLink, shareQueueLink } from "@/lib/share";
 import type { Queue } from "@/lib/types";
 
 const shareQrId = "share-qr";
@@ -126,17 +127,8 @@ function Sharing({ queue }: { queue: Queue }): JSX.Element {
   const origin = useOrigin();
   const customerUrl = `${origin}/q/${queue.slug}`;
 
-  async function copyLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(customerUrl);
-      toast.success("Link copied");
-    } catch {
-      toast.error("Couldn't copy. Select the link and copy it manually.");
-    }
-  }
-
   function downloadQr(): void {
-    if (downloadQrPng(shareQrId, `qless-${queue.slug}.png`)) {
+    if (downloadQrPng(shareQrId, `lessqueues-${queue.slug}.png`)) {
       toast.success("QR code saved");
     } else {
       toast.error("Couldn't save the QR code. Try the print sheet instead.");
@@ -168,9 +160,15 @@ function Sharing({ queue }: { queue: Queue }): JSX.Element {
             {customerUrl || `/q/${queue.slug}`}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="contrast" size="md" onClick={copyLink}>
+            <Button variant="contrast" size="md" onClick={() => void copyQueueLink(customerUrl)} disabled={!origin}>
               Copy link
             </Button>
+            {/* Origin is only known in the browser, so this never renders on the server. */}
+            {origin && canShareLinks() && (
+              <Button variant="ghost" size="md" onClick={() => void shareQueueLink(queue.name, customerUrl)}>
+                Share link
+              </Button>
+            )}
             <Button variant="ghost" size="md" onClick={downloadQr} disabled={!origin}>
               Download QR
             </Button>

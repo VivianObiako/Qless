@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
 import { MonoLabel } from "@/components/Label";
+import { MakeYourOwn } from "@/components/MakeYourOwn";
 import { Notice } from "@/components/Notice";
 import { Numeral } from "@/components/Numeral";
 import { Perforation, TicketCard } from "@/components/TicketCard";
@@ -237,6 +238,8 @@ function JoinScreen({
           </MonoLabel>
         </>
       )}
+
+      <MakeYourOwn className="pt-2" />
     </PlainShell>
   );
 }

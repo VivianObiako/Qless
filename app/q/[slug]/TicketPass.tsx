@@ -6,6 +6,7 @@ import { Board } from "@/components/Board";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
+import { MakeYourOwn } from "@/components/MakeYourOwn";
 import { MonoLabel } from "@/components/Label";
 import { Notice } from "@/components/Notice";
 import { Numeral } from "@/components/Numeral";
@@ -13,6 +14,7 @@ import { Perforation, TicketBadge, TicketCard, TicketProgress } from "@/componen
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Wordmark } from "@/components/Wordmark";
 import { useTurnNotifications, type AlertPermission } from "@/hooks/useTurnNotifications";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import { deriveBoardRows } from "@/lib/board";
 import { wordingFor } from "@/lib/phrases";
 import {
@@ -110,6 +112,8 @@ export function TicketPass({
     slug,
     customerToken,
   });
+  // Without a server push the open page is the only alert, so it must not go dark.
+  useWakeLock(!alerts.pushed);
 
   // The server refuses a cancel here too; this only stops offering one. Absent
   // means an API older than the setting, which always allowed it.
@@ -253,7 +257,10 @@ function AlertsNotice({
           close it.
         </>
       ) : (
-        <>Keep this page open and it will keep up. Your place is held if you close it.</>
+        <>
+          This browser can&rsquo;t alert you, so keep this page open to see your turn coming. Your
+          place is held if you close it.
+        </>
       )}
     </Notice>
   );
@@ -407,6 +414,9 @@ function WaitingScreen({
               <LeaveNote />
             )}
           </div>
+
+          {/* Only while waiting: from "next" on, nothing competes with the number. */}
+          {!close && <MakeYourOwn className="pt-2" />}
         </div>
       </div>
     </Shell>
