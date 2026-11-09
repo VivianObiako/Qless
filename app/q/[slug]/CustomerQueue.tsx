@@ -15,7 +15,6 @@ import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
 import { wordingFor, type CallWording } from "@/lib/phrases";
 import { hasFixedPlaces, hasRandomNumbers, isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
-import { HomeScreenHint } from "./HomeScreenHint";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
 import { getCustomerToken } from "@/lib/session";
@@ -223,7 +222,6 @@ function JoinScreen({
 
       {canJoin && (
         <>
-          <HomeScreenHint />
           <JoinQueueForm
             onJoin={onJoin}
             joining={joining}
