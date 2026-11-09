@@ -1,4 +1,5 @@
 import type {
+  AdminResponse,
   CreateOperatorInput,
   CreateQueueInput,
   CreateQueueResponse,
@@ -464,4 +465,8 @@ export function leaveSeat(queueId: string, seatId: string, sessionToken: string)
     `/api/queues/${encodeURIComponent(queueId)}/seats/${encodeURIComponent(seatId)}/leave`,
     { method: "POST", sessionToken },
   );
+}
+
+export function getAdminStats(adminKey: string, signal?: AbortSignal): Promise<AdminResponse> {
+  return request<AdminResponse>("/api/admin/stats", { sessionToken: adminKey, signal });
 }
