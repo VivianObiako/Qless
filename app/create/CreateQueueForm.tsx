@@ -12,6 +12,7 @@ import { Perforation, TicketCard } from "@/components/TicketCard";
 import { RecoveryCode } from "@/components/RecoveryCode";
 import { ApiError, createQueue } from "@/lib/api";
 import { sessionTokenKey, setSession } from "@/lib/session";
+import { shareQueueLink } from "@/lib/share";
 import { useOrigin, useStoredValue } from "@/hooks/useStoredValue";
 import type { CreateQueueResponse, Queue } from "@/lib/types";
 
@@ -223,17 +224,8 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
   // browser history and in every screenshot is not where a credential belongs.
   const dashboardUrl = `/dashboard/${queue.id}`;
 
-  async function copyLink(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(customerUrl);
-      toast.success("Link copied");
-    } catch {
-      toast.error("Couldn't copy. Select the link and copy it manually.");
-    }
-  }
-
   function downloadQr(): void {
-    if (downloadQrPng(readyQrId, `qless-${queue.slug}.png`)) {
+    if (downloadQrPng(readyQrId, `lessqueues-${queue.slug}.png`)) {
       toast.success("QR code saved");
     } else {
       toast.error("Couldn't save the QR code. Try the print sheet instead.");
@@ -278,8 +270,8 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
       </TicketCard>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="ghost" onClick={copyLink}>
-          Copy link
+        <Button variant="ghost" onClick={() => void shareQueueLink(queue.name, customerUrl)} disabled={!origin}>
+          Share link
         </Button>
         <Button variant="ghost" onClick={downloadQr} disabled={!origin}>
           Download QR
