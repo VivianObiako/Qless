@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type JSX, type ReactNode } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
@@ -240,6 +241,9 @@ function JoinScreen({
       )}
 
       <MakeYourOwn className="pt-2" />
+      <Link href="/privacy" className="self-center text-[12px] text-muted underline underline-offset-4 hover:text-strong">
+        Privacy
+      </Link>
     </PlainShell>
   );
 }
