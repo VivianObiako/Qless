@@ -12,7 +12,7 @@ import { Perforation, TicketCard } from "@/components/TicketCard";
 import { RecoveryCode } from "@/components/RecoveryCode";
 import { ApiError, createQueue } from "@/lib/api";
 import { sessionTokenKey, setSession } from "@/lib/session";
-import { shareQueueLink } from "@/lib/share";
+import { canShareLinks, copyQueueLink, shareQueueLink } from "@/lib/share";
 import { useOrigin, useStoredValue } from "@/hooks/useStoredValue";
 import type { CreateQueueResponse, Queue } from "@/lib/types";
 
@@ -270,9 +270,14 @@ function QueueReady({ queue }: { queue: Queue }): JSX.Element {
       </TicketCard>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="ghost" onClick={() => void shareQueueLink(queue.name, customerUrl)} disabled={!origin}>
-          Share link
+        <Button variant="ghost" onClick={() => void copyQueueLink(customerUrl)} disabled={!origin}>
+          Copy link
         </Button>
+        {origin && canShareLinks() && (
+          <Button variant="ghost" onClick={() => void shareQueueLink(queue.name, customerUrl)}>
+            Share link
+          </Button>
+        )}
         <Button variant="ghost" onClick={downloadQr} disabled={!origin}>
           Download QR
         </Button>
