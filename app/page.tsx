@@ -16,7 +16,7 @@ interface Step {
 }
 
 const steps: Step[] = [
-  { number: "01", title: "Scan the code", detail: "On the door, the counter, the table." },
+  { number: "01", title: "Scan or tap the link", detail: "On the door, the counter, or shared in a message." },
   { number: "02", title: "Give a name", detail: "Nothing else. No sign-up, no number." },
   { number: "03", title: "Walk away", detail: "Your place is held whether the tab is open or not." },
   { number: "04", title: "Get the nudge", detail: "Three away, one away, your turn." },

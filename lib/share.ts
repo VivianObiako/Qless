@@ -2,7 +2,7 @@ import { toast } from "sonner";
 
 /**
  * Opens the phone's own share sheet (WhatsApp, X, Instagram, SMS: whatever is
- * installed), and copies the link where there is no sheet, as on most laptops.
+ * installed), and copies the link if the sheet fails.
  */
 export async function shareQueueLink(queueName: string, url: string): Promise<void> {
   const data: ShareData = {
@@ -21,10 +21,19 @@ export async function shareQueueLink(queueName: string, url: string): Promise<vo
     }
   }
 
+  await copyQueueLink(url);
+}
+
+export async function copyQueueLink(url: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(url);
     toast.success("Link copied");
   } catch {
     toast.error("Couldn't copy. Select the link and copy it manually.");
   }
+}
+
+/** Phones, and Safari and Chrome on a Mac; most Windows browsers have no sheet. */
+export function canShareLinks(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.share === "function";
 }
