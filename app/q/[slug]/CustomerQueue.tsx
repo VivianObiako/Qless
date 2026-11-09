@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LiveIndicator, type ConnectionState } from "@/components/LiveIndicator";
 import { MonoLabel } from "@/components/Label";
+import { MakeYourOwn } from "@/components/MakeYourOwn";
 import { Notice } from "@/components/Notice";
 import { Numeral } from "@/components/Numeral";
 import { Perforation, TicketCard } from "@/components/TicketCard";
@@ -14,6 +15,7 @@ import { Wordmark } from "@/components/Wordmark";
 import { useCustomerQueue } from "@/hooks/useCustomerQueue";
 import { wordingFor, type CallWording } from "@/lib/phrases";
 import { hasFixedPlaces, hasRandomNumbers, isDraw, nounFor, type CustomerView, type QueueEntry } from "@/lib/types";
+import { HomeScreenHint } from "./HomeScreenHint";
 import { JoinQueueForm } from "./JoinQueueForm";
 import { TicketPass } from "./TicketPass";
 import { getCustomerToken } from "@/lib/session";
@@ -221,6 +223,7 @@ function JoinScreen({
 
       {canJoin && (
         <>
+          <HomeScreenHint />
           <JoinQueueForm
             onJoin={onJoin}
             joining={joining}
@@ -237,6 +240,8 @@ function JoinScreen({
           </MonoLabel>
         </>
       )}
+
+      <MakeYourOwn className="pt-2" />
     </PlainShell>
   );
 }
